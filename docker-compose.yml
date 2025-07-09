@@ -1,0 +1,36 @@
+services:
+  backend:
+    build: .
+    # For development, use run.py for Flask's built-in server with hot reloading
+    command: python run.py
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE_URL=postgresql://dev:dev@postgres/myapp
+      - FLASK_ENV=development
+      - DEBUG=True
+      # Pass Sentry DSN from host .env
+      - SENTRY_DSN=${SENTRY_DSN}
+      - SENTRY_TRACES_SAMPLE_RATE=${SENTRY_TRACES_SAMPLE_RATE}
+      - SENTRY_PROFILES_SAMPLE_RATE=${SENTRY_PROFILES_SAMPLE_RATE}
+      - APP_VERSION=${APP_VERSION}
+      # Pass Clerk variables from host .env
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+    volumes:
+      - .:/app # Bind mount for hot reloading
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=myapp
+      - POSTGRES_USER=dev
+      - POSTGRES_PASSWORD=dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:
