@@ -9,9 +9,9 @@ def health():
     db_status = "disconnected"
     try:
         # Access db from current_app context
-        with current_app.extensions["sqlalchemy"].db.engine.connect() as con:
+        with current_app.extensions["sqlalchemy"].engine.connect() as con:
             con.execute(
-                current_app.extensions["sqlalchemy"].db.text("SELECT 1")
+                current_app.extensions["sqlalchemy"].text("SELECT 1")
             )
         db_status = "connected"
     except Exception as e:
@@ -62,12 +62,12 @@ def sentry_test():
 def sentry_db_test():
     try:
         # Access db from current_app context
-        current_app.extensions["sqlalchemy"].db.session.execute(
-            current_app.extensions["sqlalchemy"].db.text(
+        current_app.extensions["sqlalchemy"].session.execute(
+            current_app.extensions["sqlalchemy"].text(
                 "SELECT non_existent_column FROM users"
             )
         )
-        current_app.extensions["sqlalchemy"].db.session.commit()
+        current_app.extensions["sqlalchemy"].session.commit()
     except Exception as e:
         print(f"Database error occurred: {e}")
         return jsonify({"message": f"Database error triggered: {e}"}), 500

@@ -11,6 +11,10 @@ from clerk_backend_api import Clerk
 # Import extensions from the extensions module
 from .extensions import db, migrate, cors
 
+# Import models to ensure they are registered with SQLAlchemy
+from . import models 
+
+
 
 def create_app(config_class=None):
     """
