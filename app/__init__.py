@@ -86,6 +86,10 @@ def create_app(config_class=None):
                 "allow_headers": app.config.get("CORS_ALLOW_HEADERS", ["Content-Type"])
             }},
         )
+        print(f"DEBUG: Configured CORS_ORIGINS: {app.config.get('CORS_ORIGINS')}") # Added this specifically
+        print(f"DEBUG: CORS instance origins: {cors.origins}")
+        print(f"DEBUG: CORS instance supports_credentials: {cors.supports_credentials}")
+        print(f"DEBUG: CORS instance allow_headers: {cors.default_allow_headers}")
         print(f"CORS initialized for production with origins: {app.config.get('CORS_ORIGINS')}")
     else: # For development, use simpler CORS or specific dev settings
         cors.init_app(
