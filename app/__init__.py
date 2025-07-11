@@ -89,11 +89,6 @@ def create_app(config_class=None):
                 "allow_headers": configured_allow_headers
             }},
         )
-        # Use the variables that you pass to init_app for debugging
-        print(f"DEBUG: CORS initialized for {app.config['FLASK_ENV']} with parameters:")
-        print(f"DEBUG:   Origins: {configured_origins}")
-        print(f"DEBUG:   Supports Credentials: {configured_supports_credentials}")
-        print(f"DEBUG:   Allow Headers: {configured_allow_headers}")
     else: # For development, use simpler CORS or specific dev settings
         cors.init_app(
             app,
@@ -103,7 +98,6 @@ def create_app(config_class=None):
                 "allow_headers": ["Content-Type", "Authorization"] # Be explicit for dev
             }},
         )
-        print("CORS initialized for development (allowing all origins).")
 
 
     # --- Register Blueprints ---
