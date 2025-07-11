@@ -1,4 +1,5 @@
 # Use Python 3.11 slim image for smaller size
+# Please keep version same as .python_version used for defining Heroku python version
 FROM python:3.11-slim
 
 # Set working directory
