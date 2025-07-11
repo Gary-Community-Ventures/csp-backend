@@ -78,19 +78,22 @@ def create_app(config_class=None):
     # --- CORS Configuration ---
     # For production, use the configured origins, credentials, and headers
     if app.config["FLASK_ENV"] == ENV_PRODUCTION or app.config["FLASK_ENV"] == ENV_STAGING:
+        configured_origins = app.config.get("CORS_ORIGINS", [])
+        configured_supports_credentials = app.config.get("CORS_SUPPORTS_CREDENTIALS", False)
+        configured_allow_headers = app.config.get("CORS_ALLOW_HEADERS", ["Content-Type"])
         cors.init_app(
             app,
             resources={r"/*": {
-                "origins": app.config.get("CORS_ORIGINS", []),
-                "supports_credentials": app.config.get("CORS_SUPPORTS_CREDENTIALS", False),
-                "allow_headers": app.config.get("CORS_ALLOW_HEADERS", ["Content-Type"])
+                "origins": configured_origins,
+                "supports_credentials": configured_supports_credentials,
+                "allow_headers": configured_allow_headers
             }},
         )
-        print(f"DEBUG: Configured CORS_ORIGINS: {app.config.get('CORS_ORIGINS')}") # Added this specifically
-        print(f"DEBUG: CORS instance origins: {cors.origins}")
-        print(f"DEBUG: CORS instance supports_credentials: {cors.supports_credentials}")
-        print(f"DEBUG: CORS instance allow_headers: {cors.default_allow_headers}")
-        print(f"CORS initialized for production with origins: {app.config.get('CORS_ORIGINS')}")
+        # Use the variables that you pass to init_app for debugging
+        print(f"DEBUG: CORS initialized for {app.config['FLASK_ENV']} with parameters:")
+        print(f"DEBUG:   Origins: {configured_origins}")
+        print(f"DEBUG:   Supports Credentials: {configured_supports_credentials}")
+        print(f"DEBUG:   Allow Headers: {configured_allow_headers}")
     else: # For development, use simpler CORS or specific dev settings
         cors.init_app(
             app,
