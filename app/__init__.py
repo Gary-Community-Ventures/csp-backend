@@ -71,6 +71,10 @@ def create_app(config_class=None):
         app.clerk_client = Clerk(bearer_auth=clerk_secret_key)
         print("Clerk SDK initialized successfully.")
 
+    # --- Initialize Flask Extensions (after app config) ---
+    db.init_app(app)
+    migrate.init_app(app, db)
+    
     # --- CORS Configuration ---
     # For production, use the configured origins, credentials, and headers
     if app.config["FLASK_ENV"] == ENV_PRODUCTION or app.config["FLASK_ENV"] == ENV_STAGING:
@@ -93,11 +97,6 @@ def create_app(config_class=None):
             }},
         )
         print("CORS initialized for development (allowing all origins).")
-
-    # --- Initialize Flask Extensions (after app config) ---
-    db.init_app(app)
-    migrate.init_app(app, db)
-    cors.init_app(app)
 
     # --- Register Blueprints ---
     from .routes.main import main_bp
