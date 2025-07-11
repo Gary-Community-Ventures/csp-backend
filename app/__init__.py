@@ -105,7 +105,6 @@ def create_app(config_class=None):
         )
         print("CORS initialized for development (allowing all origins).")
 
-    print(f"DEBUG: CORS origins applied: {cors.origins}")
 
     # --- Register Blueprints ---
     from .routes.main import main_bp
