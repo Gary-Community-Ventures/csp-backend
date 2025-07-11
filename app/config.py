@@ -46,6 +46,9 @@ class ProductionConfig(Config):
         os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "0.05")
     )
     # Consider stricter CORS policies for production
-    CORS_ORIGINS = ["https://your-frontend-domain.com"]
+    CORS_ORIGINS = os.getenv(
+        "CORS_ORIGINS",
+        "",
+    ).split(",")
     CORS_SUPPORTS_CREDENTIALS = True  # If using cookies/auth headers
     CORS_ALLOW_HEADERS = ["Content-Type", "Authorization"]
