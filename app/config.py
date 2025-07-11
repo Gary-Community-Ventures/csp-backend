@@ -1,6 +1,10 @@
-# app/config.py
 import os
 
+# --- Environment Constants ---
+ENV_DEVELOPMENT = "development"
+ENV_STAGING = "staging"
+ENV_PRODUCTION = "production"
+# --- End Environment Constants ---
 
 class Config:
     """Base configuration."""
@@ -32,6 +36,27 @@ class DevelopmentConfig(Config):
     CORS_HEADERS = "Content-Type"  # Example CORS setting
 
 
+class StagingConfig(Config):
+    """Staging configuration."""
+
+    DEBUG = True
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        "DATABASE_URL"
+    )
+    SENTRY_TRACES_SAMPLE_RATE = float(
+        os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.5")
+    )
+    SENTRY_PROFILES_SAMPLE_RATE = float(
+        os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "0.25")
+    )
+    CORS_ORIGINS = os.getenv(
+        "CORS_ORIGINS",
+        "",
+    ).split(",")
+    CORS_SUPPORTS_CREDENTIALS = True
+    CORS_ALLOW_HEADERS = ["Content-Type", "Authorization"]
+
+
 class ProductionConfig(Config):
     """Production configuration."""
 
@@ -45,10 +70,9 @@ class ProductionConfig(Config):
     SENTRY_PROFILES_SAMPLE_RATE = float(
         os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "0.05")
     )
-    # Consider stricter CORS policies for production
     CORS_ORIGINS = os.getenv(
         "CORS_ORIGINS",
         "",
     ).split(",")
-    CORS_SUPPORTS_CREDENTIALS = True  # If using cookies/auth headers
+    CORS_SUPPORTS_CREDENTIALS = True
     CORS_ALLOW_HEADERS = ["Content-Type", "Authorization"]

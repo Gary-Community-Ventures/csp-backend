@@ -7,6 +7,7 @@ from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
 from clerk_backend_api import Clerk
+from .config import ENV_DEVELOPMENT, ENV_STAGING, ENV_PRODUCTION
 
 # Import extensions from the extensions module
 from .extensions import db, migrate, cors
@@ -28,10 +29,13 @@ def create_app(config_class=None):
     # --- Configuration ---
     if config_class is None:
         # Determine configuration based on FLASK_ENV environment variable
-        env = os.getenv("FLASK_ENV", "development")
-        if env == "production":
+        env = os.getenv("FLASK_ENV", ENV_DEVELOPMENT)
+        if env == ENV_PRODUCTION:
             from .config import ProductionConfig
             config_class = ProductionConfig
+        elif env == ENV_STAGING:
+            from .config import StagingConfig
+            config_class = StagingConfig
         else:  # Default to development
             from .config import DevelopmentConfig
             config_class = DevelopmentConfig
@@ -66,6 +70,29 @@ def create_app(config_class=None):
     else:
         app.clerk_client = Clerk(bearer_auth=clerk_secret_key)
         print("Clerk SDK initialized successfully.")
+
+    # --- CORS Configuration ---
+    # For production, use the configured origins, credentials, and headers
+    if app.config["FLASK_ENV"] == ENV_PRODUCTION or app.config["FLASK_ENV"] == ENV_STAGING:
+        cors.init_app(
+            app,
+            resources={r"/*": {
+                "origins": app.config.get("CORS_ORIGINS", []),
+                "supports_credentials": app.config.get("CORS_SUPPORTS_CREDENTIALS", False),
+                "allow_headers": app.config.get("CORS_ALLOW_HEADERS", ["Content-Type"])
+            }},
+        )
+        print(f"CORS initialized for production with origins: {app.config.get('CORS_ORIGINS')}")
+    else: # For development, use simpler CORS or specific dev settings
+        cors.init_app(
+            app,
+            resources={r"/*": {
+                "origins": "*",  # Allow all for development
+                "supports_credentials": True,
+                "allow_headers": ["Content-Type", "Authorization"] # Be explicit for dev
+            }},
+        )
+        print("CORS initialized for development (allowing all origins).")
 
     # --- Initialize Flask Extensions (after app config) ---
     db.init_app(app)
