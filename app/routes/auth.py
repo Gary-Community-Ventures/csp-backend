@@ -3,10 +3,10 @@ from flask import Blueprint, jsonify, g
 from ..auth.decorators import auth_required, auth_optional
 from ..auth.helpers import get_current_user, is_authenticated
 
-auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
+bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
-@auth_bp.route("/protected")
+@bp.route("/protected")
 @auth_required
 def protected_route():
     """Protected route requiring authentication"""
@@ -17,7 +17,7 @@ def protected_route():
     })
 
 
-@auth_bp.route("/user")
+@bp.route("/user")
 @auth_optional
 def user_info():
     """Route that works with or without authentication"""
@@ -34,7 +34,7 @@ def user_info():
         return jsonify({"authenticated": False})
 
 
-@auth_bp.route("/me")
+@bp.route("/me")
 @auth_required
 def get_user_details():
     """Get detailed user information from the token payload"""
@@ -51,7 +51,7 @@ def get_user_details():
     })
 
 
-@auth_bp.route("/status")
+@bp.route("/status")
 def auth_status():
     """Check authentication status using helper function"""
     user = get_current_user()

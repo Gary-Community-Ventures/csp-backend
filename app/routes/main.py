@@ -1,27 +1,22 @@
 from flask import Blueprint, jsonify, current_app
 
-main_bp = Blueprint("main", __name__)
+bp = Blueprint("main", __name__)
 
 
 # Health check endpoint
-@main_bp.route("/health")
+@bp.route("/health")
 def health():
     db_status = "disconnected"
     try:
         # Access db from current_app context
         with current_app.extensions["sqlalchemy"].engine.connect() as con:
-            con.execute(
-                current_app.extensions["sqlalchemy"].text("SELECT 1")
-            )
+            con.execute(current_app.extensions["sqlalchemy"].text("SELECT 1"))
         db_status = "connected"
     except Exception as e:
         db_status = f"failed: {e}"
 
     clerk_status = "not initialized"
-    if (
-        hasattr(current_app, "clerk_client")
-        and current_app.clerk_client is not None
-    ):
+    if hasattr(current_app, "clerk_client") and current_app.clerk_client is not None:
         clerk_status = "initialized"
 
     return (
@@ -40,7 +35,7 @@ def health():
 
 
 # Basic route
-@main_bp.route("/")
+@bp.route("/")
 def index():
     return jsonify(
         {
@@ -51,34 +46,25 @@ def index():
 
 
 # Sentry Test Route (for demonstration purposes, remove in production)
-@main_bp.route("/sentry-test")
+@bp.route("/sentry-test")
 def sentry_test():
     _ = 1 / 0
     return "This should not be reached if Sentry captures the error."
 
 
 # Database Sentry Test Route (for demonstration purposes, remove in production)
-@main_bp.route("/sentry-db-test")
+@bp.route("/sentry-db-test")
 def sentry_db_test():
     try:
         # Access db from current_app context
         current_app.extensions["sqlalchemy"].session.execute(
-            current_app.extensions["sqlalchemy"].text(
-                "SELECT non_existent_column FROM users"
-            )
+            current_app.extensions["sqlalchemy"].text("SELECT non_existent_column FROM users")
         )
         current_app.extensions["sqlalchemy"].session.commit()
     except Exception as e:
         print(f"Database error occurred: {e}")
         return jsonify({"message": f"Database error triggered: {e}"}), 500
     return (
-        jsonify(
-            {
-                "message": (
-                    "Database operation attempted ",
-                    "(might have failed and been captured by Sentry)"
-                )
-            }
-        ),
+        jsonify({"message": ("Database operation attempted ", "(might have failed and been captured by Sentry)")}),
         200,
     )
