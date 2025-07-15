@@ -16,6 +16,7 @@ class Config:
     SENTRY_TRACES_SAMPLE_RATE = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "1.0"))
     SENTRY_PROFILES_SAMPLE_RATE = float(os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "1.0"))
     APP_VERSION = os.getenv("APP_VERSION", "1.0.0")  # Example for Sentry release tracking
+    FRONTEND_DOMAIN = os.getenv("FRONTEND_DOMAIN", "http://localhost:5173")
 
     # Clerk Configuration
     CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
