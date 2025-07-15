@@ -114,4 +114,3 @@ def create_app(config_class=None):
     app.register_blueprint(family_bp)
 
     return app
-
