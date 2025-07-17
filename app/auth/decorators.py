@@ -30,7 +30,6 @@ def _get_authorized_parties():
     """Get authorized parties from config or use defaults"""
     return current_app.config.get(
         "AUTH_AUTHORIZED_PARTIES",
-        ["http://localhost:3000", "http://localhost:5173", "https://yourdomain.com"],  # FIXME:
     )
 
 

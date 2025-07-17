@@ -4,7 +4,7 @@ from app.auth.decorators import ClerkUserType, auth_required
 from datetime import datetime, timedelta
 import random
 
- 
+
 bp = Blueprint("family", __name__)
 
 
