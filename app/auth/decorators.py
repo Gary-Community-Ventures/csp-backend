@@ -2,6 +2,13 @@ import httpx
 from flask import request, abort, g, current_app
 from functools import wraps
 from clerk_backend_api.security.types import AuthenticateRequestOptions
+from enum import Enum
+
+
+class ClerkUserType(Enum):
+    FAMILY = "family"
+    CAREGIVER = "caregiver"
+    NONE = None
 
 
 class AuthenticationError(Exception):
@@ -22,11 +29,12 @@ def _create_httpx_request():
 def _get_authorized_parties():
     """Get authorized parties from config or use defaults"""
     return current_app.config.get(
-        "AUTH_AUTHORIZED_PARTIES", ["http://localhost:3000", "http://localhost:5173", "https://yourdomain.com"]
+        "AUTH_AUTHORIZED_PARTIES",
+        ["http://localhost:3000", "http://localhost:5173", "https://yourdomain.com"],  # FIXME:
     )
 
 
-def _authenticate_request():
+def _authenticate_request(user_type: ClerkUserType):
     """
     Core authentication logic
     Returns: request_state object if authenticated
@@ -45,6 +53,12 @@ def _authenticate_request():
 
         if not request_state.is_signed_in:
             raise AuthenticationError("User is not signed in")
+
+        if user_type == ClerkUserType.NONE:
+            return request_state
+
+        if user_type.value not in request_state.payload.get("data").get("types", []):
+            raise AuthenticationError("User is not authorized")
 
         return request_state
 
@@ -78,6 +92,7 @@ def _set_user_context(request_state):
     g.auth_issued_at = request_state.payload.get("iat", None)
     g.auth_expires_at = request_state.payload.get("exp", None)
     g.auth_issuer = request_state.payload.get("iss", None)
+    g.auth_user_data = request_state.payload.get("data", None)
 
 
 def _clear_user_context():
@@ -88,9 +103,10 @@ def _clear_user_context():
     g.auth_issued_at = None
     g.auth_expires_at = None
     g.auth_issuer = None
+    g.auth_user_data = None
 
 
-def auth_required(f):
+def auth_required(user_type: ClerkUserType):
     """
     Decorator that requires authentication.
     Aborts with 401 if user is not authenticated.
@@ -102,20 +118,24 @@ def auth_required(f):
     - g.auth_issued_at: Issued at timestamp or None
     - g.auth_expires_at: Expiration timestamp or None
     - g.auth_issuer: Issuer URL or None
+    - g.auth_user_data: Custom user data from token or None
     """
 
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        try:
-            request_state = _authenticate_request()
-            _set_user_context(request_state)
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            try:
+                request_state = _authenticate_request(user_type=user_type)
+                _set_user_context(request_state)
 
-            return f(*args, **kwargs)
+                return f(*args, **kwargs)
 
-        except AuthenticationError as e:
-            abort(e.status_code, description=e.args[0])
+            except AuthenticationError as e:
+                abort(e.status_code, description=e.args[0])
 
-    return decorated_function
+        return decorated_function
+
+    return decorator
 
 
 def auth_optional(f):
@@ -135,7 +155,7 @@ def auth_optional(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         try:
-            request_state = _authenticate_request()
+            request_state = _authenticate_request(ClerkUserType.NONE)
             _set_user_context(request_state)
 
         except AuthenticationError as e:

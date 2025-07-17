@@ -1,7 +1,23 @@
+from dataclasses import dataclass
+from typing import Optional
 from flask import g
 
 
-def get_current_user():
+@dataclass
+class UserData:
+    types: list[str]
+    household_id: int
+
+
+@dataclass
+class User:
+    user_id: str
+    session_id: str
+    request_state: any
+    user_data: UserData
+
+
+def get_current_user() -> Optional[User]:
     """
     Helper function to get current user information.
     Returns None if not authenticated.
@@ -9,7 +25,12 @@ def get_current_user():
     if not hasattr(g, "auth_user_id") or not g.auth_user_id:
         return None
 
-    return {"user_id": g.auth_user_id, "session_id": g.auth_session_id, "request_state": g.auth_request_state}
+    return User(
+        user_id=g.auth_user_id,
+        session_id=g.auth_session_id,
+        request_state=g.auth_request_state,
+        user_data=UserData(types=g.auth_user_data["types"], household_id=g.auth_user_data["household_id"]),
+    )
 
 
 def is_authenticated():

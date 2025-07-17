@@ -1,2 +1,0 @@
-CLERK_FAMILY_TYPE = "family"
-CLERK_CAREGIVER_TYPE = "caregiver"

@@ -1,13 +1,13 @@
 from flask import Blueprint, jsonify, g
 
-from ..auth.decorators import auth_required, auth_optional
+from ..auth.decorators import ClerkUserType, auth_required, auth_optional
 from ..auth.helpers import get_current_user, is_authenticated
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
 @bp.route("/protected")
-@auth_required
+@auth_required(ClerkUserType.FAMILY)
 def protected_route():
     """Protected route requiring authentication"""
     return jsonify(
@@ -39,7 +39,7 @@ def user_info():
 
 
 @bp.route("/me")
-@auth_required
+@auth_required(ClerkUserType.FAMILY)
 def get_user_details():
     """Get detailed user information from the token payload"""
     # Access the full token payload
@@ -58,11 +58,14 @@ def get_user_details():
 
 
 @bp.route("/status")
+@auth_optional
 def auth_status():
     """Check authentication status using helper function"""
     user = get_current_user()
 
     if user:
-        return jsonify({"authenticated": True, "user_id": user["user_id"], "session_id": user["session_id"]})
+        return jsonify(
+            {"authenticated": True, "user_id": user.user_id, "session_id": user.session_id, "user_data": user.user_data}
+        )
     else:
         return jsonify({"authenticated": False})
