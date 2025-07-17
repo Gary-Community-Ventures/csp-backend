@@ -30,7 +30,7 @@ def new_family():
 
     clerk.invitations.create(
         request=CreateInvitationRequestBody(
-            email_address=email, redirect_url=f"{fe_domain}/sign-up", public_metadata=meta_data
+            email_address=email, redirect_url=f"{fe_domain}/auth/sign-up", public_metadata=meta_data
         )
     )
 
