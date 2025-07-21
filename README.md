@@ -20,7 +20,7 @@ Clerk frontend.
 
 ### General
 
-#### Build Ad Start All
+#### Build And Start All
 ```
 docker-compose up --build -d
 ```
