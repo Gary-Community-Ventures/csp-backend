@@ -1,9 +1,7 @@
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, jsonify, request, current_app
-
 from app.extensions import db
 from app.models.family import Family
-
 from app.auth.decorators import ClerkUserType, auth_required
 from app.auth.helpers import get_current_user
 from app.sheets.mappings import (
@@ -73,15 +71,13 @@ def family_data():
         abort(401)
 
     family_id = user.user_data.family_id
-    active_child_id = 2  # FIXME: get the actual child id
+    active_child_id = 1  # FIXME: get the actual child id
 
-    family_rows = get_families()
     child_rows = get_children()
     caregiver_child_mapping_rows = get_caregiver_child_mappings()
     caregiver_rows = get_caregivers()
     transaction_rows = get_transactions()
 
-    family_data = get_family(family_id, family_rows)
     child_data = get_child(active_child_id, child_rows)
     family_children = get_family_children(family_id, child_rows)
     caregiver_data = get_child_caregivers(active_child_id, caregiver_child_mapping_rows, caregiver_rows)
