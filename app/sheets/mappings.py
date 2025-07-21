@@ -1,4 +1,4 @@
-from app.sheets.helpers import Key, KeyMap, get_row_by_id, get_rows_by_ids, money_to_float
+from app.sheets.helpers import Key, KeyMap, get_row, get_rows, money_to_float
 from app.sheets.integration import get_sheet_data
 from datetime import datetime
 
@@ -61,7 +61,7 @@ def get_families() -> list[KeyMap]:
 
 
 def get_family(family_id: int, families: list[KeyMap]) -> KeyMap:
-    return get_row_by_id(families, family_id)
+    return get_row(families, family_id)
 
 
 def get_children() -> list[KeyMap]:
@@ -69,7 +69,7 @@ def get_children() -> list[KeyMap]:
 
 
 def get_child(child_id: int, children: list[KeyMap]) -> KeyMap:
-    return get_row_by_id(children, child_id)
+    return get_row(children, child_id)
 
 
 def get_family_children(family_id, children: list[KeyMap]) -> list[KeyMap]:
@@ -86,7 +86,7 @@ def get_caregivers() -> list[KeyMap]:
 
 
 def get_caregiver(caregiver_id: int, caregivers: list[KeyMap]) -> KeyMap:
-    return get_row_by_id(caregivers, caregiver_id)
+    return get_row(caregivers, caregiver_id)
 
 
 def get_caregiver_child_mappings() -> list[KeyMap]:
@@ -96,17 +96,17 @@ def get_caregiver_child_mappings() -> list[KeyMap]:
 def get_caregiver_child_mapping_child(
     caregiver_child_mapping_id: int, caregiver_child_mappings: list[KeyMap], children: list[KeyMap]
 ) -> KeyMap:
-    caregiver_child_mapping = get_row_by_id(caregiver_child_mappings, caregiver_child_mapping_id)
+    caregiver_child_mapping = get_row(caregiver_child_mappings, caregiver_child_mapping_id)
 
-    return get_row_by_id(children, caregiver_child_mapping.get(CaregiverChildMappingColumnNames.CHILD_ID))
+    return get_row(children, caregiver_child_mapping.get(CaregiverChildMappingColumnNames.CHILD_ID))
 
 
 def get_caregiver_child_mapping_caregiver(
     caregiver_child_mapping_id: int, caregiver_child_mappings: list[KeyMap], caregivers: list[KeyMap]
 ) -> KeyMap:
-    caregiver_child_mapping = get_row_by_id(caregiver_child_mappings, caregiver_child_mapping_id)
+    caregiver_child_mapping = get_row(caregiver_child_mappings, caregiver_child_mapping_id)
 
-    return get_row_by_id(caregivers, caregiver_child_mapping.get(CaregiverChildMappingColumnNames.CAREGIVER_ID))
+    return get_row(caregivers, caregiver_child_mapping.get(CaregiverChildMappingColumnNames.CAREGIVER_ID))
 
 
 def get_child_caregivers(
@@ -117,7 +117,7 @@ def get_child_caregivers(
         if mapping.get(CaregiverChildMappingColumnNames.CHILD_ID) == child_id:
             caregiver_ids.append(mapping.get(CaregiverChildMappingColumnNames.CAREGIVER_ID))
 
-    return get_rows_by_ids(caregivers, caregiver_ids)
+    return get_rows(caregivers, caregiver_ids)
 
 
 def get_caregiver_children(
@@ -128,7 +128,7 @@ def get_caregiver_children(
         if mapping.get(CaregiverChildMappingColumnNames.CAREGIVER_ID) == caregiver_id:
             child_ids.append(mapping.get(CaregiverChildMappingColumnNames.CHILD_ID))
 
-    return get_rows_by_ids(children, child_ids)
+    return get_rows(children, child_ids)
 
 
 def get_transactions() -> list[KeyMap]:
@@ -136,7 +136,7 @@ def get_transactions() -> list[KeyMap]:
 
 
 def get_transaction(transaction_id: int, transactions: list[KeyMap]) -> KeyMap:
-    return get_row_by_id(transactions, transaction_id)
+    return get_row(transactions, transaction_id)
 
 
 def get_child_transactions(
@@ -147,4 +147,4 @@ def get_child_transactions(
         if mapping.get(CaregiverChildMappingColumnNames.CHILD_ID) == child_id:
             caregiver_child_ids.append(mapping.get(CaregiverChildMappingColumnNames.ID))
 
-    return get_rows_by_ids(transactions, caregiver_child_ids)
+    return get_rows(transactions, caregiver_child_ids, id_key=TransactionColumnNames.CAREGIVER_CHILD_ID)

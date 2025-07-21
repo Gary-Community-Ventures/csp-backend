@@ -61,7 +61,7 @@ def family_data():
         abort(401)
 
     family_id = user.user_data.household_id
-    active_child_id = 1  # FIXME: get the actual child id
+    active_child_id = 2  # FIXME: get the actual child id
 
     family_rows = get_families()
     child_rows = get_children()
@@ -94,7 +94,7 @@ def family_data():
     transactions = [
         {
             "id": t.get(TransactionColumnNames.ID),
-            "caregiver": get_caregiver_child_mapping_caregiver(
+            "name": get_caregiver_child_mapping_caregiver(
                 t.get(TransactionColumnNames.CAREGIVER_CHILD_ID), caregiver_child_mapping_rows, caregiver_rows
             ).get(CaregiverColumnNames.NAME),
             "amount": t.get(TransactionColumnNames.AMOUNT),

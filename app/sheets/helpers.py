@@ -26,18 +26,18 @@ class KeyMap(dict):
 ID_COLUMN_KEY = Key("ID", int)
 
 
-def get_row_by_id(data: list[KeyMap], id: int) -> KeyMap:
+def get_row(data: list[KeyMap], id: int, id_key: Key[int] = ID_COLUMN_KEY) -> KeyMap:
     for item in data:
-        if item.get(ID_COLUMN_KEY) == id:
+        if item.get(id_key) == id:
             return item
 
     return None
 
 
-def get_rows_by_ids(data: list[KeyMap], ids: list[int]) -> list[KeyMap]:
+def get_rows(data: list[KeyMap], ids: list[int], id_key: Key[int] = ID_COLUMN_KEY) -> list[KeyMap]:
     items = []
     for item in data:
-        if item.get(ID_COLUMN_KEY) in ids:
+        if item.get(id_key) in ids:
             items.append(item)
 
     return items
