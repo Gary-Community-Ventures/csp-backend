@@ -1,4 +1,4 @@
-from .household import Household
+from .family import Family
 from .caregiver import Caregiver
 
-__all__ = ['Household', 'Caregiver']
+__all__ = ['Family', 'Caregiver']

@@ -2,7 +2,7 @@ from ..extensions import db
 from .mixins import TimestampMixin
 
 
-class Household(db.Model, TimestampMixin):
+class Family(db.Model, TimestampMixin):
     id = db.Column(db.Integer, primary_key=True)
 
     google_sheet_id = db.Column(
@@ -10,7 +10,7 @@ class Household(db.Model, TimestampMixin):
     )
     
     def __repr__(self):
-        return f"<Household {self.id} - Google Sheet ID: {self.google_sheet_id}>"
+        return f"<Family {self.id} - Google Sheet ID: {self.google_sheet_id}>"
     
     def to_dict(self):
         return {
@@ -22,6 +22,6 @@ class Household(db.Model, TimestampMixin):
 
     @staticmethod
     def from_dict(data):
-        return Household(
+        return Family(
             google_sheet_id=data.get("google_sheet_id"),
         )

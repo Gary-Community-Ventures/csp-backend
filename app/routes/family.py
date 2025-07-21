@@ -2,7 +2,7 @@ from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, jsonify, request, current_app
 
 from app.extensions import db
-from app.models.household import Household
+from app.models.family import Family
 
 from app.auth.decorators import ClerkUserType, auth_required
 from datetime import datetime, timedelta
@@ -24,12 +24,12 @@ def new_family():
     if 'email' not in data:
         abort(400, description="Missing required field: email")
 
-    if Household.query.filter_by(google_sheet_id=data['google_sheet_id']).first():
-        abort(409, description=f"A household with that Google Sheet ID already exists.")
+    if Family.query.filter_by(google_sheet_id=data['google_sheet_id']).first():
+        abort(409, description=f"A family with that Google Sheet ID already exists.")
 
-    # Create new household
-    household = Household.from_dict(data)
-    db.session.add(household)
+    # Create new family
+    family = Family.from_dict(data)
+    db.session.add(family)
     db.session.commit()
 
     # send clerk invite
@@ -37,7 +37,7 @@ def new_family():
     fe_domain = current_app.config.get("FRONTEND_DOMAIN")
     meta_data = {
         "types": [ClerkUserType.FAMILY],  # NOTE: list in case we need to have people who fit into multiple categories
-        "household_id": household.id,  
+        "family_id": family.id,  
     }
 
     clerk.invitations.create(
