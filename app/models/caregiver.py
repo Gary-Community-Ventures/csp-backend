@@ -12,13 +12,6 @@ class Caregiver(db.Model, TimestampMixin):
     def __repr__(self):
         return f"<Caregiver {self.id} - Google Sheet ID: {self.google_sheet_id}>"
     
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
-            "google_sheet_id": self.google_sheet_id,
-        }
 
     @staticmethod
     def from_dict(data):
