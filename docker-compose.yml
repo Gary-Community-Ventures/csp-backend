@@ -8,7 +8,7 @@ services:
     depends_on:
       - postgres
     environment:
-      - DATABASE_URL=postgresql://dev:dev@postgres/myapp
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_PORT}/${POSTGRES_DB}
       - FLASK_ENV=development
       - DEBUG=True
       # Pass Sentry DSN from host .env
@@ -25,13 +25,34 @@ services:
   postgres:
     image: postgres:15
     environment:
-      - POSTGRES_DB=myapp
-      - POSTGRES_USER=dev
-      - POSTGRES_PASSWORD=dev
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+
+  pgadmin:
+    image: dpage/pgadmin4
+    env_file:
+      - .env
+    environment:
+      # This is still needed by the setup script logic
+      - PGADMIN_SETUP_PASSFILE=/pgadmin4/pgpass
+    # Run as root to have permission to create files and change ownership
+    user: root
+    ports:
+      - "5051:80"
+    volumes:
+      - ./pgadmin-entrypoint.sh:/pgadmin-entrypoint.sh
+      - pgadmin_data:/var/lib/pgadmin
+    # Use entrypoint to override the image's default entrypoint
+    entrypoint: sh -c "chmod +x /pgadmin-entrypoint.sh && /pgadmin-entrypoint.sh"
+    depends_on:
+      - postgres
+    restart: on-failure
 
 volumes:
   postgres_data:
+  pgadmin_data:
