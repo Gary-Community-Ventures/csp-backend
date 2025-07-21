@@ -1,3 +1,4 @@
+from clerk_backend_api import Clerk
 import httpx
 from flask import request, abort, g, current_app
 from functools import wraps
@@ -39,7 +40,7 @@ def _authenticate_request(user_type: ClerkUserType):
     Returns: request_state object if authenticated
     Raises: AuthenticationError if not authenticated
     """
-    clerk_client = current_app.clerk_client
+    clerk_client: Clerk = current_app.clerk_client
     if not clerk_client:
         raise AuthenticationError("Authentication service not initialized", 500)
 
@@ -47,10 +48,12 @@ def _authenticate_request(user_type: ClerkUserType):
 
     try:
         request_state = clerk_client.authenticate_request(
-            httpx_request, AuthenticateRequestOptions(authorized_parties=_get_authorized_parties())
+            httpx_request,
+            AuthenticateRequestOptions(authorized_parties=_get_authorized_parties(), clock_skew_in_ms=1000 * 30),
         )
 
         if not request_state.is_signed_in:
+            print(request_state.message)
             raise AuthenticationError("User is not signed in")
 
         if user_type == ClerkUserType.NONE:

@@ -40,7 +40,7 @@ def new_caregiver():
 
 
 @bp.get("/caregiver")
-@auth_required(ClerkUserType.CAREGIVER)
+# @auth_required(ClerkUserType.CAREGIVER)
 def get_caregiver_data():
     # Generate CaregiverInfo
     first_names = ["Professor", "Captain", "Doctor", "Auntie", "Uncle", "Nanny", "Sir", "Dame"]
