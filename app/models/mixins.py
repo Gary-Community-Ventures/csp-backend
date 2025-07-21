@@ -1,4 +1,4 @@
-from .extensions import db
+from ..extensions import db
 
 class TimestampMixin:
     """A mixin for created_at and updated_at timestamps."""
