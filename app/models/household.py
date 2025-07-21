@@ -1,4 +1,4 @@
-from .extensions import db
+from ..extensions import db
 from .mixins import TimestampMixin
 
 
