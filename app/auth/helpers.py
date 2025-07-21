@@ -6,7 +6,7 @@ from flask import g
 @dataclass
 class UserData:
     types: list[str]
-    household_id: Optional[int] = None
+    family_id: Optional[int] = None
     caregiver_id: Optional[int] = None
 
 
@@ -32,7 +32,7 @@ def get_current_user() -> Optional[User]:
         request_state=g.auth_request_state,
         user_data=UserData(
             types=g.auth_user_data["types"],
-            household_id=g.auth_user_data.get("household_id", None),
+            family_id=g.auth_user_data.get("family_id", None),
             caregiver_id=g.auth_user_data.get("caregiver_id", None),
         ),
     )

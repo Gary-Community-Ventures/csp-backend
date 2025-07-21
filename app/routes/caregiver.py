@@ -1,5 +1,9 @@
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, jsonify, request, current_app
+
+from app.extensions import db
+from app.models.caregiver import Caregiver
+
 from app.auth.decorators import ClerkUserType, auth_required
 from datetime import datetime, timedelta
 import random
@@ -13,12 +17,20 @@ bp = Blueprint("caregiver", __name__)
 def new_caregiver():
     data = request.json
 
-    try:
-        email = data["email"]
-    except KeyError:
-        abort(400)
+    # Validate required fields
+    if 'google_sheet_id' not in data:
+        abort(400, description="Missing required fields: google_sheet_id")
 
-    # TODO: create caregiver in db
+    if 'email' not in data:
+        abort(400, description="Missing required field: email")
+
+    if Caregiver.query.filter_by(google_sheet_id=data['google_sheet_id']).first():
+        abort(409, description=f"A caregiver with that Google Sheet ID already exists.")
+
+    # Create new caregiver
+    caregiver = Caregiver.from_dict(data)  
+    db.session.add(caregiver)
+    db.session.commit()
 
     # send clerk invite
     clerk: Clerk = current_app.clerk_client
@@ -27,12 +39,14 @@ def new_caregiver():
         "types": [
             ClerkUserType.CAREGIVER
         ],  # NOTE: list in case we need to have people who fit into multiple categories
-        "caregiver_id": 0,  # TODO: add
+        "caregiver_id": caregiver.id, 
     }
 
     clerk.invitations.create(
         request=CreateInvitationRequestBody(
-            email_address=email, redirect_url=f"{fe_domain}/auth/sign-up", public_metadata=meta_data
+            email_address=data["email"],
+            redirect_url=f"{fe_domain}/auth/sign-up",
+            public_metadata=meta_data
         )
     )
 
