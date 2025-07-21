@@ -11,6 +11,12 @@ class Key(Generic[T]):
     def convert(self, value: str) -> T:
         return self._converter(value)
 
+    def __str__(self):
+        return self.key
+
+    def __repr__(self):
+        return f"Key({self.key})"
+
 
 class KeyMap(dict):
     def get(self, key: Key[T]) -> T:

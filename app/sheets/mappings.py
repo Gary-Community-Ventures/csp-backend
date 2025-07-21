@@ -75,7 +75,7 @@ def get_child(child_id: int, children: list[KeyMap]) -> KeyMap:
 def get_family_children(family_id, children: list[KeyMap]) -> list[KeyMap]:
     family_children = []
     for child in children:
-        if child[ChildColumnNames.FAMILY_ID] == family_id:
+        if child.get(ChildColumnNames.FAMILY_ID) == family_id:
             family_children.append(child)
 
     return family_children

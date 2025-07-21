@@ -15,6 +15,7 @@ from app.sheets.mappings import (
     get_family,
     get_families,
     get_child_transactions,
+    get_family_children,
     get_transactions,
 )
 
@@ -70,10 +71,12 @@ def family_data():
 
     family_data = get_family(family_id, family_rows)
     child_data = get_child(active_child_id, child_rows)
+    family_children = get_family_children(family_id, child_rows)
     caregiver_data = get_child_caregivers(active_child_id, caregiver_child_mapping_rows, caregiver_rows)
     transaction_data = get_child_transactions(active_child_id, caregiver_child_mapping_rows, transaction_rows)
 
-    family_info = {
+    selected_child_info = {
+        "id": child_data.get(ChildColumnNames.ID),
         "first_name": child_data.get(ChildColumnNames.FIRST_NAME),
         "last_name": child_data.get(ChildColumnNames.LAST_NAME),
         "balance": child_data.get(ChildColumnNames.BALANCE),
@@ -81,6 +84,7 @@ def family_data():
 
     caregivers = [
         {
+            "id": c.get(CaregiverColumnNames.ID),
             "name": c.get(CaregiverColumnNames.NAME),
             "status": c.get(CaregiverColumnNames.STATUS).lower(),
         }
@@ -89,6 +93,7 @@ def family_data():
 
     transactions = [
         {
+            "id": t.get(TransactionColumnNames.ID),
             "caregiver": get_caregiver_child_mapping_caregiver(
                 t.get(TransactionColumnNames.CAREGIVER_CHILD_ID), caregiver_child_mapping_rows, caregiver_rows
             ).get(CaregiverColumnNames.NAME),
@@ -98,10 +103,20 @@ def family_data():
         for t in transaction_data
     ]
 
+    children = [
+        {
+            "id": c.get(ChildColumnNames.ID),
+            "first_name": c.get(ChildColumnNames.FIRST_NAME),
+            "last_name": c.get(ChildColumnNames.LAST_NAME),
+        }
+        for c in family_children
+    ]
+
     return jsonify(
         {
-            "family_info": family_info,
+            "selected_child_info": selected_child_info,
             "caregivers": caregivers,
             "transactions": transactions,
+            "children": children,
         }
     )
