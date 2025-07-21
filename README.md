@@ -104,7 +104,7 @@ docker system prune -a --volumes
 For local database addministration and troubleshooting we have pgAdmin automatically configured 
 as a part of the local dev envirnment. Just be sure to properly set the `PGADMIN_DEFAULT_EMAIL`
 and `PGADMIN_DEFAULT_PASSWORD` in your `.env` which you will use to login to the instance
-or pgAdmin. Then simply visit `http://localhost:5051/browser/`
+of pgAdmin. Then simply visit `http://localhost:5051/browser/`
 
 ### Database shell
 
