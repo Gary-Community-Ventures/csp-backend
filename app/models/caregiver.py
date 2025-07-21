@@ -2,7 +2,7 @@ from ..extensions import db
 from .mixins import TimestampMixin
 
 
-class Caregiver(db.Modelm, TimestampMixin):
+class Caregiver(db.Model, TimestampMixin):
     id = db.Column(db.Integer, primary_key=True)
 
     google_sheet_id = db.Column(
