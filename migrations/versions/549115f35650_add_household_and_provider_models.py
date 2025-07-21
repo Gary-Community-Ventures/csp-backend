@@ -1,4 +1,4 @@
-"""Add household and provider models
+"""Add family and provider models
 
 Revision ID: 549115f35650
 Revises: 

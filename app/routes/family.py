@@ -105,7 +105,7 @@ def family_data():
     if total_balance <= 0:
         total_balance += random.uniform(500.00, 2000.00)  # Add a positive offset if balance is not positive
 
-    # Generate random household info
+    # Generate random family info
     first_names = [
         "Captain",
         "Sparkle",
@@ -130,7 +130,7 @@ def family_data():
         "Moonbeam",
         "Snugglepuff",
     ]
-    household_info = {
+    family_info = {
         "first_name": random.choice(first_names),
         "last_name": random.choice(last_names),
         "balance": round(total_balance, 2),
@@ -138,7 +138,7 @@ def family_data():
 
     return jsonify(
         {
-            "household_info": household_info,
+            "family_info": family_info,
             "caregivers": caregivers,
             "transactions": transactions,
         }
