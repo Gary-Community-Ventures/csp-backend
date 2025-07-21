@@ -14,7 +14,7 @@ class Provider(db.Model, TimestampMixin):
     
 
     @staticmethod
-    def from_dict(data):
+    def new(google_sheet_id: str):
         return Provider(
-            google_sheet_id=data.get("google_sheet_id"),
+            google_sheet_id=google_sheet_id,
         )

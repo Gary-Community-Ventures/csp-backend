@@ -33,7 +33,7 @@ def get_current_user() -> Optional[User]:
         user_data=UserData(
             types=g.auth_user_data["types"],
             family_id=g.auth_user_data.get("family_id", None),
-            provider=g.auth_user_data.get("provider_id", None),
+            provider_id=g.auth_user_data.get("provider_id", None),
         ),
     )
 
