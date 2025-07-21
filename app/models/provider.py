@@ -2,7 +2,7 @@ from ..extensions import db
 from .mixins import TimestampMixin
 
 
-class Caregiver(db.Model, TimestampMixin):
+class Provider(db.Model, TimestampMixin):
     id = db.Column(db.Integer, primary_key=True)
 
     google_sheet_id = db.Column(
@@ -10,11 +10,11 @@ class Caregiver(db.Model, TimestampMixin):
     )
     
     def __repr__(self):
-        return f"<Caregiver {self.id} - Google Sheet ID: {self.google_sheet_id}>"
+        return f"<Provider {self.id} - Google Sheet ID: {self.google_sheet_id}>"
     
 
     @staticmethod
     def from_dict(data):
-        return Caregiver(
+        return Provider(
             google_sheet_id=data.get("google_sheet_id"),
         )

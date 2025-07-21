@@ -2,19 +2,19 @@ from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, jsonify, request, current_app
 
 from app.extensions import db
-from app.models.caregiver import Caregiver
+from app.models.provider import Provider
 
 from app.auth.decorators import ClerkUserType, auth_required
 from datetime import datetime, timedelta
 import random
 
 
-bp = Blueprint("caregiver", __name__)
+bp = Blueprint("provider", __name__)
 
 
 # TODO: add api key
-@bp.post("/caregiver")
-def new_caregiver():
+@bp.post("/provider")
+def new_provider():
     data = request.json
 
     # Validate required fields
@@ -24,12 +24,12 @@ def new_caregiver():
     if 'email' not in data:
         abort(400, description="Missing required field: email")
 
-    if Caregiver.query.filter_by(google_sheet_id=data['google_sheet_id']).first():
-        abort(409, description=f"A caregiver with that Google Sheet ID already exists.")
+    if Provider.query.filter_by(google_sheet_id=data['google_sheet_id']).first():
+        abort(409, description=f"A provider with that Google Sheet ID already exists.")
 
-    # Create new caregiver
-    caregiver = Caregiver.from_dict(data)  
-    db.session.add(caregiver)
+    # Create new provider
+    provider = Provider.from_dict(data)  
+    db.session.add(provider)
     db.session.commit()
 
     # send clerk invite
@@ -37,9 +37,9 @@ def new_caregiver():
     fe_domain = current_app.config.get("FRONTEND_DOMAIN")
     meta_data = {
         "types": [
-            ClerkUserType.CAREGIVER
+            ClerkUserType.PROVIDER
         ],  # NOTE: list in case we need to have people who fit into multiple categories
-        "caregiver_id": caregiver.id, 
+        "provider_id": provider.id, 
     }
 
     clerk.invitations.create(
@@ -53,13 +53,13 @@ def new_caregiver():
     return jsonify(data)
 
 
-@bp.get("/caregiver")
-@auth_required(ClerkUserType.CAREGIVER)
-def get_caregiver_data():
-    # Generate CaregiverInfo
+@bp.get("/provider")
+@auth_required(ClerkUserType.PROVIDER)
+def get_provider_data():
+    # Generate ProviderInfo
     first_names = ["Professor", "Captain", "Doctor", "Auntie", "Uncle", "Nanny", "Sir", "Dame"]
     last_names = ["Giggles", "Sparkle", "Wobbly", "Cuddle", "Chaos", "Doo-Little", "Snuggles", "McPhee"]
-    caregiver_info = {
+    provider_info = {
         "first_name": random.choice(first_names),
         "last_name": random.choice(last_names),
     }
@@ -109,11 +109,11 @@ def get_caregiver_data():
         "description": random.choice(curriculum_descriptions),
     }
 
-    caregiver_data = {
-        "caregiver_info": caregiver_info,
+    provider_data = {
+        "provider_info": provider_info,
         "children": children,
         "payments": payments,
         "curriculum": curriculum,
     }
 
-    return jsonify(caregiver_data)
+    return jsonify(provider_data)

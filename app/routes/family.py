@@ -52,10 +52,10 @@ def new_family():
 @bp.get("/family")
 @auth_required(ClerkUserType.FAMILY)
 def family_data():
-    # Generate random caregivers
-    caregivers = []
-    num_caregivers = random.randint(3, 7)
-    caregiver_names = [
+    # Generate random providers
+    providers = []
+    num_providers = random.randint(3, 7)
+    provider_names = [
         "The Nanny Bot",
         "Super Sitter Squad",
         "Granny Galactic",
@@ -68,10 +68,10 @@ def family_data():
         "Snuggle Bear Services",
         "The Imagination Station",
     ]
-    for _ in range(num_caregivers):
-        caregivers.append(
+    for _ in range(num_providers):
+        providers.append(
             {
-                "name": random.choice(caregiver_names),
+                "name": random.choice(provider_names),
                 "approved": random.choice([True, False]),
             }
         )
@@ -98,7 +98,7 @@ def family_data():
             transaction["provider"] = "Childcare Subsidy"
         else:  # Negative transaction
             transaction["amount"] = round(random.uniform(-500.00, -50.00), 2)  # Ensure negative amounts
-            transaction["provider"] = random.choice(caregiver_names)
+            transaction["provider"] = random.choice(provider_names)
 
     # Calculate balance from transactions and ensure it's positive
     total_balance = sum(t["amount"] for t in transactions)
@@ -139,7 +139,7 @@ def family_data():
     return jsonify(
         {
             "family_info": family_info,
-            "caregivers": caregivers,
+            "providers": providers,
             "transactions": transactions,
         }
     )
