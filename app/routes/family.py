@@ -1,5 +1,9 @@
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, jsonify, request, current_app
+
+from app.extensions import db
+from app.models.family import Family
+
 from app.auth.decorators import ClerkUserType, auth_required
 from datetime import datetime, timedelta
 import random
@@ -13,24 +17,32 @@ bp = Blueprint("family", __name__)
 def new_family():
     data = request.json
 
-    try:
-        email = data["email"]
-    except KeyError:
-        abort(400)
+    # Validate required fields
+    if 'google_sheet_id' not in data:
+        abort(400, description="Missing required fields: google_sheet_id")
 
-    # TODO: create family in db
+    if 'email' not in data:
+        abort(400, description="Missing required field: email")
+
+    if Family.query.filter_by(google_sheet_id=data['google_sheet_id']).first():
+        abort(409, description=f"A family with that Google Sheet ID already exists.")
+
+    # Create new family
+    family = Family.from_dict(data)
+    db.session.add(family)
+    db.session.commit()
 
     # send clerk invite
     clerk: Clerk = current_app.clerk_client
     fe_domain = current_app.config.get("FRONTEND_DOMAIN")
     meta_data = {
         "types": [ClerkUserType.FAMILY],  # NOTE: list in case we need to have people who fit into multiple categories
-        "household_id": 0,  # TODO: add
+        "family_id": family.id,  
     }
 
     clerk.invitations.create(
         request=CreateInvitationRequestBody(
-            email_address=email, redirect_url=f"{fe_domain}/auth/sign-up", public_metadata=meta_data
+            email_address=data["email"], redirect_url=f"{fe_domain}/auth/sign-up", public_metadata=meta_data
         )
     )
 
@@ -40,10 +52,10 @@ def new_family():
 @bp.get("/family")
 @auth_required(ClerkUserType.FAMILY)
 def family_data():
-    # Generate random caregivers
-    caregivers = []
-    num_caregivers = random.randint(3, 7)
-    caregiver_names = [
+    # Generate random providers
+    providers = []
+    num_providers = random.randint(3, 7)
+    provider_names = [
         "The Nanny Bot",
         "Super Sitter Squad",
         "Granny Galactic",
@@ -56,10 +68,10 @@ def family_data():
         "Snuggle Bear Services",
         "The Imagination Station",
     ]
-    for _ in range(num_caregivers):
-        caregivers.append(
+    for _ in range(num_providers):
+        providers.append(
             {
-                "name": random.choice(caregiver_names),
+                "name": random.choice(provider_names),
                 "approved": random.choice([True, False]),
             }
         )
@@ -86,14 +98,14 @@ def family_data():
             transaction["provider"] = "Childcare Subsidy"
         else:  # Negative transaction
             transaction["amount"] = round(random.uniform(-500.00, -50.00), 2)  # Ensure negative amounts
-            transaction["provider"] = random.choice(caregiver_names)
+            transaction["provider"] = random.choice(provider_names)
 
     # Calculate balance from transactions and ensure it's positive
     total_balance = sum(t["amount"] for t in transactions)
     if total_balance <= 0:
         total_balance += random.uniform(500.00, 2000.00)  # Add a positive offset if balance is not positive
 
-    # Generate random household info
+    # Generate random family info
     first_names = [
         "Captain",
         "Sparkle",
@@ -118,7 +130,7 @@ def family_data():
         "Moonbeam",
         "Snugglepuff",
     ]
-    household_info = {
+    family_info = {
         "first_name": random.choice(first_names),
         "last_name": random.choice(last_names),
         "balance": round(total_balance, 2),
@@ -126,8 +138,8 @@ def family_data():
 
     return jsonify(
         {
-            "household_info": household_info,
-            "caregivers": caregivers,
+            "family_info": family_info,
+            "providers": providers,
             "transactions": transactions,
         }
     )
