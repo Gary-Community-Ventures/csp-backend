@@ -35,10 +35,14 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4
-    env_file:
-      - .env
     environment:
-      # This is still needed by the setup script logic
+      - PGADMIN_DEFAULT_EMAIL={PGADMIN_DEFAULT_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD={PGADMIN_DEFAULT_PASSWORD}
+      - PG_HOST=postgres
+      - PG_PORT=${POSTGRES_PORT}
+      - PG_DB=${POSTGRES_DB}
+      - PG_USER=${POSTGRES_USER}
+      - PG_PASSWORD=${POSTGRES_PASSWORD}
       - PGADMIN_SETUP_PASSFILE=/pgadmin4/pgpass
     # Run as root to have permission to create files and change ownership
     user: root
