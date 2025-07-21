@@ -11,9 +11,3 @@ class TimestampMixin:
         onupdate=db.func.current_timestamp(),
         nullable=False
     )
-    
-    def to_dict_timestamps(self):
-        return {
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
-        }

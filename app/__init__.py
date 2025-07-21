@@ -108,11 +108,11 @@ def create_app(config_class=None):
     from .routes.main import bp as main_bp
     from .routes.auth import bp as auth_bp
     from .routes.family import bp as family_bp
-    from .routes.caregiver import bp as caregiver_bp
+    from .routes.provider import bp as provider_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(family_bp)
-    app.register_blueprint(caregiver_bp)
+    app.register_blueprint(provider_bp)
 
     return app
