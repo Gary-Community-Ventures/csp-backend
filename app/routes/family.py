@@ -28,7 +28,7 @@ def new_family():
         abort(409, description=f"A family with that Google Sheet ID already exists.")
 
     # Create new family
-    family = Family.from_dict(data)
+    family = Family.new(google_sheet_id=data["google_sheet_id"])
     db.session.add(family)
     db.session.commit()
 

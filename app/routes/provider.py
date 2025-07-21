@@ -28,7 +28,7 @@ def new_provider():
         abort(409, description=f"A provider with that Google Sheet ID already exists.")
 
     # Create new provider
-    provider = Provider.from_dict(data)  
+    provider = Provider.new(google_sheet_id=data["google_sheet_id"])
     db.session.add(provider)
     db.session.commit()
 
