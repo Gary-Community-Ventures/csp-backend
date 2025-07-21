@@ -5,17 +5,15 @@ from app.models.family import Family
 from app.auth.decorators import ClerkUserType, auth_required
 from app.auth.helpers import get_current_user
 from app.sheets.mappings import (
-    CaregiverColumnNames,
+    ProviderColumnNames,
     ChildColumnNames,
     TransactionColumnNames,
-    get_caregiver_child_mapping_caregiver,
-    get_caregiver_child_mappings,
-    get_caregivers,
+    get_provider_child_mapping_provider,
+    get_provider_child_mappings,
+    get_providers,
     get_child,
-    get_child_caregivers,
+    get_child_providers,
     get_children,
-    get_family,
-    get_families,
     get_child_transactions,
     get_family_children,
     get_transactions,
@@ -74,14 +72,14 @@ def family_data():
     active_child_id = 1  # FIXME: get the actual child id
 
     child_rows = get_children()
-    caregiver_child_mapping_rows = get_caregiver_child_mappings()
-    caregiver_rows = get_caregivers()
+    provider_child_mapping_rows = get_provider_child_mappings()
+    provider_rows = get_providers()
     transaction_rows = get_transactions()
 
     child_data = get_child(active_child_id, child_rows)
     family_children = get_family_children(family_id, child_rows)
-    caregiver_data = get_child_caregivers(active_child_id, caregiver_child_mapping_rows, caregiver_rows)
-    transaction_data = get_child_transactions(active_child_id, caregiver_child_mapping_rows, transaction_rows)
+    provider_data = get_child_providers(active_child_id, provider_child_mapping_rows, provider_rows)
+    transaction_data = get_child_transactions(active_child_id, provider_child_mapping_rows, transaction_rows)
 
     selected_child_info = {
         "id": child_data.get(ChildColumnNames.ID),
@@ -90,21 +88,21 @@ def family_data():
         "balance": child_data.get(ChildColumnNames.BALANCE),
     }
 
-    caregivers = [
+    providers = [
         {
-            "id": c.get(CaregiverColumnNames.ID),
-            "name": c.get(CaregiverColumnNames.NAME),
-            "status": c.get(CaregiverColumnNames.STATUS).lower(),
+            "id": c.get(ProviderColumnNames.ID),
+            "name": c.get(ProviderColumnNames.NAME),
+            "status": c.get(ProviderColumnNames.STATUS).lower(),
         }
-        for c in caregiver_data
+        for c in provider_data
     ]
 
     transactions = [
         {
             "id": t.get(TransactionColumnNames.ID),
-            "name": get_caregiver_child_mapping_caregiver(
-                t.get(TransactionColumnNames.CAREGIVER_CHILD_ID), caregiver_child_mapping_rows, caregiver_rows
-            ).get(CaregiverColumnNames.NAME),
+            "name": get_provider_child_mapping_provider(
+                t.get(TransactionColumnNames.PROVIDER_CHILD_ID), provider_child_mapping_rows, provider_rows
+            ).get(ProviderColumnNames.NAME),
             "amount": t.get(TransactionColumnNames.AMOUNT),
             "date": t.get(TransactionColumnNames.DATETIME).isoformat(),
         }
@@ -123,7 +121,7 @@ def family_data():
     return jsonify(
         {
             "selected_child_info": selected_child_info,
-            "caregivers": caregivers,
+            "providers": providers,
             "transactions": transactions,
             "children": children,
         }
