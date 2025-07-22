@@ -11,7 +11,7 @@ class Family(db.Model, TimestampMixin):
         return f"<Family {self.id} - Google Sheet ID: {self.google_sheet_id}>"
 
     @staticmethod
-    def from_dict(data):
+    def new(google_sheet_id: str):
         return Family(
-            google_sheet_id=data.get("google_sheet_id"),
+            google_sheet_id=google_sheet_id,
         )

@@ -1,8 +1,15 @@
 from typing import Optional
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, jsonify, request, current_app
+<<<<<<< HEAD
 from app.extensions import db
 from app.models.family import Family
+=======
+
+from app.extensions import db
+from app.models.family import Family
+
+>>>>>>> dev
 from app.auth.decorators import ClerkUserType, auth_required
 from app.auth.helpers import get_current_user
 from app.sheets.mappings import (
@@ -31,17 +38,17 @@ def new_family():
     data = request.json
 
     # Validate required fields
-    if "google_sheet_id" not in data:
+    if 'google_sheet_id' not in data:
         abort(400, description="Missing required fields: google_sheet_id")
 
-    if "email" not in data:
+    if 'email' not in data:
         abort(400, description="Missing required field: email")
 
-    if Family.query.filter_by(google_sheet_id=data["google_sheet_id"]).first():
+    if Family.query.filter_by(google_sheet_id=data['google_sheet_id']).first():
         abort(409, description=f"A family with that Google Sheet ID already exists.")
 
     # Create new family
-    family = Family.from_dict(data)
+    family = Family.new(google_sheet_id=data["google_sheet_id"])
     db.session.add(family)
     db.session.commit()
 
