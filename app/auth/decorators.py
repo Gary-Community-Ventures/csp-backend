@@ -53,7 +53,7 @@ def _authenticate_request(user_type: ClerkUserType):
         )
 
         if not request_state.is_signed_in:
-            print(request_state.message)
+            current_app.logger.warning(f"User is not signed in: {request_state.message}")
             raise AuthenticationError("User is not signed in")
 
         if user_type == ClerkUserType.NONE:

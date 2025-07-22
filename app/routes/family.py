@@ -1,3 +1,4 @@
+from typing import Optional
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, jsonify, request, current_app
 from app.extensions import db
@@ -8,6 +9,7 @@ from app.sheets.mappings import (
     ProviderColumnNames,
     ChildColumnNames,
     TransactionColumnNames,
+    get_families,
     get_provider_child_mapping_provider,
     get_provider_child_mappings,
     get_providers,
@@ -60,24 +62,63 @@ def new_family():
     return jsonify(data)
 
 
-@bp.get("/family")
+@bp.get("/family/default_child_id")
 @auth_required(ClerkUserType.FAMILY)
-def family_data():
+def default_child_id():
     user = get_current_user()
 
     if user is None or user.user_data.family_id is None:
         abort(401)
 
+    child_rows = get_children()
+
     family_id = user.user_data.family_id  # TODO: Get Google Sheet ID from DB
-    active_child_id = 1  # FIXME: get the actual child id
+    family_children = get_family_children(family_id, child_rows)
+
+    if len(family_children) == 0:
+        abort(404, description="No children found for this family.")
+
+    active_child_id = family_children[0].get(ChildColumnNames.ID)
+
+    return jsonify({"child_id": active_child_id})
+
+
+@bp.get("/family/")
+@bp.get("/family/<child_id>")
+@auth_required(ClerkUserType.FAMILY)
+def family_data(child_id: Optional[str] = None):
+    user = get_current_user()
+
+    if user is None or user.user_data.family_id is None:
+        abort(401)
 
     child_rows = get_children()
     provider_child_mapping_rows = get_provider_child_mappings()
     provider_rows = get_providers()
     transaction_rows = get_transactions()
 
-    child_data = get_child(active_child_id, child_rows)
+    family_id = user.user_data.family_id  # TODO: Get Google Sheet ID from DB
     family_children = get_family_children(family_id, child_rows)
+
+    if len(family_children) == 0:
+        abort(404, description="No children found for this family.")
+
+    if child_id is not None:
+        try:
+            child_id = int(child_id)
+        except ValueError:
+            abort(400, description=f"Invalid child ID: {child_id}")
+
+        selected_child = get_child(child_id, family_children)
+
+        if selected_child is None:
+            abort(404, description=f"Child with ID {child_id} not found.")
+
+        active_child_id = child_id
+    else:
+        active_child_id = family_children[0].get(ChildColumnNames.ID)
+
+    child_data = get_child(active_child_id, child_rows)
     provider_data = get_child_providers(active_child_id, provider_child_mapping_rows, provider_rows)
     transaction_data = get_child_transactions(active_child_id, provider_child_mapping_rows, transaction_rows)
 

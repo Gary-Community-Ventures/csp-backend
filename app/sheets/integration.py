@@ -32,7 +32,7 @@ def get_sheet_data(sheet_name: str = "Sheet1") -> list[dict]:
     values = result.get("values", [])
 
     if not values:
-        print("No data found.")
+        current_app.logger.warning("No data found.")
         return []
 
     # Assume the first row contains column headers
