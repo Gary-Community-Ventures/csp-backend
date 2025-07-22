@@ -7,7 +7,7 @@ from enum import Enum
 
 class ClerkUserType(Enum):
     FAMILY = "family"
-    CAREGIVER = "caregiver"
+    PROVIDER = "provider"
     NONE = None
 
 
