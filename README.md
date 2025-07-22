@@ -96,3 +96,20 @@ docker-compose exec backend /bin/bash
 ```
 docker system prune -a --volumes
 ```
+
+## Database
+
+### pgAdmin
+
+For local database addministration and troubleshooting we have pgAdmin automatically configured 
+as a part of the local dev envirnment. Just be sure to properly set the `PGADMIN_DEFAULT_EMAIL`
+and `PGADMIN_DEFAULT_PASSWORD` in your `.env` which you will use to login to the instance
+of pgAdmin. Then simply visit `http://localhost:5051/browser/`
+
+### Database shell
+
+To get into a shell for the database itself locally, run:
+
+```
+docker-compose exec postgres psql -U dev -d myapp
+```
