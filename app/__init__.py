@@ -109,10 +109,12 @@ def create_app(config_class=None):
     from .routes.auth import bp as auth_bp
     from .routes.family import bp as family_bp
     from .routes.provider import bp as provider_bp
+    from .routes.payment_request import bp as payment_request_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(family_bp)
     app.register_blueprint(provider_bp)
+    app.register_blueprint(payment_request_bp)
 
     return app
