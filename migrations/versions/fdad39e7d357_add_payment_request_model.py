@@ -1,8 +1,8 @@
 """Add payment request model
 
-Revision ID: cccf99ca7031
+Revision ID: fdad39e7d357
 Revises: ba142e5257d0
-Create Date: 2025-07-23 22:05:41.577948
+Create Date: 2025-07-23 23:33:22.246042
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'cccf99ca7031'
+revision = 'fdad39e7d357'
 down_revision = 'ba142e5257d0'
 branch_labels = None
 depends_on = None
@@ -24,6 +24,7 @@ def upgrade():
     sa.Column('google_sheets_child_id', sa.Integer(), nullable=False),
     sa.Column('amount_in_cents', sa.Integer(), nullable=False),
     sa.Column('hours', sa.Float(), nullable=False),
+    sa.Column('email_sent_successfully', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
