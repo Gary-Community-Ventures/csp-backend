@@ -2,6 +2,7 @@ from flask import current_app
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
+
 def send_payment_request_email(
     provider_name: str,
     google_sheets_provider_id: int,
@@ -17,13 +18,15 @@ def send_payment_request_email(
         child_first_name = str(child_first_name or "Unknown")
         child_last_name = str(child_last_name or "Child")
         amount_dollars = amount_in_cents / 100
-        
+
         # Ensure email addresses are strings
         from_email = str(current_app.config.get("SENDGRID_SENDER_EMAIL"))
         to_email = str(current_app.config.get("PAYMENT_REQUEST_RECIPIENT_EMAIL"))
-        
-        current_app.logger.info(f"Sending payment request email to {to_email} for provider {google_sheets_provider_id} and child {google_sheets_child_id}")
-        
+
+        current_app.logger.info(
+            f"Sending payment request email to {to_email} for provider {google_sheets_provider_id} and child {google_sheets_child_id}"
+        )
+
         html_content = f"""
         <html>
             <body>
@@ -55,21 +58,23 @@ def send_payment_request_email(
             </body>
         </html>
         """
-        
+
         message = Mail(
             from_email=from_email,
             to_emails=to_email,
             subject="New Payment Request",
-            html_content=html_content
+            html_content=html_content,
         )
-        
+
         sendgrid_client = SendGridAPIClient(current_app.config.get("SENDGRID_API_KEY"))
         response = sendgrid_client.send(message)
-        current_app.logger.info(f"SendGrid email sent with status code: {response.status_code}")
+        current_app.logger.info(
+            f"SendGrid email sent with status code: {response.status_code}"
+        )
         return True
-        
+
     except Exception as e:
         current_app.logger.error(f"Error sending SendGrid email: {e}")
-        if hasattr(e, 'body'):
+        if hasattr(e, "body"):
             current_app.logger.error(f"SendGrid error body: {e.body}")
         return False

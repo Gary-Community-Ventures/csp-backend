@@ -1,7 +1,16 @@
-from flask import Blueprint, request, jsonify, abort, current_app
+from flask import Blueprint, request, jsonify, abort
 from app.extensions import db
 from app.models.payment_request import PaymentRequest
-from app.sheets.mappings import get_provider_child_mappings, get_providers, get_children, get_child, get_provider, ProviderChildMappingColumnNames, ProviderColumnNames, ChildColumnNames
+from app.sheets.mappings import (
+    get_provider_child_mappings,
+    get_providers,
+    get_children,
+    get_child,
+    get_provider,
+    ProviderChildMappingColumnNames,
+    ProviderColumnNames,
+    ChildColumnNames,
+)
 from app.auth.decorators import auth_required, ClerkUserType
 from app.utils.email_service import send_payment_request_email
 
@@ -9,7 +18,7 @@ bp = Blueprint("payment_request", __name__)
 
 
 @bp.post("/payment-request")
-@auth_required(ClerkUserType.FAMILY) # Assuming only families can request payments
+@auth_required(ClerkUserType.FAMILY)  # Assuming only families can request payments
 def create_payment_request():
     data = request.json
 
@@ -19,8 +28,13 @@ def create_payment_request():
     google_sheets_child_id = data.get("google_sheets_child_id")
 
     # Validate required fields
-    if not all([google_sheets_provider_id, amount_in_cents, hours, google_sheets_child_id]):
-        abort(400, description="Missing required fields: google_sheets_provider_id, amount_in_cents, hours, google_sheets_child_id")
+    if not all(
+        [google_sheets_provider_id, amount_in_cents, hours, google_sheets_child_id]
+    ):
+        abort(
+            400,
+            description="Missing required fields: google_sheets_provider_id, amount_in_cents, hours, google_sheets_child_id",
+        )
 
     # Validate values
     if not isinstance(amount_in_cents, int) or amount_in_cents <= 0:
@@ -40,22 +54,36 @@ def create_payment_request():
     # Find the specific child
     selected_child = get_child(google_sheets_child_id, children)
     if not selected_child:
-        abort(404, description=f"Child with Google Sheets ID {google_sheets_child_id} not found.")
+        abort(
+            404,
+            description=f"Child with Google Sheets ID {google_sheets_child_id} not found.",
+        )
 
     # Find the specific provider
     selected_provider = get_provider(google_sheets_provider_id, providers)
     if not selected_provider:
-        abort(404, description=f"Provider with Google Sheets ID {google_sheets_provider_id} not found.")
+        abort(
+            404,
+            description=f"Provider with Google Sheets ID {google_sheets_provider_id} not found.",
+        )
 
     # Check if the child is connected to the provider
     is_connected = False
     for mapping in provider_child_mappings:
-        if mapping.get(ProviderChildMappingColumnNames.CHILD_ID) == google_sheets_child_id and mapping.get(ProviderChildMappingColumnNames.PROVIDER_ID) == google_sheets_provider_id:
+        if (
+            mapping.get(ProviderChildMappingColumnNames.CHILD_ID)
+            == google_sheets_child_id
+            and mapping.get(ProviderChildMappingColumnNames.PROVIDER_ID)
+            == google_sheets_provider_id
+        ):
             is_connected = True
             break
 
     if not is_connected:
-        abort(400, description=f"Child with Google Sheets ID {google_sheets_child_id} is not connected to provider with Google Sheets ID {google_sheets_provider_id}.")
+        abort(
+            400,
+            description=f"Child with Google Sheets ID {google_sheets_child_id} is not connected to provider with Google Sheets ID {google_sheets_provider_id}.",
+        )
 
     # Send SendGrid email
     email_sent_successfully = send_payment_request_email(
@@ -79,4 +107,12 @@ def create_payment_request():
     db.session.add(payment_request)
     db.session.commit()
 
-    return jsonify({"message": "Payment request submitted successfully.", "payment_request_id": payment_request.id}), 201
+    return (
+        jsonify(
+            {
+                "message": "Payment request submitted successfully.",
+                "payment_request_id": payment_request.id,
+            }
+        ),
+        201,
+    )

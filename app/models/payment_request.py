@@ -14,7 +14,13 @@ class PaymentRequest(db.Model, TimestampMixin):
         return f"<PaymentRequest {self.id} - Provider: {self.google_sheets_provider_id} - Child: {self.google_sheets_child_id} - Email Sent: {self.email_sent_successfully}>"
 
     @staticmethod
-    def new(google_sheets_provider_id: int, google_sheets_child_id: int, amount_in_cents: int, hours: float, email_sent_successfully: bool = False):
+    def new(
+        google_sheets_provider_id: int,
+        google_sheets_child_id: int,
+        amount_in_cents: int,
+        hours: float,
+        email_sent_successfully: bool = False,
+    ):
         return PaymentRequest(
             google_sheets_provider_id=google_sheets_provider_id,
             google_sheets_child_id=google_sheets_child_id,
