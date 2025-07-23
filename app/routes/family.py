@@ -9,7 +9,6 @@ from app.sheets.mappings import (
     ProviderColumnNames,
     ChildColumnNames,
     TransactionColumnNames,
-    get_families,
     get_provider_child_mapping_provider,
     get_provider_child_mappings,
     get_providers,
@@ -31,13 +30,13 @@ def new_family():
     data = request.json
 
     # Validate required fields
-    if 'google_sheet_id' not in data:
+    if "google_sheet_id" not in data:
         abort(400, description="Missing required fields: google_sheet_id")
 
-    if 'email' not in data:
+    if "email" not in data:
         abort(400, description="Missing required field: email")
 
-    if Family.query.filter_by(google_sheet_id=data['google_sheet_id']).first():
+    if Family.query.filter_by(google_sheet_id=data["google_sheet_id"]).first():
         abort(409, description=f"A family with that Google Sheet ID already exists.")
 
     # Create new family
@@ -165,5 +164,6 @@ def family_data(child_id: Optional[str] = None):
             "providers": providers,
             "transactions": transactions,
             "children": children,
+            "is_also_provider": ClerkUserType.PROVIDER.value in user.user_data.types,
         }
     )
