@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, abort, current_app
 from app.extensions import db
 from app.models.payment_request import PaymentRequest
-from app.sheets.mappings import get_provider_child_mappings, get_providers, get_children, get_child, get_provider, ProviderChildMappingColumnNames, ProviderColumnNames, ChildColumnNames
+from app.sheets.mappings import get_provider_child_mappings, get_families, get_providers, get_children, get_child, get_provider, get_family, ProviderChildMappingColumnNames, ProviderColumnNames, ChildColumnNames, FamilyColumnNames
 from app.auth.decorators import auth_required, ClerkUserType
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
@@ -70,25 +70,67 @@ def create_payment_request():
 
     # Send SendGrid email
     try:
+        # Build the HTML content using KeyMap.get() correctly and ensure strings
+        provider_name = str(selected_provider.get(ProviderColumnNames.NAME) or "Unknown Provider")
+        child_first_name = str(selected_child.get(ChildColumnNames.FIRST_NAME) or "Unknown")
+        child_last_name = str(selected_child.get(ChildColumnNames.LAST_NAME) or "Child")
+        amount_dollars = amount_in_cents / 100
+        
+        # Ensure email addresses are strings
+        from_email = str(current_app.config.get("SENDGRID_SENDER_EMAIL"))
+        to_email = str(current_app.config.get("PAYMENT_REQUEST_RECIPIENT_EMAIL"))
+        
+        current_app.logger.info(f"From email: '{from_email}'")
+        current_app.logger.info(f"To email: '{to_email}'")
+        current_app.logger.info(f"Provider name: '{provider_name}'")
+        current_app.logger.info(f"Child name: '{child_first_name} {child_last_name}'")
+        
+        html_content = f"""
+        <html>
+            <body>
+                <h2>Payment Request Notification</h2>
+                <p>Hello,</p>
+                <p>A new payment request has been submitted through your payment system:</p>
+                <table style="border-collapse: collapse; width: 100%; margin: 20px 0;">
+                    <tr style="background-color: #f2f2f2;">
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Provider Name:</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">{provider_name} (ID: {google_sheets_provider_id})</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Child Name:</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">{child_first_name} {child_last_name} (ID: {google_sheets_child_id})</td>
+                    </tr>
+                    <tr style="background-color: #f2f2f2;">
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Amount:</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${amount_dollars:.2f}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; border: 1px solid #ddd;"><strong>Hours:</strong></td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">{hours}</td>
+                    </tr>
+                </table>
+                <p>Please process this payment request at your earliest convenience.</p>
+                <p>Best regards,<br>Your Payment System</p>
+                <hr>
+                <p style="font-size: 12px; color: #666;">This is an automated notification from your payment request system.</p>
+            </body>
+        </html>
+        """
+        
         message = Mail(
-            from_email=current_app.config.get("SENDGRID_SENDER_EMAIL"),
-            to_emails=current_app.config.get("PAYMENT_REQUEST_RECIPIENT_EMAIL"), # This email needs to be configured
+            from_email=from_email,
+            to_emails=to_email,
             subject="New Payment Request",
-            html_content=f"""
-                <p>A new payment request has been submitted:</p>
-                <ul>
-                    <li>Provider Name: {selected_provider.get(ProviderColumnNames.NAME)} (ID: {google_sheets_provider_id})</li>
-                    <li>Child Name: {selected_child.get(ChildColumnNames.FIRST_NAME)} {selected_child.get(ChildColumnNames.LAST_NAME)} (ID: {google_sheets_child_id})</li>
-                    <li>Amount: ${amount_in_cents / 100:.2f}</li>
-                    <li>Hours: {hours}</li>
-                </ul>
-            """
+            html_content=html_content
         )
+        
         sendgrid_client = SendGridAPIClient(current_app.config.get("SENDGRID_API_KEY"))
         response = sendgrid_client.send(message)
         current_app.logger.info(f"SendGrid email sent with status code: {response.status_code}")
+        
     except Exception as e:
         current_app.logger.error(f"Error sending SendGrid email: {e}")
-        # Decide whether to abort or just log the error. For now, just log.
+        if hasattr(e, 'body'):
+            current_app.logger.error(f"SendGrid error body: {e.body}")
 
     return jsonify({"message": "Payment request submitted successfully.", "payment_request_id": payment_request.id}), 201
