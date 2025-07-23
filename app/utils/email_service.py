@@ -24,7 +24,7 @@ def send_payment_request_email(
         to_email = str(current_app.config.get("PAYMENT_REQUEST_RECIPIENT_EMAIL"))
 
         current_app.logger.info(
-            f"Sending payment request email to {to_email} for provider {google_sheets_provider_id} and child {google_sheets_child_id}"
+            f"Sending payment request email to {to_email} for provider ID: {google_sheets_provider_id} from child ID: {google_sheets_child_id}"
         )
 
         html_content = f"""
