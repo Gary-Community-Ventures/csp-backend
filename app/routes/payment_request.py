@@ -18,7 +18,7 @@ bp = Blueprint("payment_request", __name__)
 
 
 @bp.post("/payment-request")
-@auth_required(ClerkUserType.FAMILY)  # Assuming only families can request payments
+@auth_required(ClerkUserType.FAMILY)
 def create_payment_request():
     data = request.json
 
@@ -106,6 +106,9 @@ def create_payment_request():
     )
     db.session.add(payment_request)
     db.session.commit()
+
+    if not email_sent_successfully:
+        abort(500, description="Failed to send payment request email.")
 
     return (
         jsonify(
