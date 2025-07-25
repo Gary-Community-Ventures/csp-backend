@@ -1,12 +1,22 @@
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, jsonify, request, current_app
-
+from app.auth.helpers import get_current_user
 from app.extensions import db
 from app.models.provider import Provider
-
 from app.auth.decorators import ClerkUserType, auth_required
-from datetime import datetime, timedelta
-import random
+from app.sheets.mappings import (
+    ChildColumnNames,
+    ProviderColumnNames,
+    TransactionColumnNames,
+    get_children,
+    get_provider,
+    get_provider_child_mapping_child,
+    get_provider_child_mappings,
+    get_provider_children,
+    get_provider_transactions,
+    get_providers,
+    get_transactions,
+)
 
 
 bp = Blueprint("provider", __name__)
@@ -18,13 +28,13 @@ def new_provider():
     data = request.json
 
     # Validate required fields
-    if 'google_sheet_id' not in data:
+    if "google_sheet_id" not in data:
         abort(400, description="Missing required fields: google_sheet_id")
 
-    if 'email' not in data:
+    if "email" not in data:
         abort(400, description="Missing required field: email")
 
-    if Provider.query.filter_by(google_sheet_id=data['google_sheet_id']).first():
+    if Provider.query.filter_by(google_sheet_id=data["google_sheet_id"]).first():
         abort(409, description=f"A provider with that Google Sheet ID already exists.")
 
     # Create new provider
@@ -36,17 +46,13 @@ def new_provider():
     clerk: Clerk = current_app.clerk_client
     fe_domain = current_app.config.get("FRONTEND_DOMAIN")
     meta_data = {
-        "types": [
-            ClerkUserType.PROVIDER
-        ],  # NOTE: list in case we need to have people who fit into multiple categories
-        "provider_id": provider.id, 
+        "types": [ClerkUserType.PROVIDER],  # NOTE: list in case we need to have people who fit into multiple categories
+        "provider_id": provider.id,
     }
 
     clerk.invitations.create(
         request=CreateInvitationRequestBody(
-            email_address=data["email"],
-            redirect_url=f"{fe_domain}/auth/sign-up",
-            public_metadata=meta_data
+            email_address=data["email"], redirect_url=f"{fe_domain}/auth/sign-up", public_metadata=meta_data
         )
     )
 
@@ -56,64 +62,57 @@ def new_provider():
 @bp.get("/provider")
 @auth_required(ClerkUserType.PROVIDER)
 def get_provider_data():
-    # Generate ProviderInfo
-    first_names = ["Professor", "Captain", "Doctor", "Auntie", "Uncle", "Nanny", "Sir", "Dame"]
-    last_names = ["Giggles", "Sparkle", "Wobbly", "Cuddle", "Chaos", "Doo-Little", "Snuggles", "McPhee"]
+    user = get_current_user()
+
+    if user is None or user.user_data.provider_id is None:
+        abort(401)
+
+    provider_rows = get_providers()
+    child_rows = get_children()
+    provider_child_mapping_rows = get_provider_child_mappings()
+    transaction_rows = get_transactions()
+
+    provider_id = user.user_data.provider_id  # TODO: Get Google Sheet ID from DB
+
+    provider_data = get_provider(provider_id, provider_rows)
+    children_data = get_provider_children(provider_id, provider_child_mapping_rows, child_rows)
+    transaction_data = get_provider_transactions(provider_id, provider_child_mapping_rows, transaction_rows)
+
     provider_info = {
-        "first_name": random.choice(first_names),
-        "last_name": random.choice(last_names),
+        "id": provider_data.get(ProviderColumnNames.ID),
+        "first_name": provider_data.get(ProviderColumnNames.FIRST_NAME),
+        "last_name": provider_data.get(ProviderColumnNames.LAST_NAME),
     }
 
-    # Generate Children
-    children = []
-    num_children = random.randint(1, 3)
-    child_names = [
-        {"first_name": "Alex", "last_name": "Bregman"},
-        {"first_name": "Abraham", "last_name": "Toro"},
-        {"first_name": "Marcelo", "last_name": "Mayer"},
-        {"first_name": "Trevor", "last_name": "Story"},
-        {"first_name": "Jarren", "last_name": "Duran"},
-        {"first_name": "Wilyer", "last_name": "Abreu"},
-        {"first_name": "Ceddanne", "last_name": "Rafaela"},
-        {"first_name": "Roman", "last_name": "Anthony"},
-        {"first_name": "Carlos", "last_name": "Narváez"},
-        {"first_name": "Garrett", "last_name": "Crochet"},
-        {"first_name": "Aroldis", "last_name": "Chapman"},
-        {"first_name": "Garrett", "last_name": "Whitlock"},
-        {"first_name": "Brayan", "last_name": "Bello"},
+    children = [
+        {
+            "id": c.get(ChildColumnNames.ID),
+            "first_name": c.get(ChildColumnNames.FIRST_NAME),
+            "last_name": c.get(ChildColumnNames.LAST_NAME),
+        }
+        for c in children_data
     ]
-    for _ in range(num_children):
-        children.append(random.choice(child_names))
 
-    # Generate Payments
-    payments = []
-    num_payments = random.randint(3, 7)
-    payment_providers = ["Family A", "Family B", "Family C", "Subsidy Program"]
-    for _ in range(num_payments):
-        payments.append(
+    transactions = []
+    for t in transaction_data:
+        transaction_child = get_provider_child_mapping_child(
+            t.get(TransactionColumnNames.PROVIDER_CHILD_ID), provider_child_mapping_rows, child_rows
+        )
+        transactions.append(
             {
-                "provider": random.choice(payment_providers),
-                "amount": round(random.uniform(50.00, 500.00), 2),
-                "date": (datetime.now() - timedelta(days=random.randint(1, 90))).isoformat(),
+                "id": t.get(TransactionColumnNames.ID),
+                "name": f"{transaction_child.get(ChildColumnNames.FIRST_NAME)} {transaction_child.get(ChildColumnNames.LAST_NAME)}",
+                "amount": t.get(TransactionColumnNames.AMOUNT),
+                "date": t.get(TransactionColumnNames.DATETIME).isoformat(),
             }
         )
 
-    # Generate Curriculum
-    curriculum_descriptions = [
-        "Early childhood development program focusing on play-based learning.",
-        "STEM-focused curriculum with hands-on experiments.",
-        "Arts and crafts integrated learning for creative expression.",
-        "Outdoor education program emphasizing nature exploration.",
-    ]
-    curriculum = {
-        "description": random.choice(curriculum_descriptions),
-    }
-
-    provider_data = {
-        "provider_info": provider_info,
-        "children": children,
-        "payments": payments,
-        "curriculum": curriculum,
-    }
-
-    return jsonify(provider_data)
+    return jsonify(
+        {
+            "provider_info": provider_info,
+            "children": children,
+            "transactions": transactions,
+            "curriculum": None,
+            "is_also_family": ClerkUserType.FAMILY.value in user.user_data.types,
+        }
+    )
