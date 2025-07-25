@@ -22,8 +22,8 @@ from app.sheets.mappings import (
 bp = Blueprint("provider", __name__)
 
 
-@api_key_required
 @bp.post("/provider")
+@api_key_required
 def new_provider():
     data = request.json
 

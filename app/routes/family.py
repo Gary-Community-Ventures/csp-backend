@@ -24,8 +24,8 @@ from app.sheets.mappings import (
 bp = Blueprint("family", __name__)
 
 
-@api_key_required
 @bp.post("/family")
+@api_key_required
 def new_family():
     data = request.json
 
