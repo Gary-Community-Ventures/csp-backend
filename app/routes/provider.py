@@ -3,7 +3,7 @@ from flask import Blueprint, abort, jsonify, request, current_app
 from app.auth.helpers import get_current_user
 from app.extensions import db
 from app.models.provider import Provider
-from app.auth.decorators import ClerkUserType, auth_required
+from app.auth.decorators import ClerkUserType, auth_required, api_key_required
 from app.sheets.mappings import (
     ChildColumnNames,
     ProviderColumnNames,
@@ -22,8 +22,8 @@ from app.sheets.mappings import (
 bp = Blueprint("provider", __name__)
 
 
-# TODO: add api key
 @bp.post("/provider")
+@api_key_required
 def new_provider():
     data = request.json
 

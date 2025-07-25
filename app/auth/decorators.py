@@ -4,6 +4,9 @@ from flask import request, abort, g, current_app
 from functools import wraps
 from clerk_backend_api.security.types import AuthenticateRequestOptions
 from enum import Enum
+import hmac
+import hashlib
+import os
 
 
 class ClerkUserType(Enum):
@@ -86,6 +89,37 @@ def _authenticate_request(user_type: ClerkUserType):
             raise AuthenticationError("Authentication service error", 500)
 
 
+def _authenticate_api_key():
+    """
+    Authenticate API key from request headers
+    Returns: True if authenticated
+    Raises: AuthenticationError if not authenticated
+    """
+    # Get API key from multiple possible headers
+    api_key = request.headers.get('X-API-Key') or request.headers.get('Authorization')
+    
+    if not api_key:
+        raise AuthenticationError("API key required", 401)
+    
+    # Handle Bearer token format
+    if api_key.startswith('Bearer '):
+        api_key = api_key[7:]  # Remove 'Bearer ' prefix
+    
+    # Get expected API key from config
+    expected_api_key = current_app.config.get('API_KEY')
+    
+    if not expected_api_key:
+        current_app.logger.error("API_KEY not configured")
+        raise AuthenticationError("API authentication not configured", 500)
+    
+    # Use constant-time comparison to prevent timing attacks
+    if not hmac.compare_digest(api_key.encode('utf-8'), expected_api_key.encode('utf-8')):
+        current_app.logger.warning(f"Invalid API key attempt from {request.remote_addr}")
+        raise AuthenticationError("Invalid API key", 401)
+    
+    return True
+
+
 def _set_user_context(request_state):
     """Set user context in Flask g object"""
     g.auth_request_state = request_state
@@ -166,5 +200,28 @@ def auth_optional(f):
             _clear_user_context()
 
         return f(*args, **kwargs)
+
+    return decorated_function
+
+
+def api_key_required(f):
+    """
+    Decorator that requires API key authentication.
+    Aborts with 401 if API key is not valid.
+    
+    Accepts API key in:
+    - X-API-Key header
+    - Authorization header (with or without 'Bearer ' prefix)
+    """
+
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            _authenticate_api_key()
+            
+            return f(*args, **kwargs)
+
+        except AuthenticationError as e:
+            abort(e.status_code, description=e.args[0])
 
     return decorated_function
