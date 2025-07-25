@@ -148,3 +148,13 @@ def get_child_transactions(
             provider_child_ids.append(mapping.get(ProviderChildMappingColumnNames.ID))
 
     return get_rows(transactions, provider_child_ids, id_key=TransactionColumnNames.PROVIDER_CHILD_ID)
+
+def get_provider_transactions(
+    provider_id: int, provider_child_mappings: list[KeyMap], transactions: list[KeyMap]
+) -> list[KeyMap]:
+    provider_child_ids: list[int] = []
+    for mapping in provider_child_mappings:
+        if mapping.get(ProviderChildMappingColumnNames.PROVIDER_ID) == provider_id:
+            provider_child_ids.append(mapping.get(ProviderChildMappingColumnNames.ID))
+
+    return get_rows(transactions, provider_child_ids, id_key=TransactionColumnNames.PROVIDER_CHILD_ID)
