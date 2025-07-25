@@ -21,7 +21,7 @@ def send_email(
     :return: True if the email was sent successfully, False otherwise.
     """
     try:
-        envirnment = current_app.config.get("ENVIRONMENT", "development")
+        envirnment = current_app.config.get("FLASK_ENV", "development")
 
         # Add environment prefix to subject for non-production environments
         subject_prefix = ""
