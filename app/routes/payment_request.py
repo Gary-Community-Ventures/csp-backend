@@ -59,6 +59,13 @@ def create_payment_request():
             description=f"Child with Google Sheets ID {google_sheets_child_id} not found.",
         )
 
+    balance = selected_child.get(ChildColumnNames.BALANCE) or 0
+    if balance < amount_in_cents / 100.0:
+        abort(
+            400,
+            description=f"Child with Google Sheets ID {google_sheets_child_id} does not have enough balance to cover the payment request of {amount_in_cents} cents.",
+        )
+
     # Find the specific provider
     selected_provider = get_provider(google_sheets_provider_id, providers)
     if not selected_provider:
