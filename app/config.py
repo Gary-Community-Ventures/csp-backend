@@ -23,6 +23,7 @@ class Config:
     SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
     PAYMENT_REQUEST_SENDER_EMAIL = os.getenv("PAYMENT_REQUEST_SENDER_EMAIL")
     PAYMENT_REQUEST_RECIPIENT_EMAILS = os.getenv("PAYMENT_REQUEST_RECIPIENT_EMAILS", "").split(",")
+    API_KEY = os.getenv("API_KEY")
 
     # Clerk Configuration
     CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
