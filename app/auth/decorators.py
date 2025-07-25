@@ -212,15 +212,6 @@ def api_key_required(f):
     Accepts API key in:
     - X-API-Key header
     - Authorization header (with or without 'Bearer ' prefix)
-    
-    Sets the following in Flask g:
-    - g.auth_request_state: None (API key auth doesn't use Clerk)
-    - g.auth_user_id: "api_key_user"
-    - g.auth_session_id: None
-    - g.auth_issued_at: None
-    - g.auth_expires_at: None
-    - g.auth_issuer: "api_key"
-    - g.auth_user_data: {"auth_type": "api_key"}
     """
 
     @wraps(f)
