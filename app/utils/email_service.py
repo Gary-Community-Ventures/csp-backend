@@ -13,10 +13,6 @@ def send_payment_request_email(
     hours: float,
 ) -> bool:
     try:
-        # Build the HTML content using KeyMap.get() correctly and ensure strings
-        provider_name = str(provider_name or "Unknown Provider")
-        child_first_name = str(child_first_name or "Unknown")
-        child_last_name = str(child_last_name or "Child")
         amount_dollars = amount_in_cents / 100
 
         # Ensure email addresses are strings
@@ -53,6 +49,11 @@ def send_payment_request_email(
                 </table>
                 <p>Please process this payment request at your earliest convenience.</p>
                 <p>Best regards,<br>Your Payment System</p>
+                <p>
+                    <a href="https://www.espn.com/nfl/story/_/id/45711952/2025-nfl-roster-ranking-starting-lineups-projection-32-teams" style="color: #0066cc; text-decoration: underline;">
+                    P.S. Check out the Saints Power Rankings
+                    </a>
+                </p>
                 <hr>
                 <p style="font-size: 12px; color: #666;">This is an automated notification from your payment request system.</p>
             </body>

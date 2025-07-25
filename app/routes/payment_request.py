@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, abort
+from flask import Blueprint, request, jsonify, abort, current_app
 from app.extensions import db
 from app.models.payment_request import PaymentRequest
 from app.sheets.mappings import (
@@ -85,12 +85,18 @@ def create_payment_request():
             description=f"Child with Google Sheets ID {google_sheets_child_id} is not connected to provider with Google Sheets ID {google_sheets_provider_id}.",
         )
 
+    provider_name = str(
+        selected_provider.get(ProviderColumnNames.NAME) or "Unknown Provider"
+    )
+    child_first_name = str(selected_child.get(ChildColumnNames.FIRST_NAME) or "Unknown")
+    child_last_name = str(selected_child.get(ChildColumnNames.LAST_NAME) or "Child")
+
     # Send SendGrid email
     email_sent_successfully = send_payment_request_email(
-        provider_name=selected_provider.get(ProviderColumnNames.NAME),
+        provider_name=provider_name,
         google_sheets_provider_id=google_sheets_provider_id,
-        child_first_name=selected_child.get(ChildColumnNames.FIRST_NAME),
-        child_last_name=selected_child.get(ChildColumnNames.LAST_NAME),
+        child_first_name=child_first_name,
+        child_last_name=child_last_name,
         google_sheets_child_id=google_sheets_child_id,
         amount_in_cents=amount_in_cents,
         hours=hours,
@@ -108,6 +114,13 @@ def create_payment_request():
     db.session.commit()
 
     if not email_sent_successfully:
+        current_app.logger.error(
+            f"Failed to send payment request email for provider ID {google_sheets_provider_id} and child ID {google_sheets_child_id}.",
+            extra={
+                "google_sheets_provider_id": google_sheets_provider_id,
+                "google_sheets_child_id": google_sheets_child_id,
+            },
+        )
         abort(500, description="Failed to send payment request email.")
 
     return (
