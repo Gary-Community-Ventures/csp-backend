@@ -3,7 +3,7 @@ from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, jsonify, request, current_app
 from app.extensions import db
 from app.models.family import Family
-from app.auth.decorators import ClerkUserType, auth_required
+from app.auth.decorators import ClerkUserType, auth_required, api_key_required
 from app.auth.helpers import get_current_user
 from app.sheets.mappings import (
     ProviderColumnNames,
@@ -25,7 +25,7 @@ from app.sheets.mappings import (
 bp = Blueprint("family", __name__)
 
 
-# TODO: add api key
+@api_key_required
 @bp.post("/family")
 def new_family():
     data = request.json
