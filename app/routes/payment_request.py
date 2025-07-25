@@ -22,10 +22,10 @@ bp = Blueprint("payment_request", __name__)
 def create_payment_request():
     data = request.json
 
-    google_sheets_provider_id = data.get("google_sheets_provider_id")
+    google_sheets_provider_id = data.get("provider_id")
     amount_in_cents = data.get("amount_in_cents")
     hours = data.get("hours")
-    google_sheets_child_id = data.get("google_sheets_child_id")
+    google_sheets_child_id = data.get("child_id")
 
     # Validate required fields
     if not all(
@@ -33,7 +33,7 @@ def create_payment_request():
     ):
         abort(
             400,
-            description="Missing required fields: google_sheets_provider_id, amount_in_cents, hours, google_sheets_child_id",
+            description="Missing required fields: provider_id, amount_in_cents, hours, child_id",
         )
 
     # Validate values
