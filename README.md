@@ -1,12 +1,10 @@
-# Backend Template
+# Lala Childcare Backend
 
-This repo is a a template for a Flask backend with a Postgres database. 
+This repo is a Flask backend with a Postgres database used for the LaLa Childcare web application.
 It also uses Clerk for authentication and Sentry for error tracking.
 
 To get started make a copy of `.env.example` to a `.env` file and populate any keys/values that need to be set.
-Then run `docker-compose up --build -d` and you should be up and running. 
-
-Any changes you make to python files should be hot reloaded for faster development. 
+Download docker and then run `docker-compose up --build -d` and you should be up and running. 
 
 ## Examples
 
