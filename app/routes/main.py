@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, current_app
+from flask import Blueprint, jsonify, current_app, url_for
 
 bp = Blueprint("main", __name__)
 
@@ -41,6 +41,7 @@ def index():
         {
             "message": "Flask backend API",
             "version": current_app.config.get("APP_VERSION", "unknown"),
+            "admin_panel": url_for("admin.index", _external=True)
         }
     )
 

@@ -34,3 +34,6 @@ pytest-flask==1.3.0
 google-api-python-client
 google-auth-oauthlib
 sendgrid==6.11.0
+
+#Admin
+flask-admin==1.6.1

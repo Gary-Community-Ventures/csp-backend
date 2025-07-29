@@ -5,13 +5,12 @@ from functools import wraps
 from clerk_backend_api.security.types import AuthenticateRequestOptions
 from enum import Enum
 import hmac
-import hashlib
-import os
 
 
 class ClerkUserType(Enum):
     FAMILY = "family"
     PROVIDER = "provider"
+    ADMIN = "admin"
     NONE = None
 
 

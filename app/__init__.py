@@ -14,6 +14,7 @@ from .extensions import db, migrate, cors
 
 # Import models to ensure they are registered with SQLAlchemy
 from . import models
+from .admin import init_admin
 
 
 def create_app(config_class=None):
@@ -120,5 +121,7 @@ def create_app(config_class=None):
     app.register_blueprint(family_bp)
     app.register_blueprint(provider_bp)
     app.register_blueprint(payment_request_bp)
+
+    init_admin(app)
 
     return app
