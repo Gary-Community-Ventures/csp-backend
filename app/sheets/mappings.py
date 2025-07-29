@@ -1,6 +1,7 @@
 from app.sheets.helpers import Key, KeyMap, get_row, get_rows, money_to_float
 from app.sheets.integration import get_sheet_data
 from datetime import datetime
+from typing import Optional
 
 
 class FamilyColumnNames:
@@ -60,7 +61,7 @@ def get_families() -> list[KeyMap]:
     return get_sheet_data(FamilyColumnNames.SHEET_NAME)
 
 
-def get_family(family_id: int, families: list[KeyMap]) -> KeyMap:
+def get_family(family_id: int, families: list[KeyMap]) -> Optional[KeyMap]:
     return get_row(families, family_id)
 
 
@@ -68,7 +69,7 @@ def get_children() -> list[KeyMap]:
     return get_sheet_data(ChildColumnNames.SHEET_NAME)
 
 
-def get_child(child_id: int, children: list[KeyMap]) -> KeyMap:
+def get_child(child_id: int, children: list[KeyMap]) -> Optional[KeyMap]:
     return get_row(children, child_id)
 
 
@@ -85,7 +86,7 @@ def get_providers() -> list[KeyMap]:
     return get_sheet_data(ProviderColumnNames.SHEET_NAME)
 
 
-def get_provider(provider_id: int, providers: list[KeyMap]) -> KeyMap:
+def get_provider(provider_id: int, providers: list[KeyMap]) -> Optional[KeyMap]:
     return get_row(providers, provider_id)
 
 
@@ -95,7 +96,7 @@ def get_provider_child_mappings() -> list[KeyMap]:
 
 def get_provider_child_mapping_child(
     provider_child_mapping_id: int, provider_child_mappings: list[KeyMap], children: list[KeyMap]
-) -> KeyMap:
+) -> Optional[KeyMap]:
     provider_child_mapping = get_row(provider_child_mappings, provider_child_mapping_id)
 
     return get_row(children, provider_child_mapping.get(ProviderChildMappingColumnNames.CHILD_ID))
@@ -103,15 +104,13 @@ def get_provider_child_mapping_child(
 
 def get_provider_child_mapping_provider(
     provider_child_mapping_id: int, provider_child_mappings: list[KeyMap], providers: list[KeyMap]
-) -> KeyMap:
+) -> Optional[KeyMap]:
     provider_child_mapping = get_row(provider_child_mappings, provider_child_mapping_id)
 
     return get_row(providers, provider_child_mapping.get(ProviderChildMappingColumnNames.PROVIDER_ID))
 
 
-def get_child_providers(
-    child_id: int, provider_child_mappings: list[KeyMap], providers: list[KeyMap]
-) -> list[KeyMap]:
+def get_child_providers(child_id: int, provider_child_mappings: list[KeyMap], providers: list[KeyMap]) -> list[KeyMap]:
     provider_ids: list[int] = []
     for mapping in provider_child_mappings:
         if mapping.get(ProviderChildMappingColumnNames.CHILD_ID) == child_id:
@@ -135,7 +134,7 @@ def get_transactions() -> list[KeyMap]:
     return get_sheet_data(TransactionColumnNames.SHEET_NAME)
 
 
-def get_transaction(transaction_id: int, transactions: list[KeyMap]) -> KeyMap:
+def get_transaction(transaction_id: int, transactions: list[KeyMap]) -> Optional[KeyMap]:
     return get_row(transactions, transaction_id)
 
 
@@ -148,6 +147,7 @@ def get_child_transactions(
             provider_child_ids.append(mapping.get(ProviderChildMappingColumnNames.ID))
 
     return get_rows(transactions, provider_child_ids, id_key=TransactionColumnNames.PROVIDER_CHILD_ID)
+
 
 def get_provider_transactions(
     provider_id: int, provider_child_mappings: list[KeyMap], transactions: list[KeyMap]

@@ -2,8 +2,8 @@ import json
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from flask import current_app
-
 from app.sheets.helpers import KeyMap
+import csv
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
@@ -43,5 +43,16 @@ def get_sheet_data(sheet_name: str = "Sheet1") -> list[dict]:
         for i, header in enumerate(headers):
             row_dict[header] = row[i] if i < len(row) else None
         data.append(KeyMap(row_dict))
+
+    return data
+
+
+def get_csv_data(csv_file: str) -> list[dict]:
+    with open(csv_file, "r") as f:
+        reader = csv.DictReader(f)
+
+        data: list[KeyMap] = []
+        for row in reader:
+            data.append(KeyMap(row))
 
     return data
