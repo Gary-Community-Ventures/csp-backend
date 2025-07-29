@@ -25,8 +25,6 @@ from app.sheets.mappings import (
     get_family_children,
     get_transactions,
 )
-import csv
-
 from app.utils.email_service import send_add_licensed_provider_email
 
 
