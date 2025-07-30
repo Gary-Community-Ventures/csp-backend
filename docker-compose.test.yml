@@ -5,6 +5,7 @@ services:
       - FLASK_ENV=testing
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_test:5432/${POSTGRES_DB}_test
       - PYTHONPATH=.
+      - API_KEY=${API_KEY}
     depends_on:
       - postgres_test
 
@@ -14,6 +15,5 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}_test
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - API_KEY=${API_KEY}
     ports:
       - "5433:5432"
