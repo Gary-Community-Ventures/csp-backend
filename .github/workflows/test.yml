@@ -33,5 +33,4 @@ jobs:
         POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         API_KEY: ${{ secrets.API_KEY }}
         POSTGRES_USER: test_user
-        POSTGRES_DB: test_db
-	
+        POSTGRES_DB: test_db	

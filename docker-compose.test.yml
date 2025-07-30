@@ -14,5 +14,6 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}_test
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - API_KEY=${API_KEY}
     ports:
       - "5433:5432"
