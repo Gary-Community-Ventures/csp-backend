@@ -63,6 +63,17 @@ def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, 
         return False
 
 
+def get_internal_emails() -> tuple[str, list[str]]:
+    # Ensure email addresses are strings
+    from_email = str(current_app.config.get("PAYMENT_REQUEST_SENDER_EMAIL"))
+    to_emails = current_app.config.get("PAYMENT_REQUEST_RECIPIENT_EMAILS", [])
+
+    # Filter out empty strings from the list (in case of trailing commas in env var)
+    to_emails = [email.strip() for email in to_emails if email.strip()]
+
+    return from_email, to_emails
+
+
 def send_payment_request_email(
     provider_name: str,
     google_sheets_provider_id: int,
@@ -74,12 +85,7 @@ def send_payment_request_email(
 ) -> bool:
     amount_dollars = amount_in_cents / 100
 
-    # Ensure email addresses are strings
-    from_email = str(current_app.config.get("PAYMENT_REQUEST_SENDER_EMAIL"))
-    to_emails = current_app.config.get("PAYMENT_REQUEST_RECIPIENT_EMAILS", [])
-
-    # Filter out empty strings from the list (in case of trailing commas in env var)
-    to_emails = [email.strip() for email in to_emails if email.strip()]
+    from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(
         f"Sending payment request email to {to_emails} for provider ID: {google_sheets_provider_id} from child ID: {google_sheets_child_id}"
@@ -137,11 +143,7 @@ def send_add_licensed_provider_email(
     parent_id: int,
     children: list[KeyMap],
 ):
-    from_email = str(current_app.config.get("PAYMENT_REQUEST_SENDER_EMAIL"))
-    to_emails = current_app.config.get("PAYMENT_REQUEST_RECIPIENT_EMAILS", [])
-
-    # Filter out empty strings from the list (in case of trailing commas in env var)
-    to_emails = [email.strip() for email in to_emails if email.strip()]
+    from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(
         f"Sending add license provider request email to {to_emails} for family ID: {parent_id} for provider: {provider_name} fro children: {[child.get(ChildColumnNames.FIRST_NAME) + ' ' + child.get(ChildColumnNames.LAST_NAME) for child in children]}"

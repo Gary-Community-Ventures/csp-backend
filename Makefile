@@ -3,7 +3,7 @@ format:
 build:
 	docker compose up --build -d
 logs:
-	docker compose logs -f
+	docker compose logs -f backend
 run:
 	docker compose up
 down:
