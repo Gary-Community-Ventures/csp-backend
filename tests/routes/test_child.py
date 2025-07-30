@@ -178,6 +178,7 @@ def test_submit_care_days_no_care_days(client, seed_db, mock_send_submission_not
     mock_send_submission_notification.assert_called_once()
 
 def test_submit_care_days_allocation_not_found(client, seed_db, mock_send_submission_notification):
+    _, _, _, _, _, _ = seed_db
 
     response = client.post('/child/999/provider/1/allocation/1/2024/submit') # Non-existent child
     assert response.status_code == 404

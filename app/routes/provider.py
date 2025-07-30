@@ -20,7 +20,7 @@ from app.sheets.mappings import (
 from datetime import date
 from collections import defaultdict
 
-bp = Blueprint("provider", __name__, url_prefix='/provider')
+bp = Blueprint("provider", __name__)
 
 
 @bp.post("/provider")
@@ -119,7 +119,7 @@ def get_provider_data():
     )
 
 
-@bp.route('/<int:provider_id>/allocated_care_days', methods=['GET'])
+@bp.route('/provider/<int:provider_id>/allocated_care_days', methods=['GET'])
 @auth_required(ClerkUserType.PROVIDER)
 def get_allocated_care_days(provider_id):
     child_id = request.args.get('childId', type=int)
