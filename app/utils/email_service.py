@@ -128,3 +128,11 @@ def send_payment_request_email(
         subject="New Payment Request Notification",
         html_content=html_content,
     )
+
+def send_submission_notification(provider_id, child_id, new_days, modified_days, removed_days):
+    """Placeholder for sending submission notification email."""
+    current_app.logger.info(f"Sending submission notification for provider {provider_id}, child {child_id}")
+    current_app.logger.info(f"New days: {new_days}")
+    current_app.logger.info(f"Modified days: {modified_days}")
+    current_app.logger.info(f"Removed days: {removed_days}")
+    return True

@@ -7,7 +7,7 @@ from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
 from clerk_backend_api import Clerk
-from .config import ENV_DEVELOPMENT, ENV_STAGING, ENV_PRODUCTION
+from .config import ENV_DEVELOPMENT, ENV_STAGING, ENV_PRODUCTION, ENV_TESTING
 
 # Import extensions from the extensions module
 from .extensions import db, migrate, cors
@@ -37,6 +37,10 @@ def create_app(config_class=None):
             from .config import StagingConfig
 
             config_class = StagingConfig
+        elif env == ENV_TESTING:
+            from .config import TestingConfig
+
+            config_class = TestingConfig
         else:  # Default to development
             from .config import DevelopmentConfig
 
@@ -114,11 +118,13 @@ def create_app(config_class=None):
     from .routes.family import bp as family_bp
     from .routes.provider import bp as provider_bp
     from .routes.payment_request import bp as payment_request_bp
+    from .routes.care_day import bp as care_day_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(family_bp)
     app.register_blueprint(provider_bp)
     app.register_blueprint(payment_request_bp)
+    app.register_blueprint(care_day_bp)
 
     return app
