@@ -42,9 +42,6 @@ class TestingConfig(Config):
 
     TESTING = True
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
-    # Use an in-memory SQLite database for tests
-    # SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
-    WTF_CSRF_ENABLED = False
 
 
 class StagingConfig(Config):
