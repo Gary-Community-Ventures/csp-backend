@@ -29,12 +29,9 @@ from app.sheets.mappings import (
     get_family_children,
     get_transactions,
 )
-<<<<<<< HEAD
 from datetime import date
 from ..utils.email_service import send_submission_notification
-=======
 from app.utils.email_service import send_add_licensed_provider_email
->>>>>>> dev
 
 bp = Blueprint("family", __name__, url_prefix='/api/family')
 
