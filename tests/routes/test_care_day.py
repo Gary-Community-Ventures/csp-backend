@@ -71,10 +71,10 @@ def mock_authentication(mocker):
     mock_request_state.payload = {'data': {'types': ['family'], 'family_id': 1}}
     mocker.patch('app.auth.decorators._authenticate_request', return_value=mock_request_state)
 
-# --- POST /api/care-days ---
+# --- POST /care-days ---
 def test_create_care_day_success(client, seed_db):
     allocation, _, _, _ = seed_db
-    response = client.post('/api/care-days', json={
+    response = client.post('/care-days', json={
         'allocation_id': allocation.id,
         'provider_id': 1,
         'date': '2024-01-17',
@@ -87,7 +87,7 @@ def test_create_care_day_success(client, seed_db):
 
 def test_create_care_day_missing_fields(client, seed_db):
     allocation, _, _, _ = seed_db
-    response = client.post('/api/care-days', json={
+    response = client.post('/care-days', json={
         'provider_id': 1,
         'date': '2024-01-17',
         'type': 'Full Day'
@@ -97,7 +97,7 @@ def test_create_care_day_missing_fields(client, seed_db):
 
 def test_create_care_day_invalid_date_format(client, seed_db):
     allocation, _, _, _ = seed_db
-    response = client.post('/api/care-days', json={
+    response = client.post('/care-days', json={
         'allocation_id': allocation.id,
         'provider_id': 1,
         'date': 'invalid-date',
@@ -108,7 +108,7 @@ def test_create_care_day_invalid_date_format(client, seed_db):
 
 def test_create_care_day_allocation_not_found(client, seed_db):
     _, _, _, _ = seed_db
-    response = client.post('/api/care-days', json={
+    response = client.post('/care-days', json={
         'allocation_id': 999, # Non-existent ID
         'provider_id': 1,
         'date': '2024-01-17',
@@ -134,7 +134,7 @@ def test_create_care_day_exceeds_allocation(client, seed_db):
             db.session.add(care_day)
         db.session.commit()
 
-    response = client.post('/api/care-days', json={
+    response = client.post('/care-days', json={
         'allocation_id': allocation.id,
         'provider_id': 1,
         'date': '2024-02-11',
@@ -146,7 +146,7 @@ def test_create_care_day_exceeds_allocation(client, seed_db):
 def test_create_care_day_duplicate_date(client, seed_db):
     allocation, care_day_updatable, _, _ = seed_db
     # Care day with ID 1 already exists for 2024-01-15
-    response = client.post('/api/care-days', json={
+    response = client.post('/care-days', json={
         'allocation_id': allocation.id,
         'provider_id': 1,
         'date': care_day_updatable.date.isoformat(),
@@ -158,7 +158,7 @@ def test_create_care_day_duplicate_date(client, seed_db):
 def test_create_care_day_restore_soft_deleted(client, seed_db):
     allocation, _, _, care_day_soft_deleted = seed_db
     # Care day with ID 3 is soft-deleted for 2024-01-16
-    response = client.post('/api/care-days', json={
+    response = client.post('/care-days', json={
         'allocation_id': allocation.id,
         'provider_id': 1,
         'date': care_day_soft_deleted.date.isoformat(),
@@ -172,10 +172,10 @@ def test_create_care_day_restore_soft_deleted(client, seed_db):
         assert restored_day.deleted_at is None
         assert restored_day.type == 'Half Day'
 
-# --- PUT /api/care-days/<care_day_id> ---
+# --- PUT /care-days/<care_day_id> ---
 def test_update_care_day_success(client, seed_db):
     _, care_day_updatable, _, _ = seed_db
-    response = client.put(f'/api/care-days/{care_day_updatable.id}', json={
+    response = client.put(f'/care-days/{care_day_updatable.id}', json={
         'type': 'Half Day'
     })
     assert response.status_code == 200
@@ -188,7 +188,7 @@ def test_update_care_day_success(client, seed_db):
 
 def test_update_care_day_not_found(client, seed_db):
     _, _, _, _ = seed_db
-    response = client.put('/api/care-days/999', json={
+    response = client.put('/care-days/999', json={
         'type': 'Half Day'
     })
     assert response.status_code == 404
@@ -197,7 +197,7 @@ def test_update_care_day_not_found(client, seed_db):
 def test_update_care_day_locked(client, seed_db):
     _, _, care_day_locked, _ = seed_db
     # Care day with ID 2 is locked
-    response = client.put(f'/api/care-days/{care_day_locked.id}', json={
+    response = client.put(f'/care-days/{care_day_locked.id}', json={
         'type': 'Half Day'
     })
     assert response.status_code == 403
@@ -205,14 +205,14 @@ def test_update_care_day_locked(client, seed_db):
 
 def test_update_care_day_missing_type(client, seed_db):
     _, care_day_updatable, _, _ = seed_db
-    response = client.put(f'/api/care-days/{care_day_updatable.id}', json={})
+    response = client.put(f'/care-days/{care_day_updatable.id}', json={})
     assert response.status_code == 400
     assert 'Missing type field' in response.json['error']
 
-# --- DELETE /api/care-days/<care_day_id> ---
+# --- DELETE /care-days/<care_day_id> ---
 def test_delete_care_day_success(client, seed_db):
     _, care_day_updatable, _, _ = seed_db
-    response = client.delete(f'/api/care-days/{care_day_updatable.id}')
+    response = client.delete(f'/care-days/{care_day_updatable.id}')
     assert response.status_code == 204
     with client.application.app_context():
         deleted_day = AllocatedCareDay.query.get(care_day_updatable.id)
@@ -220,13 +220,13 @@ def test_delete_care_day_success(client, seed_db):
 
 def test_delete_care_day_not_found(client, seed_db):
     _, _, _, _ = seed_db
-    response = client.delete('/api/care-days/999')
+    response = client.delete('/care-days/999')
     assert response.status_code == 404
     assert 'Care day not found' in response.json['error']
 
 def test_delete_care_day_locked(client, seed_db):
     _, _, care_day_locked, _ = seed_db
     # Care day with ID 2 is locked
-    response = client.delete(f'/api/care-days/{care_day_locked.id}')
+    response = client.delete(f'/care-days/{care_day_locked.id}')
     assert response.status_code == 403
     assert 'Cannot delete a locked care day' in response.json['error']

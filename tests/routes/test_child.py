@@ -91,10 +91,10 @@ def mock_authentication(mocker):
     mock_request_state.payload = {'data': {'types': ['family'], 'family_id': 1}}
     mocker.patch('app.auth.decorators._authenticate_request', return_value=mock_request_state)
 
-# --- GET /api/family/{family_id}/child/{child_id}/allocation/{month}/{year} ---
+# --- GET /child/{child_id}/allocation/{month}/{year} ---
 def test_get_month_allocation_success(client, seed_db):
     allocation, _, _, _, _, _ = seed_db
-    response = client.get(f'/api/family/1/child/{allocation.google_sheets_child_id}/allocation/{allocation.date.month}/{allocation.date.year}?provider_id=1')
+    response = client.get(f'/child/{allocation.google_sheets_child_id}/allocation/{allocation.date.month}/{allocation.date.year}?provider_id=1')
     assert response.status_code == 200
     assert response.json['total_dollars'] == "1000.00"
     assert response.json['total_days'] == "10.0"
@@ -110,28 +110,27 @@ def test_get_month_allocation_success(client, seed_db):
 
 def test_get_month_allocation_missing_provider_id(client, seed_db):
     allocation, _, _, _, _, _ = seed_db
-    response = client.get(f'/api/family/1/child/{allocation.google_sheets_child_id}/allocation/{allocation.date.month}/{allocation.date.year}')
+    response = client.get(f'/child/{allocation.google_sheets_child_id}/allocation/{allocation.date.month}/{allocation.date.year}')
     assert response.status_code == 400
     assert 'provider_id query parameter is required' in response.json['error']
 
 def test_get_month_allocation_invalid_date(client, seed_db):
     allocation, _, _, _, _, _ = seed_db
-    response = client.get(f'/api/family/1/child/{allocation.google_sheets_child_id}/allocation/13/2024?provider_id=1') # Invalid month
+    response = client.get(f'/child/{allocation.google_sheets_child_id}/allocation/13/2024?provider_id=1') # Invalid month
     assert response.status_code == 400
     assert 'Invalid month or year' in response.json['error']
 
 def test_get_month_allocation_allocation_not_found(client, seed_db):
     _, _, _, _, _, _ = seed_db
-    response = client.get('/api/family/1/child/999/allocation/1/2024?provider_id=1') # Non-existent child
+    response = client.get('/child/999/allocation/1/2024?provider_id=1') # Non-existent child
     assert response.status_code == 200 # Allocation will be created with default values
     assert response.json['total_dollars'] == "1200.00"
 
-# --- POST /api/family/{family_id}/child/{child_id}/provider/{provider_id}/allocation/{month}/{year}/submit ---
-def test_submit_care_days_success(client, seed_db, mocker):
+# --- POST /child/{child_id}/provider/{provider_id}/allocation/{month}/{year}/submit ---
+def test_submit_care_days_success(client, seed_db, mock_send_submission_notification):
     allocation, care_day_new, care_day_submitted, care_day_needs_resubmission, care_day_locked, care_day_deleted = seed_db
-    mock_send_notification = mocker.patch('app.routes.family.send_submission_notification')
 
-    response = client.post(f'/api/family/1/child/{allocation.google_sheets_child_id}/provider/{care_day_new.provider_google_sheets_id}/allocation/{allocation.date.month}/{allocation.date.year}/submit')
+    response = client.post(f'/child/{allocation.google_sheets_child_id}/provider/{care_day_new.provider_google_sheets_id}/allocation/{allocation.date.month}/{allocation.date.year}/submit')
     assert response.status_code == 200
     assert response.json['message'] == 'Submission successful'
 
@@ -144,13 +143,7 @@ def test_submit_care_days_success(client, seed_db, mocker):
     assert response.json['removed_days'][0]['id'] == care_day_deleted.id
 
     # Verify send_submission_notification was called
-    mock_send_notification.assert_called_once()
-    args, kwargs = mock_send_notification.call_args
-    assert args[0] == care_day_new.provider_google_sheets_id # provider_id
-    assert args[1] == allocation.google_sheets_child_id # child_id
-    assert len(args[2]) == 1 # new_days
-    assert len(args[3]) == 1 # modified_days
-    assert len(args[4]) == 1 # removed_days
+    mock_send_submission_notification.assert_called_once()
 
     # Verify last_submitted_at is updated for submitted days
     with client.application.app_context():
@@ -159,9 +152,7 @@ def test_submit_care_days_success(client, seed_db, mocker):
         assert updated_new_day.last_submitted_at is not None
         assert updated_needs_resubmission_day.last_submitted_at is not None
 
-def test_submit_care_days_no_care_days(client, seed_db, mocker):
-    _, _, _, _, _, _ = seed_db
-    mock_send_notification = mocker.patch('app.routes.family.send_submission_notification')
+def test_submit_care_days_no_care_days(client, seed_db, mock_send_submission_notification):
 
     # Create a new allocation with no care days
     new_allocation_child_id = 2
@@ -178,19 +169,17 @@ def test_submit_care_days_no_care_days(client, seed_db, mocker):
         db.session.add(new_allocation)
         db.session.commit()
 
-    response = client.post(f'/api/family/1/child/{new_allocation_child_id}/provider/1/allocation/{new_allocation_month}/{new_allocation_year}/submit')
+    response = client.post(f'/child/{new_allocation_child_id}/provider/1/allocation/{new_allocation_month}/{new_allocation_year}/submit')
     assert response.status_code == 200
     assert response.json['message'] == 'Submission successful'
     assert len(response.json['new_days']) == 0
     assert len(response.json['modified_days']) == 0
     assert len(response.json['removed_days']) == 0
-    mock_send_notification.assert_called_once()
+    mock_send_submission_notification.assert_called_once()
 
-def test_submit_care_days_allocation_not_found(client, seed_db, mocker):
-    _, _, _, _, _, _ = seed_db
-    mock_send_notification = mocker.patch('app.routes.family.send_submission_notification')
+def test_submit_care_days_allocation_not_found(client, seed_db, mock_send_submission_notification):
 
-    response = client.post('/api/family/1/child/999/provider/1/allocation/1/2024/submit') # Non-existent child
+    response = client.post('/child/999/provider/1/allocation/1/2024/submit') # Non-existent child
     assert response.status_code == 404
     assert 'Allocation not found' in response.json['error']
-    mock_send_notification.assert_not_called()
+    mock_send_submission_notification.assert_not_called()

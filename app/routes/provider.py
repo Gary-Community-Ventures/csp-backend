@@ -20,7 +20,7 @@ from app.sheets.mappings import (
 from datetime import date
 from collections import defaultdict
 
-bp = Blueprint("provider", __name__, url_prefix='/api/provider')
+bp = Blueprint("provider", __name__, url_prefix='/provider')
 
 
 @bp.post("/provider")

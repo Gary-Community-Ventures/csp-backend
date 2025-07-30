@@ -2,6 +2,11 @@ import pytest
 from app import create_app
 from app.extensions import db
 
+@pytest.fixture(autouse=True)
+def mock_send_submission_notification(mocker):
+    mock = mocker.patch('app.routes.child.send_submission_notification')
+    return mock
+
 @pytest.fixture
 def app():
     app = create_app()

@@ -8,7 +8,7 @@ from app.auth.decorators import (
     auth_required,
 )
 
-bp = Blueprint('care_day', __name__, url_prefix='/api/care-days')
+bp = Blueprint('care_day', __name__, url_prefix='/care-days')
 
 @bp.route('', methods=['POST'])
 @auth_required(ClerkUserType.FAMILY)

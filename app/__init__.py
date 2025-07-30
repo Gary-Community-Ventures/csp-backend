@@ -119,6 +119,7 @@ def create_app(config_class=None):
     from .routes.provider import bp as provider_bp
     from .routes.payment_request import bp as payment_request_bp
     from .routes.care_day import bp as care_day_bp
+    from .routes.child import bp as child_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
@@ -126,5 +127,6 @@ def create_app(config_class=None):
     app.register_blueprint(provider_bp)
     app.register_blueprint(payment_request_bp)
     app.register_blueprint(care_day_bp)
+    app.register_blueprint(child_bp)
 
     return app

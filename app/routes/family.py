@@ -3,12 +3,8 @@ from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, jsonify, request, current_app
 from app.data.providers.mappings import ProviderListColumnNames
 from app.extensions import db
-from app.models import Family, MonthAllocation, AllocatedCareDay
-from app.auth.decorators import (
-    ClerkUserType,
-    auth_required,
-    api_key_required,
-)
+from app.models.family import Family
+from app.auth.decorators import ClerkUserType, auth_required, api_key_required
 from app.auth.helpers import get_current_user
 from app.sheets.helpers import KeyMap, get_row
 from app.sheets.integration import get_csv_data
@@ -29,11 +25,10 @@ from app.sheets.mappings import (
     get_family_children,
     get_transactions,
 )
-from datetime import date
-from ..utils.email_service import send_submission_notification
 from app.utils.email_service import send_add_licensed_provider_email
 
-bp = Blueprint("family", __name__, url_prefix='/api/family')
+
+bp = Blueprint("family", __name__)
 
 
 @bp.post("/family")
@@ -60,17 +55,13 @@ def new_family():
     clerk: Clerk = current_app.clerk_client
     fe_domain = current_app.config.get("FRONTEND_DOMAIN")
     meta_data = {
-        "types": [
-            ClerkUserType.FAMILY
-        ],  # NOTE: list in case we need to have people who fit into multiple categories
+        "types": [ClerkUserType.FAMILY],  # NOTE: list in case we need to have people who fit into multiple categories
         "family_id": family.id,
     }
 
     clerk.invitations.create(
         request=CreateInvitationRequestBody(
-            email_address=data["email"],
-            redirect_url=f"{fe_domain}/auth/sign-up",
-            public_metadata=meta_data,
+            email_address=data["email"], redirect_url=f"{fe_domain}/auth/sign-up", public_metadata=meta_data
         )
     )
 
@@ -134,12 +125,8 @@ def family_data(child_id: Optional[str] = None):
         active_child_id = family_children[0].get(ChildColumnNames.ID)
 
     child_data = get_child(active_child_id, child_rows)
-    provider_data = get_child_providers(
-        active_child_id, provider_child_mapping_rows, provider_rows
-    )
-    transaction_data = get_child_transactions(
-        active_child_id, provider_child_mapping_rows, transaction_rows
-    )
+    provider_data = get_child_providers(active_child_id, provider_child_mapping_rows, provider_rows)
+    transaction_data = get_child_transactions(active_child_id, provider_child_mapping_rows, transaction_rows)
 
     selected_child_info = {
         "id": child_data.get(ChildColumnNames.ID),
@@ -161,9 +148,7 @@ def family_data(child_id: Optional[str] = None):
         {
             "id": t.get(TransactionColumnNames.ID),
             "name": get_provider_child_mapping_provider(
-                t.get(TransactionColumnNames.PROVIDER_CHILD_ID),
-                provider_child_mapping_rows,
-                provider_rows,
+                t.get(TransactionColumnNames.PROVIDER_CHILD_ID), provider_child_mapping_rows, provider_rows
             ).get(ProviderColumnNames.NAME),
             "amount": t.get(TransactionColumnNames.AMOUNT),
             "date": t.get(TransactionColumnNames.DATETIME).isoformat(),
@@ -191,108 +176,6 @@ def family_data(child_id: Optional[str] = None):
     )
 
 
-@bp.route(
-    "/<int:family_id>/child/<int:child_id>/allocation/<int:month>/<int:year>",
-    methods=["GET"],
-)
-@auth_required(ClerkUserType.FAMILY)
-def get_month_allocation(family_id, child_id, month, year):
-    provider_id = request.args.get("provider_id", type=int)
-    if not provider_id:
-        return jsonify({"error": "provider_id query parameter is required"}), 400
-
-    try:
-        month_date = date(year, month, 1)
-    except ValueError:
-        return jsonify({"error": "Invalid month or year"}), 400
-
-    allocation = MonthAllocation.get_or_create_for_month(child_id, month_date)
-
-    care_days_query = AllocatedCareDay.query.filter_by(
-        care_month_allocation_id=allocation.id, provider_google_sheets_id=provider_id
-    )
-    care_days = care_days_query.all()
-
-    def get_submission_status(day):
-        if day.is_deleted:
-            return "deleted"
-        if day.is_new_since_submission:
-            return "new"
-        if day.needs_resubmission:
-            return "needs_resubmission"
-        if day.needs_resubmission:
-            return "needs_resubmission"
-        return "submitted"
-
-    return jsonify(
-        {
-            "total_dollars": allocation.allocation_dollars,
-            "used_dollars": allocation.used_dollars,
-            "remaining_dollars": allocation.remaining_dollars,
-            "total_days": allocation.allocation_days,
-            "used_days": allocation.used_days,
-            "remaining_days": allocation.remaining_days,
-            "care_days": [
-                {**day.to_dict(), "status": get_submission_status(day)}
-                for day in care_days
-            ],
-        }
-    )
-
-
-@bp.route(
-    "/<int:family_id>/child/<int:child_id>/provider/<int:provider_id>/allocation/<int:month>/<int:year>/submit",
-    methods=["POST"],
-)
-@auth_required(ClerkUserType.FAMILY)
-def submit_care_days(family_id, child_id, provider_id, month, year):
-    try:
-        month_date = date(year, month, 1)
-    except ValueError:
-        return jsonify({"error": "Invalid month or year"}), 400
-
-    allocation = MonthAllocation.query.filter_by(
-        google_sheets_child_id=child_id, date=month_date
-    ).first()
-    if not allocation:
-        return jsonify({"error": "Allocation not found"}), 404
-
-    care_days_to_submit = AllocatedCareDay.query.filter(
-        AllocatedCareDay.care_month_allocation_id == allocation.id,
-        AllocatedCareDay.provider_google_sheets_id == provider_id,
-        AllocatedCareDay.deleted_at.is_(None),  # Don't submit deleted days
-    ).all()
-
-    new_days = [day for day in care_days_to_submit if day.is_new_since_submission]
-    modified_days = [
-        day
-        for day in care_days_to_submit
-        if day.needs_resubmission and not day.is_new_since_submission
-    ]
-    removed_days = AllocatedCareDay.query.filter(
-        AllocatedCareDay.care_month_allocation_id == allocation.id,
-        AllocatedCareDay.provider_google_sheets_id == provider_id,
-        AllocatedCareDay.deleted_at.isnot(None),
-    ).all()
-
-    # Send email notification
-    # This is a placeholder for the actual email sending logic
-    send_submission_notification(
-        provider_id, child_id, new_days, modified_days, removed_days
-    )
-
-    for day in care_days_to_submit:
-        day.mark_as_submitted()
-    db.session.commit()
-
-    return jsonify(
-        {
-            "message": "Submission successful",
-            "new_days": [day.to_dict() for day in new_days],
-            "modified_days": [day.to_dict() for day in modified_days],
-            "removed_days": [day.to_dict() for day in removed_days],
-        }
-    )
 @bp.get("/family/licensed-providers")
 @auth_required(ClerkUserType.FAMILY)
 def licensed_providers():
