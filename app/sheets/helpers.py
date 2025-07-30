@@ -1,4 +1,4 @@
-from typing import Callable, TypeVar, Generic
+from typing import Callable, Optional, TypeVar, Generic
 
 T = TypeVar("T")
 
@@ -26,7 +26,7 @@ class KeyMap(dict):
 ID_COLUMN_KEY = Key("ID", int)
 
 
-def get_row(data: list[KeyMap], id: int, id_key: Key[int] = ID_COLUMN_KEY) -> KeyMap:
+def get_row(data: list[KeyMap], id: int, id_key: Key[int] = ID_COLUMN_KEY) -> Optional[KeyMap]:
     for item in data:
         if item.get(id_key) == id:
             return item
