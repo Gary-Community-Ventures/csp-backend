@@ -13,6 +13,7 @@ class MonthAllocationResponse(BaseModel):
     used_cents: float
     remaining_cents: float
     over_allocation: bool
+    locked_until_date: date # Add the new field
     created_at: datetime
     updated_at: datetime
     care_days: List[AllocatedCareDayResponse] # Add the care_days field

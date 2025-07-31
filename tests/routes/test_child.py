@@ -1,7 +1,7 @@
 from app.sheets.mappings import ChildColumnNames
 from app.sheets.helpers import KeyMap
 import pytest
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, time
 from app.models import AllocatedCareDay, MonthAllocation
 from app.extensions import db
 from decimal import Decimal
@@ -11,7 +11,7 @@ def seed_db(app):
     with app.app_context():
         # Create a MonthAllocation for testing
         allocation = MonthAllocation(
-            date=date(2024, 1, 1),
+            date=date.today().replace(day=1),
             allocation_cents=1000000,
             google_sheets_child_id=1
         )
@@ -118,7 +118,7 @@ def test_get_month_allocation_invalid_date(client, seed_db):
     allocation, _, _, _, _, _ = seed_db
     response = client.get(f'/child/{allocation.google_sheets_child_id}/allocation/13/2024?provider_id=1') # Invalid month
     assert response.status_code == 400
-    assert 'Invalid month or year' in response.json['error']
+    assert 'month must be in 1..12' in response.json['error']
 
 def test_get_month_allocation_allocation_not_found(client, seed_db, mocker):
     _, _, _, _, _, _ = seed_db
@@ -129,7 +129,7 @@ def test_get_month_allocation_allocation_not_found(client, seed_db, mocker):
     # Mock get_child to return the specific child data (it will be called by get_or_create_for_month)
     mocker.patch('app.models.month_allocation.get_child', return_value=mock_child_data)
 
-    response = client.get('/child/999/allocation/1/2024?provider_id=1') # Non-existent child
+    response = client.get(f'/child/999/allocation/{date.today().month}/{date.today().year}?provider_id=1') # Non-existent child
     assert response.status_code == 200 # Allocation will be created with default values
     assert response.json['allocation_cents'] == 500000 # 5000 dollars * 100 cents/dollar
 
@@ -163,8 +163,8 @@ def test_submit_care_days_no_care_days(client, seed_db, mock_send_submission_not
 
     # Create a new allocation with no care days
     new_allocation_child_id = 2
-    new_allocation_month = 2
-    new_allocation_year = 2024
+    new_allocation_month = date.today().month
+    new_allocation_year = date.today().year
 
     with client.application.app_context():
         new_allocation = MonthAllocation(
@@ -190,3 +190,28 @@ def test_submit_care_days_allocation_not_found(client, seed_db, mock_send_submis
     assert response.status_code == 404
     assert 'Allocation not found' in response.json['error']
     mock_send_submission_notification.assert_not_called()
+
+def test_get_month_allocation_past_month_creation_fails(client):
+    # Attempt to get an allocation for a past month (e.g., January of the current year)
+    past_month = date.today().replace(month=1, day=1)
+    response = client.get(f'/child/1/allocation/{past_month.month}/{past_month.year}?provider_id=1')
+    assert response.status_code == 400
+    assert 'Cannot create allocation for a past month.' in response.json['error']
+
+def test_month_allocation_locked_until_date(client, seed_db):
+    allocation, _, _, _, _, _ = seed_db
+    # Calculate expected locked_until_date based on current date
+    today = date.today()
+    current_monday = today - timedelta(days=today.weekday())
+    current_monday_eod = datetime.combine(current_monday, time(23, 59, 59))
+
+    if datetime.now() > current_monday_eod:
+        expected_locked_until_date = current_monday + timedelta(days=6) # Sunday of current week
+    else:
+        expected_locked_until_date = current_monday - timedelta(days=1) # Sunday of previous week
+
+    with client.application.app_context():
+        # Refresh allocation from DB to ensure property is calculated correctly
+        db.session.expire_all()
+        updated_allocation = MonthAllocation.query.get(allocation.id)
+        assert updated_allocation.locked_until_date == expected_locked_until_date

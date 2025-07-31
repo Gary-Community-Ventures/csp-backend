@@ -12,7 +12,7 @@ def setup_payment_request_data(app):
     with app.app_context():
         # Create a MonthAllocation
         allocation = MonthAllocation(
-            date=date(2024, 1, 1),
+            date=date.today().replace(day=1),
             allocation_cents=1000000,
             google_sheets_child_id=101
         )
@@ -39,36 +39,39 @@ def setup_payment_request_data(app):
         care_day_1 = AllocatedCareDay.create_care_day(
             allocation=allocation,
             provider_id=201,
-            care_date=date(2024, 1, 10),
+            care_date=date.today() + timedelta(days=10),
             day_type=CareDayType.FULL_DAY,
         )
         care_day_1.last_submitted_at = datetime.utcnow() - timedelta(days=5)
         care_day_1.payment_distribution_requested = False
+        care_day_1.locked_date = datetime.utcnow() - timedelta(days=1)
 
         care_day_2 = AllocatedCareDay.create_care_day(
             allocation=allocation,
             provider_id=201,
-            care_date=date(2024, 1, 11),
+            care_date=date.today() + timedelta(days=11),
             day_type=CareDayType.HALF_DAY,
         )
         care_day_2.last_submitted_at = datetime.utcnow() - timedelta(days=4)
         care_day_2.payment_distribution_requested = False
+        care_day_2.locked_date = datetime.utcnow() - timedelta(days=1)
 
         # Care day for a different provider/child that should NOT be processed by this run
         care_day_3 = AllocatedCareDay.create_care_day(
             allocation=allocation,
             provider_id=202,
-            care_date=date(2024, 1, 12),
+            care_date=date.today() + timedelta(days=12),
             day_type=CareDayType.FULL_DAY,
         )
         care_day_3.last_submitted_at = datetime.utcnow() - timedelta(days=3)
         care_day_3.payment_distribution_requested = False
+        care_day_3.locked_date = datetime.utcnow() - timedelta(days=1)
 
         # Care day that is already processed
         care_day_4 = AllocatedCareDay.create_care_day(
             allocation=allocation,
             provider_id=201,
-            care_date=date(2024, 1, 13),
+            care_date=date.today() + timedelta(days=13),
             day_type=CareDayType.FULL_DAY,
         )
         care_day_4.last_submitted_at = datetime.utcnow() - timedelta(days=2)

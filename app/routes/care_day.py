@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from ..models import AllocatedCareDay, MonthAllocation
 from ..extensions import db
-from datetime import date
+from datetime import date, datetime
 
 from app.auth.decorators import (
     ClerkUserType,
@@ -9,6 +9,7 @@ from app.auth.decorators import (
 )
 from app.schemas.care_day import AllocatedCareDayResponse # Import the Pydantic model
 from app.enums.care_day_type import CareDayType
+from app.models.utils import get_care_day_cost # Import get_care_day_cost
 
 bp = Blueprint('care_day', __name__, url_prefix='/care-days')
 
@@ -66,11 +67,27 @@ def update_care_day(care_day_id):
         return jsonify({'error': 'Missing type field'}), 400
 
     try:
-        day_type = CareDayType(day_type_str)
+        new_day_type = CareDayType(day_type_str)
     except ValueError:
         return jsonify({'error': f'Invalid care day type: {day_type_str}'}), 400
 
-    care_day.type = day_type
+    was_deleted = care_day.is_deleted
+
+    if was_deleted:
+        care_day.restore()
+
+    if care_day.is_locked:
+        return jsonify({'error': 'Cannot modify a locked care day'}), 403
+
+    if care_day.type != new_day_type or was_deleted:
+        care_day.type = new_day_type
+        care_day.amount_cents = get_care_day_cost(
+            new_day_type,
+            provider_id=care_day.provider_google_sheets_id,
+            child_id=care_day.care_month_allocation.google_sheets_child_id,
+        )
+        care_day.last_submitted_at = None
+
     db.session.commit()
 
     return jsonify(AllocatedCareDayResponse.from_orm(care_day).model_dump())

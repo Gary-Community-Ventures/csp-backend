@@ -92,6 +92,10 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         day_type: CareDayType,
     ):
         """Create a new care day with proper validation"""
+        # Prevent creating care days in the past
+        if care_date < date.today():
+            raise ValueError("Cannot create a care day in the past.")
+
         # Check if allocation can handle this care day
         if not allocation.can_add_care_day(day_type, provider_id=provider_id):
             raise ValueError("Adding this care day would exceed monthly allocation")
@@ -133,7 +137,25 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         # Calculate and set locked_date
         days_since_monday = care_date.weekday()
         monday = care_date - timedelta(days=days_since_monday)
-        care_day.locked_date = datetime.combine(monday, dt_time(23, 59, 59))
+        calculated_locked_date = datetime.combine(monday, dt_time(23, 59, 59))
+
+        # Prevent creating a care day that would be locked
+        if datetime.now() > calculated_locked_date:
+            raise ValueError("Cannot create a care day that would be locked.")
+
+        # Create new care day
+        care_day = AllocatedCareDay(
+            care_month_allocation_id=allocation.id,
+            provider_google_sheets_id=provider_id,
+            date=care_date,
+            type=day_type,
+            amount_cents=get_care_day_cost(
+                day_type,
+                provider_id=provider_id,
+                child_id=allocation.google_sheets_child_id,
+            ),
+            locked_date=calculated_locked_date,
+        )
 
         db.session.add(care_day)
         db.session.commit()
@@ -162,6 +184,16 @@ class AllocatedCareDay(db.Model, TimestampMixin):
             "needs_resubmission": self.needs_resubmission,
             "is_new_since_submission": self.is_new_since_submission,
         }
+
+    @property
+    def status(self):
+        if self.is_deleted:
+            return "deleted"
+        if self.is_new_since_submission:
+            return "new"
+        if self.needs_resubmission:
+            return "needs_resubmission"
+        return "submitted"
 
     def __repr__(self):
         return f"<AllocatedCareDay {self.date} {self.type} - Provider {self.provider_google_sheets_id}>"

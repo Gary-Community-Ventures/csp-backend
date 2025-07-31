@@ -1,7 +1,7 @@
 from ..enums.care_day_type import CareDayType
 from ..extensions import db
 from .mixins import TimestampMixin
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, time as dt_time
 from typing import List
 from decimal import Decimal
 from .utils import get_care_day_cost
@@ -86,6 +86,11 @@ class MonthAllocation(db.Model, TimestampMixin):
         # Normalize to first of month
         month_start = month_date.replace(day=1)
 
+        # Prevent creating allocations for past months
+        today = date.today().replace(day=1)
+        if month_start < today:
+            raise ValueError("Cannot create allocation for a past month.")
+
         allocation = MonthAllocation.query.filter_by(
             google_sheets_child_id=child_id, date=month_start
         ).first()
@@ -104,6 +109,22 @@ class MonthAllocation(db.Model, TimestampMixin):
             db.session.commit()
 
         return allocation
+
+    @property
+    def locked_until_date(self) -> date:
+        """Returns the last date (inclusive) for which a newly created care day would be immediately locked."""
+        today = date.today()
+        # Calculate the Monday of the current week
+        current_monday = today - timedelta(days=today.weekday())
+        # Calculate the end of day for the current Monday
+        current_monday_eod = datetime.combine(current_monday, dt_time(23, 59, 59))
+
+        if datetime.now() > current_monday_eod:
+            # If current time is past Monday EOD, all days in current week are locked
+            return current_monday + timedelta(days=6) # Sunday of current week
+        else:
+            # If current time is not yet past Monday EOD, days up to previous Sunday are locked
+            return current_monday - timedelta(days=1) # Sunday of previous week
 
     def __repr__(self):
         return f"<MonthAllocation Child:{self.google_sheets_child_id} {self.date.strftime('%Y-%m')}"

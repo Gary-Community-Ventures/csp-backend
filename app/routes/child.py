@@ -29,30 +29,19 @@ def get_month_allocation(child_id, month, year):
 
     try:
         month_date = date(year, month, 1)
-    except ValueError:
-        return jsonify({"error": "Invalid month or year"}), 400
-
-    allocation = MonthAllocation.get_or_create_for_month(child_id, month_date)
+        allocation = MonthAllocation.get_or_create_for_month(child_id, month_date)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
 
     care_days_query = AllocatedCareDay.query.filter_by(
         care_month_allocation_id=allocation.id, provider_google_sheets_id=provider_id
     )
     care_days = care_days_query.all()
 
-    def get_submission_status(day):
-        if day.is_deleted:
-            return "deleted"
-        if day.is_new_since_submission:
-            return "new"
-        if day.needs_resubmission:
-            return "needs_resubmission"
-        return "submitted"
-
     # Serialize care_days using Pydantic model
     serialized_care_days = []
     for day in care_days:
         care_day_data = AllocatedCareDayResponse.from_orm(day).model_dump()
-        care_day_data["status"] = get_submission_status(day)
         serialized_care_days.append(care_day_data)
 
     # Serialize allocation using MonthAllocationResponse

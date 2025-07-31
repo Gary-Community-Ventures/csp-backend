@@ -16,7 +16,7 @@ class PaymentRequest(db.Model, TimestampMixin):
     google_sheets_child_id = db.Column(db.Integer, nullable=False, index=True)
 
     # Derived fields for snapshot of moment
-    care_days_count = db.Column(db.Integer, nullable=True, default=0)
+    care_days_count = db.Column(db.Integer, nullable=False)
     amount_in_cents = db.Column(db.Integer, nullable=False)
 
     # Care days included in this payment (JSON list of IDs)

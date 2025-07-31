@@ -26,6 +26,7 @@ class AllocatedCareDayResponse(AllocatedCareDayBase):
     is_deleted: bool
     needs_resubmission: bool
     is_new_since_submission: bool
+    status: str
 
     class Config:
         from_attributes = True
