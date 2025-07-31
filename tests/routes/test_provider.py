@@ -10,14 +10,12 @@ def seed_db(app):
         # Create MonthAllocations for different children
         allocation1 = MonthAllocation(
             date=date(2024, 1, 1),
-            allocation_dollars=1000,
-            allocation_days=10,
+            allocation_cents=1000000,
             google_sheets_child_id=1
         )
         allocation2 = MonthAllocation(
             date=date(2024, 2, 1),
-            allocation_dollars=500,
-            allocation_days=5,
+            allocation_cents=50000,
             google_sheets_child_id=2
         )
         db.session.add(allocation1)
@@ -29,16 +27,14 @@ def seed_db(app):
             care_month_allocation_id=allocation1.id,
             date=date(2024, 1, 15),
             type='Full Day',
-            amount_dollars=60,
-            day_count=Decimal("1.0"),
+            amount_cents=6000,
             provider_google_sheets_id=1
         )
         care_day1_2 = AllocatedCareDay(
             care_month_allocation_id=allocation1.id,
             date=date(2024, 1, 20),
             type='Half Day',
-            amount_dollars=40,
-            day_count=Decimal("0.5"),
+            amount_cents=4000,
             provider_google_sheets_id=1
         )
         db.session.add(care_day1_1)
@@ -49,8 +45,7 @@ def seed_db(app):
             care_month_allocation_id=allocation2.id,
             date=date(2024, 2, 10),
             type='Full Day',
-            amount_dollars=60,
-            day_count=Decimal("1.0"),
+            amount_cents=6000,
             provider_google_sheets_id=1
         )
         db.session.add(care_day2_1)
@@ -60,8 +55,7 @@ def seed_db(app):
             care_month_allocation_id=allocation1.id,
             date=date(2024, 1, 25),
             type='Full Day',
-            amount_dollars=60,
-            day_count=Decimal("1.0"),
+            amount_cents=6000,
             provider_google_sheets_id=2
         )
         db.session.add(care_day_other_provider)

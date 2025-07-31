@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request, jsonify
 from app.extensions import db
 from app.models import MonthAllocation, AllocatedCareDay
 from app.auth.decorators import (
@@ -6,6 +6,9 @@ from app.auth.decorators import (
     auth_required,
 )
 from app.utils.email_service import send_submission_notification
+from app.schemas.care_day import AllocatedCareDayResponse # Import the Pydantic model
+from app.schemas.month_allocation import MonthAllocationResponse # Import the MonthAllocationResponse
+from app.utils.json_utils import custom_jsonify
 
 from datetime import date
 
@@ -28,7 +31,7 @@ def get_month_allocation(child_id, month, year):
     except ValueError:
         return jsonify({"error": "Invalid month or year"}), 400
 
-    allocation = MonthAllocation.get_or_create_for_month(child_id, month_date)
+    allocation = MonthAllocation.get_or_create_for_month(child_id, month_date, 1200000)
 
     care_days_query = AllocatedCareDay.query.filter_by(
         care_month_allocation_id=allocation.id, provider_google_sheets_id=provider_id
@@ -42,24 +45,20 @@ def get_month_allocation(child_id, month, year):
             return "new"
         if day.needs_resubmission:
             return "needs_resubmission"
-        if day.needs_resubmission:
-            return "needs_resubmission"
         return "submitted"
 
-    return jsonify(
-        {
-            "total_dollars": allocation.allocation_dollars,
-            "used_dollars": allocation.used_dollars,
-            "remaining_dollars": allocation.remaining_dollars,
-            "total_days": allocation.allocation_days,
-            "used_days": allocation.used_days,
-            "remaining_days": allocation.remaining_days,
-            "care_days": [
-                {**day.to_dict(), "status": get_submission_status(day)}
-                for day in care_days
-            ],
-        }
-    )
+    # Serialize care_days using Pydantic model
+    serialized_care_days = []
+    for day in care_days:
+        care_day_data = AllocatedCareDayResponse.from_orm(day).model_dump()
+        care_day_data["status"] = get_submission_status(day)
+        serialized_care_days.append(care_day_data)
+
+    # Serialize allocation using MonthAllocationResponse
+    serialized_allocation = MonthAllocationResponse.from_orm(allocation).model_dump()
+    serialized_allocation["care_days"] = serialized_care_days
+
+    return custom_jsonify(serialized_allocation)
 
 
 @bp.route(
@@ -110,8 +109,8 @@ def submit_care_days(child_id, provider_id, month, year):
     return jsonify(
         {
             "message": "Submission successful",
-            "new_days": [day.to_dict() for day in new_days],
-            "modified_days": [day.to_dict() for day in modified_days],
-            "removed_days": [day.to_dict() for day in removed_days],
+            "new_days": [AllocatedCareDayResponse.from_orm(day).model_dump() for day in new_days],
+            "modified_days": [AllocatedCareDayResponse.from_orm(day).model_dump() for day in modified_days],
+            "removed_days": [AllocatedCareDayResponse.from_orm(day).model_dump() for day in removed_days],
         }
     )

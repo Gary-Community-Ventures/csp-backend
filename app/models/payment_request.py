@@ -20,7 +20,7 @@ class PaymentRequest(db.Model, TimestampMixin):
     amount_in_cents = db.Column(db.Integer, nullable=False)
 
     # Care days included in this payment (JSON list of IDs)
-    care_day_ids = db.Column(db.JSON, nullable=False)
+    care_day_ids = db.Column(db.JSON, nullable=True)
 
     # Status tracking
     email_sent_successfully = db.Column(db.Boolean, default=False)
@@ -58,7 +58,7 @@ class PaymentRequest(db.Model, TimestampMixin):
         payment_request = PaymentRequest(
             care_day_ids=[day.id for day in care_days],
             care_days_count=len(care_days),
-            amount=sum(day.amount_dollars for day in care_days),
+            amount=sum(day.amount_cents for day in care_days),
             provider_google_sheets_id=provider_id,
             child_google_sheets_id=child_id,
         )

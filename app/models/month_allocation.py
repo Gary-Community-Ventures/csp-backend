@@ -1,3 +1,4 @@
+from .enums import CareDayType
 from ..extensions import db
 from .mixins import TimestampMixin
 from datetime import datetime, date, timedelta
@@ -15,10 +16,7 @@ class MonthAllocation(db.Model, TimestampMixin):
     date = db.Column(db.Date, nullable=False, index=True)
 
     # Allocation amounts
-    allocation_dollars = db.Column(db.Numeric(10, 2), nullable=False)
-    allocation_days = db.Column(
-        db.Numeric(4, 1), nullable=False
-    )  # Allow half days (e.g., 20.5)
+    allocation_cents = db.Column(db.Integer, nullable=False)
 
     # Child reference
     google_sheets_child_id = db.Column(db.Integer, nullable=False, index=True)
@@ -45,10 +43,7 @@ class MonthAllocation(db.Model, TimestampMixin):
     @property
     def over_allocation(self):
         """Check if allocated care days exceed the monthly allocation"""
-        return (
-            self.used_days > self.allocation_days
-            or self.used_dollars > self.allocation_dollars
-        )
+        return self.used_cents > self.allocation_cents
 
     @property
     def used_days(self):
@@ -56,32 +51,30 @@ class MonthAllocation(db.Model, TimestampMixin):
         return sum(day.day_count for day in self.care_days)
 
     @property
-    def used_dollars(self):
-        """Calculate total dollars used from active care days"""
-        return sum(day.amount_dollars for day in self.care_days)
+    def used_cents(self):
+        """Calculate total cents used from active care days"""
+        return sum(day.amount_cents for day in self.care_days)
 
     @property
-    def remaining_days(self):
-        """Calculate remaining days available"""
-        return self.allocation_days - self.used_days
+    def remaining_cents(self):
+        """Calculate remaining cents available"""
+        return self.allocation_cents - self.used_cents
 
-    @property
-    def remaining_dollars(self):
-        """Calculate remaining dollars available"""
-        return self.allocation_dollars - self.used_dollars
-
-    def can_add_care_day(self, day_type: str) -> bool:
+    def can_add_care_day(self, day_type: CareDayType, provider_id: int) -> bool:
         """Check if we can add a care day of given type without over-allocating"""
-        day_count = Decimal("1.0") if day_type == "Full Day" else Decimal("0.5")
-        dollar_amount = get_care_day_cost(day_type)
-
-        return (
-            self.used_days + day_count <= self.allocation_days
-            and self.used_dollars + dollar_amount <= self.allocation_dollars
+        cents_amount = get_care_day_cost(
+            day_type, provider_id=provider_id, child_id=self.google_sheets_child_id
         )
+        print(
+            f"Checking if can add care day of type '{day_type}' costing {cents_amount} cents"
+        )
+        print(
+            f"Current used cents: {self.used_cents}, Allocation cents: {self.allocation_cents}"
+        )
+        return self.used_cents + cents_amount <= self.allocation_cents
 
     @staticmethod
-    def get_or_create_for_month(child_id: int, month_date: date):
+    def get_or_create_for_month(child_id: int, month_date: date, allocation_cents):
         """Get existing allocation or create with default values"""
         # Normalize to first of month
         month_start = month_date.replace(day=1)
@@ -95,8 +88,7 @@ class MonthAllocation(db.Model, TimestampMixin):
             allocation = MonthAllocation(
                 google_sheets_child_id=child_id,
                 date=month_start,
-                allocation_dollars=1200.00,  # Hardcoded for now
-                allocation_days=20.0,  # Hardcoded for now
+                allocation_cents=allocation_cents,
             )
             db.session.add(allocation)
             db.session.commit()

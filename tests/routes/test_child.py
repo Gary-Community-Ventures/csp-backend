@@ -10,8 +10,7 @@ def seed_db(app):
         # Create a MonthAllocation for testing
         allocation = MonthAllocation(
             date=date(2024, 1, 1),
-            allocation_dollars=1000.00,
-            allocation_days=10.0,
+            allocation_cents=1000000,
             google_sheets_child_id=1
         )
         db.session.add(allocation)
@@ -23,8 +22,7 @@ def seed_db(app):
             provider_google_sheets_id=1,
             date=date.today() + timedelta(days=7), # Set date to a week in the future
             type='Full Day',
-            amount_dollars=60,
-            day_count=Decimal("1.0"),
+            amount_cents=6000,
             last_submitted_at=None
         )
         db.session.add(care_day_new)
@@ -35,8 +33,7 @@ def seed_db(app):
             provider_google_sheets_id=1,
             date=date.today() + timedelta(days=1), # Set date to tomorrow
             type='Half Day',
-            amount_dollars=40,
-            day_count=Decimal("0.5"),
+            amount_cents=4000,
             last_submitted_at=datetime.utcnow() - timedelta(days=5) # Submitted 5 days ago
         )
         care_day_submitted.updated_at = care_day_submitted.last_submitted_at - timedelta(days=1)
@@ -48,8 +45,7 @@ def seed_db(app):
             provider_google_sheets_id=1,
             date=date.today() + timedelta(days=2), # Set date to two days from now
             type='Full Day',
-            amount_dollars=60,
-            day_count=Decimal("1.0"),
+            amount_cents=6000,
             last_submitted_at=datetime.utcnow() - timedelta(days=10) # Submitted 10 days ago
         )
         care_day_needs_resubmission.updated_at = datetime.utcnow() # Updated recently
@@ -62,8 +58,7 @@ def seed_db(app):
             provider_google_sheets_id=1,
             date=locked_date_past.date() - timedelta(days=7), # Ensure it's locked
             type='Full Day',
-            amount_dollars=60,
-            day_count=Decimal("1.0"),
+            amount_cents=6000,
             last_submitted_at=datetime.utcnow()
         )
         db.session.add(care_day_locked)
@@ -74,8 +69,7 @@ def seed_db(app):
             provider_google_sheets_id=1,
             date=date.today() + timedelta(days=3), # Set date to three days from now
             type='Full Day',
-            amount_dollars=60,
-            day_count=Decimal("1.0"),
+            amount_cents=6000,
             deleted_at=datetime.utcnow()
         )
         db.session.add(care_day_deleted)
@@ -96,8 +90,7 @@ def test_get_month_allocation_success(client, seed_db):
     allocation, _, _, _, _, _ = seed_db
     response = client.get(f'/child/{allocation.google_sheets_child_id}/allocation/{allocation.date.month}/{allocation.date.year}?provider_id=1')
     assert response.status_code == 200
-    assert response.json['total_dollars'] == "1000.00"
-    assert response.json['total_days'] == "10.0"
+    assert response.json['allocation_cents'] == 1000000
     assert len(response.json['care_days']) == 5 # All care days for provider 1
 
     # Check submission statuses
@@ -124,7 +117,7 @@ def test_get_month_allocation_allocation_not_found(client, seed_db):
     _, _, _, _, _, _ = seed_db
     response = client.get('/child/999/allocation/1/2024?provider_id=1') # Non-existent child
     assert response.status_code == 200 # Allocation will be created with default values
-    assert response.json['total_dollars'] == "1200.00"
+    assert response.json['allocation_cents'] == 1200000
 
 # --- POST /child/{child_id}/provider/{provider_id}/allocation/{month}/{year}/submit ---
 def test_submit_care_days_success(client, seed_db, mock_send_submission_notification):
@@ -162,8 +155,7 @@ def test_submit_care_days_no_care_days(client, seed_db, mock_send_submission_not
     with client.application.app_context():
         new_allocation = MonthAllocation(
             date=date(new_allocation_year, new_allocation_month, 1),
-            allocation_dollars=500,
-            allocation_days=5,
+            allocation_cents=50000,
             google_sheets_child_id=new_allocation_child_id
         )
         db.session.add(new_allocation)
