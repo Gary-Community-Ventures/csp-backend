@@ -8,7 +8,7 @@ from app.auth.decorators import (
     auth_required,
 )
 from app.schemas.care_day import AllocatedCareDayResponse # Import the Pydantic model
-from app.models.enums import CareDayType
+from app.enums.care_day_type import CareDayType
 
 bp = Blueprint('care_day', __name__, url_prefix='/care-days')
 

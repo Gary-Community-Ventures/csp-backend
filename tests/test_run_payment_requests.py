@@ -2,7 +2,7 @@ import pytest
 from datetime import date, datetime, timedelta
 from app.models import AllocatedCareDay, MonthAllocation, PaymentRequest, PaymentRate
 from app.extensions import db
-from app.models.enums import CareDayType
+from app.enums.care_day_type import CareDayType
 from app.sheets.mappings import ChildColumnNames, ProviderColumnNames, KeyMap
 from run_payment_requests import run_payment_requests
 

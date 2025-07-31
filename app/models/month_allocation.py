@@ -1,4 +1,4 @@
-from .enums import CareDayType
+from ..enums.care_day_type import CareDayType
 from ..extensions import db
 from .mixins import TimestampMixin
 from datetime import datetime, date, timedelta

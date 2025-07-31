@@ -8,7 +8,7 @@ from decimal import Decimal
 import pytest
 from datetime import date, datetime, timedelta
 from app.models import AllocatedCareDay, MonthAllocation, PaymentRate
-from app.models.enums import CareDayType
+from app.enums.care_day_type import CareDayType
 from app.extensions import db
 from decimal import Decimal
 
