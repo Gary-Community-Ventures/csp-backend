@@ -62,12 +62,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         """Mark this day as submitted to provider"""
         self.last_submitted_at = db.func.current_timestamp()
 
-    @property
-    def locked_date(self):
-        """Calculate when this care day locks (Monday 11:59:59 PM of the week)"""
-        days_since_monday = self.date.weekday()
-        monday = self.date - timedelta(days=days_since_monday)
-        return datetime.combine(monday, dt_time(23, 59, 59))
+    locked_date = db.Column(db.DateTime, nullable=False)
 
     @property
     def is_locked(self):
@@ -135,6 +130,10 @@ class AllocatedCareDay(db.Model, TimestampMixin):
                 child_id=allocation.google_sheets_child_id,
             ),
         )
+        # Calculate and set locked_date
+        days_since_monday = care_date.weekday()
+        monday = care_date - timedelta(days=days_since_monday)
+        care_day.locked_date = datetime.combine(monday, dt_time(23, 59, 59))
 
         db.session.add(care_day)
         db.session.commit()
@@ -157,6 +156,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
             "deleted_at": self.deleted_at.isoformat() if self.deleted_at else None,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
+            "locked_date": self.locked_date.isoformat() if self.locked_date else None,
             "is_locked": self.is_locked,
             "is_deleted": self.is_deleted,
             "needs_resubmission": self.needs_resubmission,

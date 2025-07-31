@@ -21,6 +21,7 @@ class AllocatedCareDayResponse(AllocatedCareDayBase):
     deleted_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
+    locked_date: datetime
     is_locked: bool
     is_deleted: bool
     needs_resubmission: bool

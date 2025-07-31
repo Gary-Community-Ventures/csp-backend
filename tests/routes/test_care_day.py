@@ -38,7 +38,8 @@ def seed_db(app):
         care_day_updatable = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
-            date=datetime.now() + timedelta(days=8),
+            date=datetime.now(),
+            locked_date=datetime.now() + timedelta(days=8),
             type=CareDayType.FULL_DAY,
             amount_cents=payment_rate.full_day_rate_cents,
             last_submitted_at=None,  # Never submitted
@@ -51,6 +52,7 @@ def seed_db(app):
         care_day_locked = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
+            locked_date=locked_date,
             date=locked_date.date(),
             type=CareDayType.FULL_DAY,
             amount_cents=payment_rate.full_day_rate_cents,
@@ -67,6 +69,7 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
             date=date(2024, 1, 16),
+            locked_date=datetime.now(),
             type=CareDayType.FULL_DAY,
             amount_cents=payment_rate.full_day_rate_cents,
             deleted_at=datetime.utcnow(),
@@ -154,6 +157,7 @@ def test_create_care_day_exceeds_allocation(client, seed_db):
             care_day = AllocatedCareDay(
                 care_month_allocation_id=allocation.id,
                 provider_google_sheets_id=1,
+                locked_date=datetime.now(),
                 date=date(2024, 2, i),
                 type=CareDayType.FULL_DAY,
                 amount_cents=payment_rate.full_day_rate_cents,

@@ -22,9 +22,6 @@ class PaymentRequest(db.Model, TimestampMixin):
     # Care days included in this payment (JSON list of IDs)
     care_day_ids = db.Column(db.JSON, nullable=True)
 
-    # Status tracking
-    email_sent_successfully = db.Column(db.Boolean, default=False)
-
     @property
     def care_days(self):
         """Get the actual AllocatedCareDay objects"""
@@ -73,4 +70,4 @@ class PaymentRequest(db.Model, TimestampMixin):
         return payment_request
 
     def __repr__(self):
-        return f"<PaymentRequest ${self.amount} - Provider {self.provider_google_sheets_id}>"
+        return f"<PaymentRequest ${self.amount_in_cents / 100:.2f} - Provider {self.google_sheets_provider_id}>"
