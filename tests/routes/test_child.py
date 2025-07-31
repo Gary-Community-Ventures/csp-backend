@@ -1,3 +1,5 @@
+from app.sheets.mappings import ChildColumnNames
+from app.sheets.helpers import KeyMap
 import pytest
 from datetime import date, datetime, timedelta
 from app.models import AllocatedCareDay, MonthAllocation
@@ -113,11 +115,18 @@ def test_get_month_allocation_invalid_date(client, seed_db):
     assert response.status_code == 400
     assert 'Invalid month or year' in response.json['error']
 
-def test_get_month_allocation_allocation_not_found(client, seed_db):
+def test_get_month_allocation_allocation_not_found(client, seed_db, mocker):
     _, _, _, _, _, _ = seed_db
+    # Mock get_children to return a list containing the mocked child data
+    mock_child_data = KeyMap({ChildColumnNames.MONTHLY_ALLOCATION.key: "5000", ChildColumnNames.ID.key: 999})
+    mocker.patch('app.models.month_allocation.get_children', return_value=[mock_child_data])
+
+    # Mock get_child to return the specific child data (it will be called by get_or_create_for_month)
+    mocker.patch('app.models.month_allocation.get_child', return_value=mock_child_data)
+
     response = client.get('/child/999/allocation/1/2024?provider_id=1') # Non-existent child
     assert response.status_code == 200 # Allocation will be created with default values
-    assert response.json['allocation_cents'] == 1200000
+    assert response.json['allocation_cents'] == 500000 # 5000 dollars * 100 cents/dollar
 
 # --- POST /child/{child_id}/provider/{provider_id}/allocation/{month}/{year}/submit ---
 def test_submit_care_days_success(client, seed_db, mock_send_submission_notification):

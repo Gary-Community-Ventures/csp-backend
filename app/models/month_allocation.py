@@ -7,6 +7,13 @@ from decimal import Decimal
 from .utils import get_care_day_cost
 
 
+from app.sheets.mappings import (
+    ChildColumnNames,
+    get_child,
+    get_children,
+)
+
+
 class MonthAllocation(db.Model, TimestampMixin):
     """Monthly allocation for a child"""
 
@@ -74,7 +81,7 @@ class MonthAllocation(db.Model, TimestampMixin):
         return self.used_cents + cents_amount <= self.allocation_cents
 
     @staticmethod
-    def get_or_create_for_month(child_id: int, month_date: date, allocation_cents):
+    def get_or_create_for_month(child_id: int, month_date: date):
         """Get existing allocation or create with default values"""
         # Normalize to first of month
         month_start = month_date.replace(day=1)
@@ -84,11 +91,14 @@ class MonthAllocation(db.Model, TimestampMixin):
         ).first()
 
         if not allocation:
-            # Create with hardcoded default values
+            # Get allocation amount from child data
+            child_data = get_child(child_id, get_children())
+            allocation_dollars = child_data.get(ChildColumnNames.MONTHLY_ALLOCATION)
+            
             allocation = MonthAllocation(
                 google_sheets_child_id=child_id,
                 date=month_start,
-                allocation_cents=allocation_cents,
+                allocation_cents=allocation_dollars * 100,  # Convert to cents
             )
             db.session.add(allocation)
             db.session.commit()

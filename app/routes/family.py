@@ -134,6 +134,7 @@ def family_data(child_id: Optional[str] = None):
         "first_name": child_data.get(ChildColumnNames.FIRST_NAME),
         "last_name": child_data.get(ChildColumnNames.LAST_NAME),
         "balance": child_data.get(ChildColumnNames.BALANCE),
+        "monthly_allocation": child_data.get(ChildColumnNames.MONTHLY_ALLOCATION),
     }
 
     providers = [

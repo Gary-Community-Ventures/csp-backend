@@ -10,6 +10,7 @@ from app.schemas.care_day import AllocatedCareDayResponse # Import the Pydantic 
 from app.schemas.month_allocation import MonthAllocationResponse # Import the MonthAllocationResponse
 from app.utils.json_utils import custom_jsonify
 
+
 from datetime import date
 
 
@@ -31,7 +32,7 @@ def get_month_allocation(child_id, month, year):
     except ValueError:
         return jsonify({"error": "Invalid month or year"}), 400
 
-    allocation = MonthAllocation.get_or_create_for_month(child_id, month_date, 1200000)
+    allocation = MonthAllocation.get_or_create_for_month(child_id, month_date)
 
     care_days_query = AllocatedCareDay.query.filter_by(
         care_month_allocation_id=allocation.id, provider_google_sheets_id=provider_id
