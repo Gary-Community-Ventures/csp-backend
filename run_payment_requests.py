@@ -3,8 +3,9 @@ from datetime import datetime
 from collections import defaultdict
 
 from app import create_app
-from app.extensions import db
+from datetime import datetime
 from app.models import AllocatedCareDay, PaymentRequest, MonthAllocation
+from app.extensions import db
 from app.sheets.mappings import (
     get_provider,
     get_child,
@@ -30,7 +31,8 @@ def run_payment_requests():
         .filter(
             AllocatedCareDay.last_submitted_at.isnot(None),
             AllocatedCareDay.payment_distribution_requested == False,
-            AllocatedCareDay.deleted_at.is_(None)
+            AllocatedCareDay.deleted_at.is_(None),
+            AllocatedCareDay.locked_date <= datetime.utcnow()
         )
         .all()
     )

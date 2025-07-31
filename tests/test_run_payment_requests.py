@@ -74,14 +74,24 @@ def setup_payment_request_data(app):
         care_day_4.last_submitted_at = datetime.utcnow() - timedelta(days=2)
         care_day_4.payment_distribution_requested = True
 
-        db.session.add_all([care_day_1, care_day_2, care_day_3, care_day_4])
+        # Care day that is submitted but not yet locked (locked_date in future)
+        future_date = date.today() + timedelta(days=7) # A week from now
+        care_day_5 = AllocatedCareDay.create_care_day(
+            allocation=allocation,
+            provider_id=201,
+            care_date=future_date,
+            day_type=CareDayType.FULL_DAY,
+        )
+        care_day_5.last_submitted_at = datetime.utcnow() - timedelta(days=1) # Submitted yesterday
+        care_day_5.payment_distribution_requested = False
+
+        db.session.add_all([care_day_1, care_day_2, care_day_3, care_day_4, care_day_5])
         db.session.commit()
 
-        yield allocation, care_day_1, care_day_2, care_day_3, care_day_4
-
+        yield allocation, care_day_1, care_day_2, care_day_3, care_day_4, care_day_5
 
 def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
-    allocation, care_day_1, care_day_2, care_day_3, care_day_4 = setup_payment_request_data
+    allocation, care_day_1, care_day_2, care_day_3, care_day_4, care_day_5 = setup_payment_request_data
 
     # Mock external dependencies
     mocker.patch.dict('os.environ', {'GOOGLE_SHEETS_CREDENTIALS': '{"type": "service_account"}'})
@@ -125,8 +135,10 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
         processed_care_day_2 = AllocatedCareDay.query.get(care_day_2.id)
         processed_care_day_3 = AllocatedCareDay.query.get(care_day_3.id)
         already_processed_care_day_4 = AllocatedCareDay.query.get(care_day_4.id)
+        not_yet_locked_care_day_5 = AllocatedCareDay.query.get(care_day_5.id)
 
         assert processed_care_day_1.payment_distribution_requested is True
         assert processed_care_day_2.payment_distribution_requested is True
         assert processed_care_day_3.payment_distribution_requested is True
         assert already_processed_care_day_4.payment_distribution_requested is True
+        assert not_yet_locked_care_day_5.payment_distribution_requested is False
