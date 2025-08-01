@@ -40,7 +40,7 @@ def seed_db(app):
             amount_cents=4000,
             last_submitted_at=datetime.utcnow() - timedelta(days=5) # Submitted 5 days ago
         )
-        care_day_submitted.updated_at = care_day_submitted.last_submitted_at - timedelta(days=1)
+        care_day_submitted.updated_at = care_day_submitted.last_submitted_at - timedelta(days=1) # Ensure updated_at is before last_submitted_at
         db.session.add(care_day_submitted)
 
         # Care day: needs resubmission (updated_at > last_submitted_at)
@@ -62,11 +62,14 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
             date=locked_date_past.date(), # Ensure it's locked
-            locked_date=locked_date_past.date(),
+            locked_date=locked_date_past,
             type='Full Day',
             amount_cents=6000,
-            last_submitted_at=datetime.utcnow()
+            last_submitted_at=datetime.utcnow() - timedelta(days=10) # Submitted 10 days ago
         )
+        # Manually set created_at and updated_at to be before last_submitted_at for testing is_locked
+        care_day_locked.created_at = locked_date_past - timedelta(days=11)
+        care_day_locked.updated_at = locked_date_past - timedelta(days=11)
         db.session.add(care_day_locked)
 
         # Care day: soft deleted
@@ -77,7 +80,8 @@ def seed_db(app):
             locked_date=datetime.now() + timedelta(days=20),
             type='Full Day',
             amount_cents=6000,
-            deleted_at=datetime.utcnow()
+            deleted_at=datetime.utcnow(),
+            last_submitted_at=datetime.utcnow() - timedelta(days=1) # Submitted yesterday
         )
         db.session.add(care_day_deleted)
 

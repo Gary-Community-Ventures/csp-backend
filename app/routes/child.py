@@ -71,7 +71,7 @@ def submit_care_days(child_id, provider_id, month, year):
     care_days_to_submit = AllocatedCareDay.query.filter(
         AllocatedCareDay.care_month_allocation_id == allocation.id,
         AllocatedCareDay.provider_google_sheets_id == provider_id,
-        AllocatedCareDay.deleted_at.is_(None),  # Don't submit deleted days
+                AllocatedCareDay.deleted_at.is_(None),  # Don't submit deleted days
     ).all()
 
     new_days = [day for day in care_days_to_submit if day.is_new_since_submission]

@@ -87,9 +87,9 @@ class MonthAllocation(db.Model, TimestampMixin):
         month_start = month_date.replace(day=1)
 
         # Prevent creating allocations for past months
-        today = date.today().replace(day=1)
+        today = datetime.now().date().replace(day=1)
         if month_start < today:
-            raise ValueError("Cannot create allocation for a past month.")
+            raise ValueError(f"Cannot create allocation for a past month. {today} vs {month_start}")
 
         allocation = MonthAllocation.query.filter_by(
             google_sheets_child_id=child_id, date=month_start
