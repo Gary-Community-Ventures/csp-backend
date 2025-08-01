@@ -4,6 +4,7 @@ import os
 ENV_DEVELOPMENT = "development"
 ENV_STAGING = "staging"
 ENV_PRODUCTION = "production"
+ENV_TESTING = "testing"
 # --- End Environment Constants ---
 
 
@@ -35,6 +36,12 @@ class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "postgresql://dev:dev@localhost/myapp")  # Fallback for local
     CORS_HEADERS = "Content-Type"  # Example CORS setting
+
+class TestingConfig(Config):
+    """Testing configuration."""
+
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
 
 
 class StagingConfig(Config):

@@ -1,0 +1,39 @@
+name: Run Tests
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Compose environment variables
+      run: |
+        # These are non-sensitive variables that might be needed by your Docker Compose setup
+        echo "POSTGRES_DB=test_db" >> $GITHUB_ENV
+        echo "POSTGRES_USER=test_user" >> $GITHUB_ENV
+        echo "POSTGRES_PORT=5432" >> $GITHUB_ENV
+        echo "FLASK_ENV=testing" >> $GITHUB_ENV # Ensure Flask runs in testing mode
+        echo "SENTRY_TRACES_SAMPLE_RATE=0.0" >> $GITHUB_ENV # Disable Sentry for tests
+        echo "SENTRY_PROFILES_SAMPLE_RATE=0.0" >> $GITHUB_ENV # Disable Sentry for tests
+        echo "APP_VERSION=ci-test" >> $GITHUB_ENV # A version for CI runs
+
+    - name: Build Docker images
+      run: docker compose -f docker-compose.yml -f docker-compose.test.yml build backend
+      env:
+        POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        API_KEY: ${{ secrets.API_KEY }}
+
+    - name: Run Docker Compose tests
+      run: docker compose -f docker-compose.yml -f docker-compose.test.yml up --no-build --abort-on-container-exit backend
+      env:
+        POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        API_KEY: ${{ secrets.API_KEY }}	

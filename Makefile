@@ -8,3 +8,5 @@ run:
 	docker compose up
 down:
 	docker compose down
+test:
+	docker-compose -f docker-compose.yml -f docker-compose.test.yml run --rm backend pytest
