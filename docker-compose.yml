@@ -8,7 +8,7 @@ services:
     depends_on:
       - postgres
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_PORT}/${POSTGRES_DB}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - FLASK_ENV=development
       - DEBUG=True
       # Pass Sentry DSN from host .env
@@ -31,13 +31,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+      - "${POSTGRES_PORT_HOST}:5432"
 
   pgadmin:
     image: dpage/pgadmin4
     environment:
-      - PGADMIN_DEFAULT_EMAIL={PGADMIN_DEFAULT_EMAIL}
-      - PGADMIN_DEFAULT_PASSWORD={PGADMIN_DEFAULT_PASSWORD}
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD}
       - PG_HOST=postgres
       - PG_PORT=${POSTGRES_PORT}
       - PG_DB=${POSTGRES_DB}

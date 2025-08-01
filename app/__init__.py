@@ -72,8 +72,8 @@ def create_app(config_class=None):
         app.clerk_client = Clerk(bearer_auth=clerk_secret_key)
         print("Clerk SDK initialized successfully.")
 
-    app.config['API_KEY'] = os.environ.get('API_KEY')
-    if not app.config['API_KEY']:
+    app.config["API_KEY"] = os.environ.get("API_KEY")
+    if not app.config["API_KEY"]:
         raise ValueError("API_KEY environment variable must be set")
 
     # --- Initialize Flask Extensions (after app config) ---

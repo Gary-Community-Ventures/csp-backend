@@ -1,10 +1,23 @@
+GOALS := $(MAKECMDGOALS)
+TARGET := $(firstword $(GOALS))
+ARGS := $(wordlist 2,$(words $(GOALS)),$(GOALS))
+.PHONY: format build logs run down exec db
+
 format:
-	black --line-length 120 .
+	black --line-length 120 . $(ARGS)
 build:
-	docker compose up --build -d
+	docker compose up --build -d $(ARGS)
 logs:
-	docker compose logs -f backend
+	docker compose logs -f backend --no-log-prefix $(ARGS)
 run:
-	docker compose up
+	docker compose up $(ARGS)
 down:
-	docker compose down
+	docker compose down $(ARGS)
+exec:
+	docker compose exec backend $(ARGS)
+db:
+	docker compose exec backend flask db $(ARGS)
+db-shell:
+	docker compose exec postgres psql -U dev -d myapp $(ARGS)
+%:
+	@# Do nothing

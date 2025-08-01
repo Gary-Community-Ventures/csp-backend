@@ -28,9 +28,7 @@ def create_payment_request():
     google_sheets_child_id = data.get("child_id")
 
     # Validate required fields
-    if not all(
-        [google_sheets_provider_id, amount_in_cents, hours, google_sheets_child_id]
-    ):
+    if not all([google_sheets_provider_id, amount_in_cents, hours, google_sheets_child_id]):
         abort(
             400,
             description="Missing required fields: provider_id, amount_in_cents, hours, child_id",
@@ -78,10 +76,8 @@ def create_payment_request():
     is_connected = False
     for mapping in provider_child_mappings:
         if (
-            mapping.get(ProviderChildMappingColumnNames.CHILD_ID)
-            == google_sheets_child_id
-            and mapping.get(ProviderChildMappingColumnNames.PROVIDER_ID)
-            == google_sheets_provider_id
+            mapping.get(ProviderChildMappingColumnNames.CHILD_ID) == google_sheets_child_id
+            and mapping.get(ProviderChildMappingColumnNames.PROVIDER_ID) == google_sheets_provider_id
         ):
             is_connected = True
             break
@@ -92,9 +88,7 @@ def create_payment_request():
             description=f"Child with Google Sheets ID {google_sheets_child_id} is not connected to provider with Google Sheets ID {google_sheets_provider_id}.",
         )
 
-    provider_name = str(
-        selected_provider.get(ProviderColumnNames.NAME) or "Unknown Provider"
-    )
+    provider_name = str(selected_provider.get(ProviderColumnNames.NAME) or "Unknown Provider")
     child_first_name = str(selected_child.get(ChildColumnNames.FIRST_NAME) or "Unknown")
     child_last_name = str(selected_child.get(ChildColumnNames.LAST_NAME) or "Child")
 
