@@ -31,14 +31,15 @@ class MonthAllocation(db.Model, TimestampMixin):
     # Relationships
     care_days = db.relationship(
         "AllocatedCareDay",
-        backref="care_month_allocation",
+        back_populates="care_month_allocation",
         primaryjoin="and_(MonthAllocation.id==AllocatedCareDay.care_month_allocation_id, "
         "AllocatedCareDay.deleted_at.is_(None))",
+        overlaps="all_care_days"
     )
 
     # Include soft-deleted care days for admin purposes
     all_care_days = db.relationship(
-        "AllocatedCareDay", backref="month_allocation_with_deleted"
+        "AllocatedCareDay", back_populates="month_allocation_with_deleted", overlaps="care_days,care_month_allocation"
     )
 
     __table_args__ = (

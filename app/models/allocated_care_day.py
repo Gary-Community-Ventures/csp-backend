@@ -16,6 +16,8 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     care_month_allocation_id = db.Column(
         db.Integer, db.ForeignKey("month_allocation.id"), nullable=False
     )
+    care_month_allocation = db.relationship("MonthAllocation", back_populates="care_days", foreign_keys=[care_month_allocation_id])
+    month_allocation_with_deleted = db.relationship("MonthAllocation", back_populates="all_care_days", foreign_keys=[care_month_allocation_id], overlaps="care_days,care_month_allocation")
 
     # Care day details
     date = db.Column(db.Date, nullable=False, index=True)
