@@ -1,14 +1,11 @@
+from dataclasses import dataclass
 from typing import Union, List
-
 import sys
 import traceback
-
 from flask import current_app
-from flask.json import provider
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
-
-from app.sheets.helpers import KeyMap
+from app.sheets.helpers import KeyMap, format_name
 from app.sheets.mappings import ChildColumnNames
 
 
@@ -23,12 +20,12 @@ def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, 
     :return: True if the email was sent successfully, False otherwise.
     """
     try:
-        envirnment = current_app.config.get("FLASK_ENV", "development")
+        environment = current_app.config.get("FLASK_ENV", "development")
 
         # Add environment prefix to subject for non-production environments
         subject_prefix = ""
-        if envirnment != "production":
-            subject_prefix = f"[{envirnment.upper()}] "
+        if environment != "production":
+            subject_prefix = f"[{environment.upper()}] "
 
         message = Mail(
             from_email=from_email,
@@ -51,7 +48,7 @@ def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, 
                 "exc_traceback": exc_traceback,
                 "exc_type": exc_type,
                 "exc_value": exc_value,
-                "environment": envirnment,
+                "environment": environment,
                 "from_email": from_email,
                 "to_emails": to_emails,
                 "subject": subject,
@@ -63,15 +60,104 @@ def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, 
         return False
 
 
+def get_from_email() -> str:
+    return str(current_app.config.get("PAYMENT_REQUEST_SENDER_EMAIL"))
+
+
 def get_internal_emails() -> tuple[str, list[str]]:
     # Ensure email addresses are strings
-    from_email = str(current_app.config.get("PAYMENT_REQUEST_SENDER_EMAIL"))
+    from_email = get_from_email()
     to_emails = current_app.config.get("PAYMENT_REQUEST_RECIPIENT_EMAILS", [])
 
     # Filter out empty strings from the list (in case of trailing commas in env var)
     to_emails = [email.strip() for email in to_emails if email.strip()]
 
     return from_email, to_emails
+
+
+@dataclass
+class SystemMessageRow:
+    title: str
+    value: str
+
+
+def system_message(subject: str, description: str, rows: list[SystemMessageRow]):
+    html_rows: list[str] = []
+    for row in rows:
+        html_rows.append(
+            f"""
+            <tr{' style="background-color: #f2f2f2;"' if len(html_rows) % 2 == 0 else ""}>
+                <td style="padding: 10px; border: 1px solid #ddd;"><strong>{row.title}:</strong></td>
+                <td style="padding: 10px; border: 1px solid #ddd;">{row.value}</td>
+            </tr>"""
+        )
+
+    return f"""
+    <html>
+        <body>
+            <h2>{subject}</h2>
+            <p>{description}</p>
+            <table style="border-collapse: collapse; width: 100%; margin: 20px 0;">
+                {"".join(html_rows)}
+            </table>
+            <p>
+                <a href="https://www.espn.com/nfl/story/_/id/45711952/2025-nfl-roster-ranking-starting-lineups-projection-32-teams" style="color: #0066cc; text-decoration: underline;">
+                P.S. Check out the Saints Power Rankings
+                </a>
+            </p>
+            <hr>
+            <p style="font-size: 12px; color: #666;">This is an automated notification from the LaLa app system.</p>
+        </body>
+    </html>
+    """
+
+
+def send_payment_request_email(
+    provider_name: str,
+    google_sheets_provider_id: int,
+    child_first_name: str,
+    child_last_name: str,
+    google_sheets_child_id: int,
+    amount_in_cents: int,
+    hours: float,
+) -> bool:
+    amount_dollars = amount_in_cents / 100
+
+    from_email, to_emails = get_internal_emails()
+
+    current_app.logger.info(
+        f"Sending payment request email to {to_emails} for provider ID: {google_sheets_provider_id} from child ID: {google_sheets_child_id}"
+    )
+
+    subject = "New Payment Request Notification"
+    description = f"A new payment request has been submitted through your payment system:"
+    rows = [
+        SystemMessageRow(
+            title="Provider Name",
+            value=f"{provider_name} (ID: {google_sheets_provider_id})",
+        ),
+        SystemMessageRow(
+            title="Child Name",
+            value=f"{child_first_name} {child_last_name} (ID: {google_sheets_child_id})",
+        ),
+        SystemMessageRow(
+            title="Amount",
+            value=f"${amount_dollars:.2f}",
+        ),
+        SystemMessageRow(
+            title="Hours",
+            value=str(hours),
+        ),
+    ]
+
+    html_content = system_message(subject, description, rows)
+
+    return send_email(
+        from_email=from_email,
+        to_emails=to_emails,
+        subject=subject,
+        html_content=html_content,
+    )
 
 
 def send_add_licensed_provider_email(
@@ -84,59 +170,84 @@ def send_add_licensed_provider_email(
     from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(
-        f"Sending add license provider request email to {to_emails} for family ID: {parent_id} for provider: {provider_name} fro children: {[child.get(ChildColumnNames.FIRST_NAME) + ' ' + child.get(ChildColumnNames.LAST_NAME) for child in children]}"
+        f"Sending add license provider request email to {to_emails} for family ID: {parent_id} for provider: {provider_name} for children: {[format_name(child) for child in children]}"
     )
 
-    html_child_rows: list[str] = []
+    rows = [
+        SystemMessageRow(
+            title="License Number",
+            value=license_number,
+        ),
+        SystemMessageRow(
+            title="Provider Name",
+            value=provider_name,
+        ),
+        SystemMessageRow(
+            title=f"Parent Name (ID: {parent_id})",
+            value=parent_name,
+        ),
+    ]
+
     for child in children:
-        html_child_rows.append(
-            f"""
-            <tr{' style="background-color: #f2f2f2;"' if len(html_child_rows) % 2 == 0 else ""}>
-                <td style="padding: 10px; border: 1px solid #ddd;"><strong>Child Name:</strong></td>
-                <td style="padding: 10px; border: 1px solid #ddd;">{child.get(ChildColumnNames.FIRST_NAME)} {child.get(ChildColumnNames.LAST_NAME)}</td>
-            </tr>"""
+        rows.append(
+            SystemMessageRow(
+                title="Child Name",
+                value=f"{format_name(child)} (ID: {child.get(ChildColumnNames.ID)})",
+            )
         )
 
-    html_content = f"""
-    <html>
-        <body>
-            <h2>Add Licensed Provider Request Notification</h2>
-            <p>Hello,</p>
-            <p>A new licensed provider request has been submitted:</p>
-            <table style="border-collapse: collapse; width: 100%; margin: 20px 0;">
-                <tr style="background-color: #f2f2f2;">
-                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>License Number:</strong></td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">{license_number}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>Provider Name:</strong></td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">{provider_name}</td>
-                </tr>
-                <tr style="background-color: #f2f2f2;">
-                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>Parent Name:</strong></td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">{parent_name}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>Parent ID:</strong></td>
-                    <td style="padding: 10px; border: 1px solid #ddd;">{parent_id}</td>
-                </tr>
-                {"".join(html_child_rows)}
-            </table>
-            <p>
-                <a href="https://www.espn.com/nfl/story/_/id/45711952/2025-nfl-roster-ranking-starting-lineups-projection-32-teams" style="color: #0066cc; text-decoration: underline;">            
-                P.S. Check out the Saints Power Rankings
-                </a>
-            </p>
-            <hr>
-            <p style="font-size: 12px; color: #666;">This is an automated notification from the LaLa app system.</p>
-        </body>
-    </html>
-    """
+    subject = "New Add Licensed Provider Request Notification"
+    description = f"A new licensed provider request has been submitted:"
+    html_content = system_message(subject, description, rows)
 
     return send_email(
         from_email=from_email,
         to_emails=to_emails,
-        subject="New Add Licensed Provider Request Notification",
+        subject=subject,
+        html_content=html_content,
+    )
+
+
+def send_provider_invite_accept_email(
+    provider_name: str,
+    provider_id: int,
+    parent_name: str,
+    parent_id: str,
+    children: list[KeyMap],
+):
+    from_email, to_emails = get_internal_emails()
+
+    current_app.logger.info(
+        f"Sending accept invite request email to {to_emails} for family ID: {parent_id} for provider ID: {provider_id} for children: {[format_name(child) for child in children]}"
+    )
+
+    rows = [
+        SystemMessageRow(
+            title="Provider Name",
+            value=f"{provider_name} (ID: {provider_id})",
+        ),
+        SystemMessageRow(
+            title=f"Parent Name",
+            value=f"{parent_name} (ID: {parent_id})",
+        ),
+    ]
+
+    for child in children:
+        rows.append(
+            SystemMessageRow(
+                title="Child Name",
+                value=f"{format_name(child)} (ID: {child.get(ChildColumnNames.ID)})",
+            )
+        )
+
+    subject = "New Add Provider Invite Accepted Notification"
+    description = f"A new provider invite request has been submitted:"
+    html_content = system_message(subject, description, rows)
+
+    return send_email(
+        from_email=from_email,
+        to_emails=to_emails,
+        subject=subject,
         html_content=html_content,
     )
 

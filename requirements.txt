@@ -35,4 +35,9 @@ pytest-mock==3.14.0
 # Google Sheets Integration
 google-api-python-client
 google-auth-oauthlib
+
+# Email
 sendgrid==6.11.0
+
+# SMS
+twilio==9.7.0

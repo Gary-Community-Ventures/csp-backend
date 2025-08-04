@@ -96,27 +96,27 @@ def _authenticate_api_key():
     Raises: AuthenticationError if not authenticated
     """
     # Get API key from multiple possible headers
-    api_key = request.headers.get('X-API-Key') or request.headers.get('Authorization')
-    
+    api_key = request.headers.get("X-API-Key") or request.headers.get("Authorization")
+
     if not api_key:
         raise AuthenticationError("API key required", 401)
-    
+
     # Handle Bearer token format
-    if api_key.startswith('Bearer '):
+    if api_key.startswith("Bearer "):
         api_key = api_key[7:]  # Remove 'Bearer ' prefix
-    
+
     # Get expected API key from config
-    expected_api_key = current_app.config.get('API_KEY')
-    
+    expected_api_key = current_app.config.get("API_KEY")
+
     if not expected_api_key:
         current_app.logger.error("API_KEY not configured")
         raise AuthenticationError("API authentication not configured", 500)
-    
+
     # Use constant-time comparison to prevent timing attacks
-    if not hmac.compare_digest(api_key.encode('utf-8'), expected_api_key.encode('utf-8')):
+    if not hmac.compare_digest(api_key.encode("utf-8"), expected_api_key.encode("utf-8")):
         current_app.logger.warning(f"Invalid API key attempt from {request.remote_addr}")
         raise AuthenticationError("Invalid API key", 401)
-    
+
     return True
 
 
@@ -208,7 +208,7 @@ def api_key_required(f):
     """
     Decorator that requires API key authentication.
     Aborts with 401 if API key is not valid.
-    
+
     Accepts API key in:
     - X-API-Key header
     - Authorization header (with or without 'Bearer ' prefix)
@@ -218,7 +218,7 @@ def api_key_required(f):
     def decorated_function(*args, **kwargs):
         try:
             _authenticate_api_key()
-            
+
             return f(*args, **kwargs)
 
         except AuthenticationError as e:
