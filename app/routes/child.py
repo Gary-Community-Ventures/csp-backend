@@ -96,6 +96,10 @@ def submit_care_days(child_id, provider_id, month, year):
         day.mark_as_submitted()
     db.session.commit()
 
+    for day in removed_days:
+        day.mark_as_submitted()
+    db.session.commit()
+
     return jsonify(
         {
             "message": "Submission successful",

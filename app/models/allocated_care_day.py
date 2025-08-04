@@ -183,10 +183,14 @@ class AllocatedCareDay(db.Model, TimestampMixin):
             "is_deleted": self.is_deleted,
             "needs_resubmission": self.needs_resubmission,
             "is_new_since_submission": self.is_new_since_submission,
+            "delete_not_submitted": self.delete_not_submitted,
+            "status": self.status,
         }
 
     @property
     def status(self):
+        if self.delete_not_submitted:
+            return "delete_not_submitted"
         if self.is_deleted:
             return "deleted"
         if self.is_new_since_submission:
@@ -194,6 +198,15 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         if self.needs_resubmission:
             return "needs_resubmission"
         return "submitted"
+
+    @property
+    def delete_not_submitted(self):
+        """Check if this care day is submitted and can be deleted"""
+        return (
+            self.is_deleted
+            and self.last_submitted_at is not None
+            and self.last_submitted_at < self.deleted_at
+        )
 
     def __repr__(self):
         return f"<AllocatedCareDay {self.date} {self.type} - Provider {self.provider_google_sheets_id}>"
