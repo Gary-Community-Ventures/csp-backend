@@ -326,7 +326,7 @@ def send_submission_notification(
     if modified_days:
         html_content += "<h3>Days Modified:</h3><ul>"
         for day in modified_days:
-            html_content += f"<li>{day.date} - {day.type.value}</li>"
+            html_content += f"<li>{day.date} - Now: {day.type.value}</li>"
         html_content += "</ul>"
 
     if removed_days:
