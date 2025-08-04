@@ -21,5 +21,4 @@ class PaymentRateUpdate(BaseModel):
 class PaymentRateResponse(PaymentRateBase):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = {'from_attributes': True}

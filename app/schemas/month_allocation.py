@@ -18,5 +18,4 @@ class MonthAllocationResponse(BaseModel):
     updated_at: datetime
     care_days: List[AllocatedCareDayResponse] # Add the care_days field
 
-    class Config:
-        from_attributes = True
+    model_config = {'from_attributes': True}

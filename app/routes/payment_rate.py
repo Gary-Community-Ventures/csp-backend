@@ -28,7 +28,7 @@ def create_payment_rate():
         full_day_rate=payment_rate_data.full_day_rate_cents,
     )
 
-    return jsonify(PaymentRateResponse.from_orm(payment_rate).model_dump()), 201
+    return jsonify(PaymentRateResponse.model_validate(payment_rate).model_dump()), 201
 
 
 @payment_rate_bp.route("/<int:provider_id>/<int:child_id>", methods=["GET"])
@@ -39,7 +39,7 @@ def get_payment_rate(provider_id, child_id):
     if not payment_rate:
         return jsonify({"error": "Payment rate not found"}), 404
 
-    return jsonify(PaymentRateResponse.from_orm(payment_rate).model_dump()), 200
+    return jsonify(PaymentRateResponse.model_validate(payment_rate).model_dump()), 200
 
 
 @payment_rate_bp.route("/<int:provider_id>/<int:child_id>", methods=["PUT"])
@@ -62,4 +62,4 @@ def update_payment_rate(provider_id, child_id):
 
     db.session.commit()
 
-    return jsonify(PaymentRateResponse.from_orm(payment_rate).model_dump()), 200
+    return jsonify(PaymentRateResponse.model_validate(payment_rate).model_dump()), 200

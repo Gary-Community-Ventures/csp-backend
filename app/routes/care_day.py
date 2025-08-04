@@ -35,7 +35,7 @@ def create_care_day():
     except ValueError:
         return jsonify({'error': f'Invalid care day type: {day_type_str}'}), 400
 
-    allocation = MonthAllocation.query.get(allocation_id)
+    allocation = db.session.get(MonthAllocation, allocation_id)
     if not allocation:
         return jsonify({'error': 'MonthAllocation not found'}), 404
 
@@ -46,14 +46,14 @@ def create_care_day():
             care_date=care_date,
             day_type=day_type
         )
-        return jsonify(AllocatedCareDayResponse.from_orm(care_day).model_dump()), 201
+        return jsonify(AllocatedCareDayResponse.model_validate(care_day).model_dump()), 201
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
 
 @bp.route('/<int:care_day_id>', methods=['PUT'])
 @auth_required(ClerkUserType.FAMILY)
 def update_care_day(care_day_id):
-    care_day = AllocatedCareDay.query.get(care_day_id)
+    care_day = db.session.get(AllocatedCareDay, care_day_id)
     if not care_day:
         return jsonify({'error': 'Care day not found'}), 404
 
@@ -90,12 +90,12 @@ def update_care_day(care_day_id):
     db.session.commit()
     db.session.refresh(care_day)
 
-    return jsonify(AllocatedCareDayResponse.from_orm(care_day).model_dump())
+    return jsonify(AllocatedCareDayResponse.model_validate(care_day).model_dump())
 
 @bp.route('/<int:care_day_id>', methods=['DELETE'])
 @auth_required(ClerkUserType.FAMILY)
 def delete_care_day(care_day_id):
-    care_day = AllocatedCareDay.query.get(care_day_id)
+    care_day = db.session.get(AllocatedCareDay, care_day_id)
     if not care_day:
         return jsonify({'error': 'Care day not found'}), 404
 

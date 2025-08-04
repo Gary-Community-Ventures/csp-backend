@@ -171,8 +171,8 @@ def test_submit_care_days_success(client, seed_db, mock_send_submission_notifica
 
     # Verify last_submitted_at is updated for submitted days
     with client.application.app_context():
-        updated_new_day = AllocatedCareDay.query.get(care_day_new.id)
-        updated_needs_resubmission_day = AllocatedCareDay.query.get(care_day_needs_resubmission.id)
+        updated_new_day = db.session.get(AllocatedCareDay, care_day_new.id)
+        updated_needs_resubmission_day = db.session.get(AllocatedCareDay, care_day_needs_resubmission.id)
         assert updated_new_day.last_submitted_at is not None
         assert updated_needs_resubmission_day.last_submitted_at is not None
 
@@ -243,5 +243,5 @@ def test_month_allocation_locked_until_date(client, seed_db):
     with client.application.app_context():
         # Refresh allocation from DB to ensure property is calculated correctly
         db.session.expire_all()
-        updated_allocation = MonthAllocation.query.get(allocation.id)
+        updated_allocation = db.session.get(MonthAllocation, allocation.id)
         assert updated_allocation.locked_until_date == expected_locked_until_date

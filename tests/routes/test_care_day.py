@@ -178,7 +178,7 @@ def test_create_care_day_exceeds_allocation(client, seed_db):
             db.session.add(care_day)
         db.session.commit()
 
-    allocation = MonthAllocation.query.get(allocation.id)
+    allocation = db.session.get(MonthAllocation, allocation.id)
 
     response = client.post(
         "/care-days",
@@ -224,7 +224,7 @@ def test_create_care_day_restore_soft_deleted(client, seed_db):
     assert response.json['is_deleted'] == False
 
     with client.application.app_context():
-        restored_day = AllocatedCareDay.query.get(care_day_soft_deleted.id)
+        restored_day = db.session.get(AllocatedCareDay, care_day_soft_deleted.id)
         assert restored_day.is_deleted == False
         assert restored_day.type == CareDayType.FULL_DAY
 
@@ -252,7 +252,7 @@ def test_update_care_day_success(client, seed_db):
     assert response.status_code == 200
     assert response.json["type"] == CareDayType.HALF_DAY.value
     with client.application.app_context():
-        updated_day = AllocatedCareDay.query.get(care_day_updatable.id)
+        updated_day = db.session.get(AllocatedCareDay, care_day_updatable.id)
         assert updated_day.type == CareDayType.HALF_DAY
         # Check if needs_resubmission is true (because last_submitted_at is None)
         assert updated_day.needs_resubmission is True
@@ -282,7 +282,7 @@ def test_delete_care_day_success(client, seed_db):
     response = client.delete(f"/care-days/{care_day_updatable.id}")
     assert response.status_code == 204
     with client.application.app_context():
-        deleted_day = AllocatedCareDay.query.get(care_day_updatable.id)
+        deleted_day = db.session.get(AllocatedCareDay, care_day_updatable.id)
         assert deleted_day.deleted_at is not None
 
 def test_delete_care_day_not_found(client, seed_db):
@@ -303,7 +303,7 @@ def test_update_soft_deleted_care_day_restores_and_updates(client, seed_db):
 
     # Ensure the care_day_soft_deleted is indeed soft-deleted initially
     with client.application.app_context():
-        initial_deleted_day = AllocatedCareDay.query.get(care_day_soft_deleted.id)
+        initial_deleted_day = db.session.get(AllocatedCareDay, care_day_soft_deleted.id)
         assert initial_deleted_day.is_deleted is True
 
     # Attempt to update the soft-deleted care day
@@ -320,7 +320,7 @@ def test_update_soft_deleted_care_day_restores_and_updates(client, seed_db):
     assert response.json['last_submitted_at'] is None
 
     with client.application.app_context():
-        restored_and_updated_day = AllocatedCareDay.query.get(care_day_soft_deleted.id)
+        restored_and_updated_day = db.session.get(AllocatedCareDay, care_day_soft_deleted.id)
         assert restored_and_updated_day.is_deleted is False
         assert restored_and_updated_day.type == CareDayType.HALF_DAY
         assert restored_and_updated_day.last_submitted_at is None
