@@ -45,3 +45,13 @@ def get_rows(data: list[KeyMap], ids: list[int], id_key: Key[int] = ID_COLUMN_KE
 
 def money_to_float(money: str) -> float:
     return float(money.replace("$", "").replace(",", ""))
+
+
+FIRST_NAME_KEY = Key("First Name", str)
+LAST_NAME_KEY = Key("Last Name", str)
+
+
+def format_name(
+    data: KeyMap, first_name_key: Key[str] = FIRST_NAME_KEY, last_name_key: Key[str] = LAST_NAME_KEY
+) -> str:
+    return f"{data.get(first_name_key)} {data.get(last_name_key)}"
