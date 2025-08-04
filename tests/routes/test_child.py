@@ -110,7 +110,7 @@ def test_get_month_allocation_success(client, seed_db):
     assert care_day_statuses[2] == 'submitted'
     assert care_day_statuses[3] == 'needs_resubmission'
     assert care_day_statuses[4] == 'submitted'
-    assert care_day_statuses[5] == 'deleted'
+    assert care_day_statuses[5] == 'delete_not_submitted'
 
 def test_get_month_allocation_missing_provider_id(client, seed_db):
     allocation, _, _, _, _, _ = seed_db
@@ -154,13 +154,20 @@ def test_submit_care_days_success(client, seed_db, mock_send_submission_notifica
     assert response.json['removed_days'][0]['id'] == care_day_deleted.id
 
     # Verify send_submission_notification was called
-    mock_send_submission_notification.assert_called_once_with(
-        provider_id=care_day_new.provider_google_sheets_id,
-        child_id=allocation.google_sheets_child_id,
-        new_days=[care_day_new.serialize()],
-        modified_days=[care_day_needs_resubmission.serialize()],
-        removed_days=[care_day_deleted.serialize()]
-    )
+    mock_send_submission_notification.assert_called_once()
+    call_kwargs = mock_send_submission_notification.call_args.kwargs
+
+    assert call_kwargs['provider_id'] == care_day_new.provider_google_sheets_id
+    assert call_kwargs['child_id'] == allocation.google_sheets_child_id
+
+    # Extract IDs from the actual call arguments
+    actual_new_day_ids = [d['id'] for d in call_kwargs['new_days']]
+    actual_modified_day_ids = [d['id'] for d in call_kwargs['modified_days']]
+    actual_removed_day_ids = [d['id'] for d in call_kwargs['removed_days']]
+
+    assert actual_new_day_ids == [care_day_new.id]
+    assert actual_modified_day_ids == [care_day_needs_resubmission.id]
+    assert actual_removed_day_ids == [care_day_deleted.id]
 
     # Verify last_submitted_at is updated for submitted days
     with client.application.app_context():

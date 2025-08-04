@@ -94,7 +94,11 @@ def submit_care_days(child_id, provider_id, month, year):
 
     # Send email notification
     send_submission_notification(
-        provider_id, child_id, new_days, modified_days, removed_days_where_delete_not_submitted
+        provider_id=provider_id,
+        child_id=child_id,
+        new_days=[day.to_dict() for day in new_days],
+        modified_days=[day.to_dict() for day in modified_days],
+        removed_days=[day.to_dict() for day in removed_days_where_delete_not_submitted],
     )
 
     for day in care_days_to_submit:

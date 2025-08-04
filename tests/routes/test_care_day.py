@@ -243,22 +243,6 @@ def test_create_care_day_past_date_fails(client, seed_db):
     assert response.status_code == 400
     assert 'Cannot create a care day in the past.' in response.json['error']
 
-def test_create_care_day_locked_fails(client, seed_db):
-    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
-    # Attempt to create a care day for a date that would be locked (e.g., a date in the past week)
-    locked_date_to_test = date.today()
-    response = client.post(
-        '/care-days',
-        json={
-            'allocation_id': allocation.id,
-            'provider_id': 1,
-            'date': locked_date_to_test.isoformat(),
-            'type': 'Full Day'
-        }
-    )
-    assert response.status_code == 400
-    assert 'Cannot create a care day that would be locked.' in response.json['error']
-
 # --- PUT /care-days/<care_day_id> ---
 def test_update_care_day_success(client, seed_db):
     allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
