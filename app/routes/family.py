@@ -29,7 +29,7 @@ from app.sheets.mappings import (
     get_transactions,
 )
 from app.utils.email_service import (
-    get_from_email,
+    get_from_email_internal,
     send_add_licensed_provider_email,
     send_email,
     send_provider_invite_accept_email,
@@ -350,7 +350,7 @@ def invite_provider():
             link,
         )
 
-        from_email = get_from_email()
+        from_email = get_from_email_internal()
         if data["provider_email"] != "":
             email_sent = send_email(from_email, data["provider_email"], message.subject, message.email)
             if email_sent:

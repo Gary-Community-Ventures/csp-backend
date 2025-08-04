@@ -15,7 +15,10 @@ from app.sheets.mappings import (
     ProviderColumnNames,
 )
 
-def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, html_content: str) -> bool:
+
+def send_email(
+    from_email: str, to_emails: Union[str, List[str]], subject: str, html_content: str
+) -> bool:
     """
     Send an email using SendGrid.
 
@@ -42,7 +45,9 @@ def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, 
 
         sendgrid_client = SendGridAPIClient(current_app.config.get("SENDGRID_API_KEY"))
         response = sendgrid_client.send(message)
-        current_app.logger.info(f"SendGrid email sent with status code: {response.status_code}")
+        current_app.logger.info(
+            f"SendGrid email sent with status code: {response.status_code}"
+        )
         return True
 
     except Exception as e:
@@ -66,14 +71,18 @@ def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, 
         return False
 
 
-def get_from_email() -> str:
-    return str(current_app.config.get("PAYMENT_REQUEST_SENDER_EMAIL"))
+def get_from_email_internal() -> str:
+    return str(current_app.config.get("FROM_EMAIL_INTERNAL"))
+
+
+def get_from_email_external() -> str:
+    return str(current_app.config.get("FROM_EMAIL_EXTERNAL"))
 
 
 def get_internal_emails() -> tuple[str, list[str]]:
     # Ensure email addresses are strings
-    from_email = get_from_email()
-    to_emails = current_app.config.get("PAYMENT_REQUEST_RECIPIENT_EMAILS", [])
+    from_email = get_from_email_internal()
+    to_emails = current_app.config.get("INTERNAL_EMAIL_RECIPIENTS", [])
 
     # Filter out empty strings from the list (in case of trailing commas in env var)
     to_emails = [email.strip() for email in to_emails if email.strip()]
@@ -136,7 +145,9 @@ def send_payment_request_email(
     )
 
     subject = "New Payment Request Notification"
-    description = f"A new payment request has been submitted through your payment system:"
+    description = (
+        f"A new payment request has been submitted through your payment system:"
+    )
     rows = [
         SystemMessageRow(
             title="Provider Name",
@@ -257,19 +268,36 @@ def send_provider_invite_accept_email(
         html_content=html_content,
     )
 
-def send_submission_notification(provider_id, child_id, new_days, modified_days, removed_days):
+
+def send_submission_notification(
+    provider_id, child_id, new_days, modified_days, removed_days
+):
     """Sends a submission notification email to the provider."""
-    from_email = get_from_email()
+    from_email = get_from_email_external()
 
     provider = get_provider(provider_id, get_providers())
     child = get_child(child_id, get_children())
 
-    provider_name = provider.get(ProviderColumnNames.NAME) if provider else f"Provider {provider_id}"
+    provider_name = (
+        provider.get(ProviderColumnNames.NAME)
+        if provider
+        else f"Provider {provider_id}"
+    )
     to_email = provider.get(ProviderColumnNames.EMAIL) if provider else None
-    child_name = f'{child.get(ChildColumnNames.FIRST_NAME)} {child.get(ChildColumnNames.LAST_NAME)}' if child else f"Child {child_id}"
+    child_name = (
+        f"{child.get(ChildColumnNames.FIRST_NAME)} {child.get(ChildColumnNames.LAST_NAME)}"
+        if child
+        else f"Child {child_id}"
+    )
+
+    current_app.logger.info(
+        f"Sending submission notification to {to_email} for provider ID: {provider_id} and child ID: {child_id}"
+    )
 
     if not to_email:
-        current_app.logger.warning(f"Provider {provider_id} has no email address. Skipping notification.")
+        current_app.logger.warning(
+            f"Provider {provider_id} has no email address. Skipping notification."
+        )
         return False
 
     subject = f"Care Day Submission Update for {child_name}"
