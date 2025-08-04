@@ -214,6 +214,13 @@ def test_get_month_allocation_past_month_creation_fails(client):
     assert response.status_code == 400
     assert 'Cannot create allocation for a past month.' in response.json['error']
 
+def test_get_month_allocation_future_month_creation_fails(client):
+    # Attempt to get an allocation for a future month that is too far in advance
+    future_month = date.today().replace(day=1) + timedelta(days=32)
+    response = client.get(f'/child/1/allocation/{future_month.month}/{future_month.year}?provider_id=1')
+    assert response.status_code == 400
+    assert 'Cannot create allocation for a month that is more than 7 days away.' in response.json['error']
+
 def test_month_allocation_locked_until_date(client, seed_db):
     allocation, _, _, _, _, _ = seed_db
     # Calculate expected locked_until_date based on current date

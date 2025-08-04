@@ -72,10 +72,16 @@ def send_email(
 
 
 def get_from_email_internal() -> str:
+    # Ensure the FROM_EMAIL_INTERNAL is set in the config
+    if not current_app.config.get("FROM_EMAIL_INTERNAL"):
+        raise ValueError("FROM_EMAIL_INTERNAL is not set in the configuration.")
     return str(current_app.config.get("FROM_EMAIL_INTERNAL"))
 
 
 def get_from_email_external() -> str:
+    # Ensure the FROM_EMAIL_EXTERNAL is set in the config
+    if not current_app.config.get("FROM_EMAIL_EXTERNAL"):
+        raise ValueError("FROM_EMAIL_EXTERNAL is not set in the configuration.")
     return str(current_app.config.get("FROM_EMAIL_EXTERNAL"))
 
 
