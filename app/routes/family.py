@@ -349,15 +349,17 @@ def invite_provider():
         )
 
         from_email = get_from_email()
-        email_sent = send_email(from_email, data["provider_email"], message.subject, message.email)
-        if email_sent:
-            for invitation in invitations:
-                invitation.record_email_sent()
+        if data["provider_email"] != "":
+            email_sent = send_email(from_email, data["provider_email"], message.subject, message.email)
+            if email_sent:
+                for invitation in invitations:
+                    invitation.record_email_sent()
 
-        sms_sent = send_sms(data["provider_cell"], message.sms, data["lang"])
-        if sms_sent:
-            for invitation in invitations:
-                invitation.record_sms_sent()
+        if data["provider_cell"] != "":
+            sms_sent = send_sms(data["provider_cell"], message.sms, data["lang"])
+            if sms_sent:
+                for invitation in invitations:
+                    invitation.record_sms_sent()
     finally:
         db.session.commit()
 
