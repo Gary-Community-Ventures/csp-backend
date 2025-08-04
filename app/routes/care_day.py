@@ -70,26 +70,27 @@ def update_care_day(care_day_id):
         new_day_type = CareDayType(day_type_str)
     except ValueError:
         return jsonify({'error': f'Invalid care day type: {day_type_str}'}), 400
+    
+    if care_day.is_locked:
+        return jsonify({'error': 'Cannot modify a locked care day'}), 403
 
     was_deleted = care_day.is_deleted
 
     if was_deleted:
         care_day.restore()
 
-    if care_day.is_locked:
-        return jsonify({'error': 'Cannot modify a locked care day'}), 403
-
     if care_day.type != new_day_type or was_deleted:
+        print(f"Updating care day {care_day_id} from type {care_day.type} to {new_day_type}")
         care_day.type = new_day_type
         care_day.amount_cents = get_care_day_cost(
             new_day_type,
             provider_id=care_day.provider_google_sheets_id,
             child_id=care_day.care_month_allocation.google_sheets_child_id,
         )
-        care_day.last_submitted_at = None
 
     db.session.commit()
-
+    db.session.refresh(care_day)
+    
     return jsonify(AllocatedCareDayResponse.from_orm(care_day).model_dump())
 
 @bp.route('/<int:care_day_id>', methods=['DELETE'])

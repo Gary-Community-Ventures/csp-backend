@@ -6,8 +6,10 @@ from app.auth.decorators import (
     auth_required,
 )
 from app.utils.email_service import send_submission_notification
-from app.schemas.care_day import AllocatedCareDayResponse # Import the Pydantic model
-from app.schemas.month_allocation import MonthAllocationResponse # Import the MonthAllocationResponse
+from app.schemas.care_day import AllocatedCareDayResponse  # Import the Pydantic model
+from app.schemas.month_allocation import (
+    MonthAllocationResponse,
+)  # Import the MonthAllocationResponse
 from app.utils.json_utils import custom_jsonify
 
 
@@ -71,40 +73,51 @@ def submit_care_days(child_id, provider_id, month, year):
     care_days_to_submit = AllocatedCareDay.query.filter(
         AllocatedCareDay.care_month_allocation_id == allocation.id,
         AllocatedCareDay.provider_google_sheets_id == provider_id,
-                AllocatedCareDay.deleted_at.is_(None),  # Don't submit deleted days
+        AllocatedCareDay.deleted_at.is_(None),  # Don't submit deleted days
     ).all()
 
-    new_days = [day for day in care_days_to_submit if day.is_new_since_submission]
+    new_days = [day for day in care_days_to_submit if day.is_new]
     modified_days = [
         day
         for day in care_days_to_submit
-        if day.needs_resubmission and not day.is_new_since_submission
+        if day.needs_resubmission and not day.is_new
     ]
+
     removed_days = AllocatedCareDay.query.filter(
         AllocatedCareDay.care_month_allocation_id == allocation.id,
         AllocatedCareDay.provider_google_sheets_id == provider_id,
         AllocatedCareDay.deleted_at.isnot(None),
     ).all()
+    removed_days_where_delete_not_submitted = [
+        day for day in removed_days if day.delete_not_submitted
+    ]
 
     # Send email notification
-    # This is a placeholder for the actual email sending logic
     send_submission_notification(
-        provider_id, child_id, new_days, modified_days, removed_days
+        provider_id, child_id, new_days, modified_days, removed_days_where_delete_not_submitted
     )
 
     for day in care_days_to_submit:
         day.mark_as_submitted()
     db.session.commit()
 
-    for day in removed_days:
+    for day in removed_days_where_delete_not_submitted:
         day.mark_as_submitted()
     db.session.commit()
 
     return jsonify(
         {
             "message": "Submission successful",
-            "new_days": [AllocatedCareDayResponse.from_orm(day).model_dump() for day in new_days],
-            "modified_days": [AllocatedCareDayResponse.from_orm(day).model_dump() for day in modified_days],
-            "removed_days": [AllocatedCareDayResponse.from_orm(day).model_dump() for day in removed_days],
+            "new_days": [
+                AllocatedCareDayResponse.from_orm(day).model_dump() for day in new_days
+            ],
+            "modified_days": [
+                AllocatedCareDayResponse.from_orm(day).model_dump()
+                for day in modified_days
+            ],
+            "removed_days": [
+                AllocatedCareDayResponse.from_orm(day).model_dump()
+                for day in removed_days_where_delete_not_submitted
+            ],
         }
     )

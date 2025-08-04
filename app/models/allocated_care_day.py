@@ -34,6 +34,8 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     # Soft delete
     deleted_at = db.Column(db.DateTime, nullable=True)
 
+    locked_date = db.Column(db.DateTime, nullable=False)
+
     __table_args__ = (
         # Prevent duplicate care days for same allocation/date (including soft deleted)
         db.UniqueConstraint(
@@ -54,15 +56,9 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         return self.updated_at > self.last_submitted_at
 
     @property
-    def is_new_since_submission(self):
+    def is_new(self):
         """Check if this is a brand new day since last submission"""
         return self.last_submitted_at is None
-
-    def mark_as_submitted(self):
-        """Mark this day as submitted to provider"""
-        self.last_submitted_at = db.func.current_timestamp()
-
-    locked_date = db.Column(db.DateTime, nullable=False)
 
     @property
     def is_locked(self):
@@ -83,6 +79,10 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         """Restore a soft deleted care day"""
         self.deleted_at = None
         db.session.commit()
+
+    def mark_as_submitted(self):
+        """Mark this day as submitted to provider"""
+        self.last_submitted_at = db.func.current_timestamp()
 
     @staticmethod
     def create_care_day(
@@ -118,7 +118,6 @@ class AllocatedCareDay(db.Model, TimestampMixin):
                 provider_id=provider_id,
                 child_id=allocation.google_sheets_child_id,
             )
-            existing.last_submitted_at = datetime.utcnow()
             db.session.commit()
             return existing
 
@@ -182,7 +181,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
             "is_locked": self.is_locked,
             "is_deleted": self.is_deleted,
             "needs_resubmission": self.needs_resubmission,
-            "is_new_since_submission": self.is_new_since_submission,
+            "is_new": self.is_new,
             "delete_not_submitted": self.delete_not_submitted,
             "status": self.status,
         }
@@ -193,15 +192,17 @@ class AllocatedCareDay(db.Model, TimestampMixin):
             return "delete_not_submitted"
         if self.is_deleted:
             return "deleted"
-        if self.is_new_since_submission:
+        if self.is_new:
             return "new"
         if self.needs_resubmission:
             return "needs_resubmission"
-        return "submitted"
+        if self.last_submitted_at:
+            return "submitted"
+        return "unknown"
 
     @property
     def delete_not_submitted(self):
-        """Check if this care day is submitted and can be deleted"""
+        """Check if this care day is previously submitted deleted but not submitted again"""
         return (
             self.is_deleted
             and self.last_submitted_at is not None

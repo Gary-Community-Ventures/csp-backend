@@ -25,7 +25,7 @@ class AllocatedCareDayResponse(AllocatedCareDayBase):
     is_locked: bool
     is_deleted: bool
     needs_resubmission: bool
-    is_new_since_submission: bool
+    is_new: bool
     delete_not_submitted: bool
     status: str
 
