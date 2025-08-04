@@ -96,9 +96,9 @@ def submit_care_days(child_id, provider_id, month, year):
     send_submission_notification(
         provider_id=provider_id,
         child_id=child_id,
-        new_days=[day.to_dict() for day in new_days],
-        modified_days=[day.to_dict() for day in modified_days],
-        removed_days=[day.to_dict() for day in removed_days_where_delete_not_submitted],
+        new_days=new_days,
+        modified_days=modified_days,
+        removed_days=removed_days_where_delete_not_submitted,
     )
 
     for day in care_days_to_submit:
@@ -106,7 +106,7 @@ def submit_care_days(child_id, provider_id, month, year):
     db.session.commit()
 
     for day in removed_days_where_delete_not_submitted:
-        day.mark_as_submitted()
+        day.last_submitted_at = None  # Reset last submitted date for deleted days
     db.session.commit()
 
     return jsonify(

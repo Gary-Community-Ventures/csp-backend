@@ -161,9 +161,9 @@ def test_submit_care_days_success(client, seed_db, mock_send_submission_notifica
     assert call_kwargs['child_id'] == allocation.google_sheets_child_id
 
     # Extract IDs from the actual call arguments
-    actual_new_day_ids = [d['id'] for d in call_kwargs['new_days']]
-    actual_modified_day_ids = [d['id'] for d in call_kwargs['modified_days']]
-    actual_removed_day_ids = [d['id'] for d in call_kwargs['removed_days']]
+    actual_new_day_ids = [d.id for d in call_kwargs['new_days']]
+    actual_modified_day_ids = [d.id for d in call_kwargs['modified_days']]
+    actual_removed_day_ids = [d.id for d in call_kwargs['removed_days']]
 
     assert actual_new_day_ids == [care_day_new.id]
     assert actual_modified_day_ids == [care_day_needs_resubmission.id]
