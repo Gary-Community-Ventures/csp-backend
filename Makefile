@@ -21,5 +21,7 @@ db:
 	docker compose exec backend flask db $(ARGS)
 db-shell:
 	docker compose exec postgres psql -U dev -d myapp $(ARGS)
+db-upgrade:
+	docker-compose exec backend flask db upgrade
 %:
 	@# Do nothing

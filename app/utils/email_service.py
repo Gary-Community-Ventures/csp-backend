@@ -6,8 +6,14 @@ from flask import current_app
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from app.sheets.helpers import KeyMap, format_name
-from app.sheets.mappings import ChildColumnNames
-
+from app.sheets.mappings import (
+    get_provider,
+    get_providers,
+    get_child,
+    get_children,
+    ChildColumnNames,
+    ProviderColumnNames,
+)
 
 def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, html_content: str) -> bool:
     """
@@ -252,9 +258,61 @@ def send_provider_invite_accept_email(
     )
 
 def send_submission_notification(provider_id, child_id, new_days, modified_days, removed_days):
-    """Placeholder for sending submission notification email."""
-    current_app.logger.info(f"Sending submission notification for provider {provider_id}, child {child_id}")
-    current_app.logger.info(f"New days: {new_days}")
-    current_app.logger.info(f"Modified days: {modified_days}")
-    current_app.logger.info(f"Removed days: {removed_days}")
-    return True
+    """Sends a submission notification email to the provider."""
+    from_email = get_from_email()
+
+    provider = get_provider(provider_id, get_providers())
+    child = get_child(child_id, get_children())
+
+    provider_name = provider.get(ProviderColumnNames.NAME) if provider else f"Provider {provider_id}"
+    to_email = provider.get(ProviderColumnNames.EMAIL) if provider else None
+    child_name = f'{child.get(ChildColumnNames.FIRST_NAME)} {child.get(ChildColumnNames.LAST_NAME)}' if child else f"Child {child_id}"
+
+    if not to_email:
+        current_app.logger.warning(f"Provider {provider_id} has no email address. Skipping notification.")
+        return False
+
+    subject = f"Care Day Submission Update for {child_name}"
+
+    # Build the HTML content for the email
+    html_content = f"""
+    <html>
+        <body style="font-family: sans-serif;">
+            <h2>Care Day Submission Update</h2>
+            <p>Hello {provider_name},</p>
+            <p>This email is to notify you of an update to the care day submission for <strong>{child_name}</strong>.</p>
+    """
+
+    if new_days:
+        html_content += "<h3>New Days Added:</h3><ul>"
+        for day in new_days:
+            html_content += f"<li>{day.date} - {day.type.value}</li>"
+        html_content += "</ul>"
+
+    if modified_days:
+        html_content += "<h3>Days Modified:</h3><ul>"
+        for day in modified_days:
+            html_content += f"<li>{day.date} - {day.type.value}</li>"
+        html_content += "</ul>"
+
+    if removed_days:
+        html_content += "<h3>Days Removed:</h3><ul>"
+        for day in removed_days:
+            html_content += f"<li>{day.date} - {day.type.value}</li>"
+        html_content += "</ul>"
+
+    html_content += """
+            <p>Thank you,</p>
+            <p>The LaLa App Team</p>
+            <hr>
+            <p style="font-size: 12px; color: #666;">This is an automated notification from the LaLa app system.</p>
+        </body>
+    </html>
+    """
+
+    return send_email(
+        from_email=from_email,
+        to_emails=[to_email],
+        subject=subject,
+        html_content=html_content,
+    )

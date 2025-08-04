@@ -32,6 +32,7 @@ class ProviderColumnNames:
     FIRST_NAME = Key("First Name")
     LAST_NAME = Key("Last Name")
     STATUS = Key("Status")
+    EMAIL = Key("Email")
 
 
 class ContentColumnNames:

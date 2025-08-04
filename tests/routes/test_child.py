@@ -154,7 +154,13 @@ def test_submit_care_days_success(client, seed_db, mock_send_submission_notifica
     assert response.json['removed_days'][0]['id'] == care_day_deleted.id
 
     # Verify send_submission_notification was called
-    mock_send_submission_notification.assert_called_once()
+    mock_send_submission_notification.assert_called_once_with(
+        provider_id=care_day_new.provider_google_sheets_id,
+        child_id=allocation.google_sheets_child_id,
+        new_days=[care_day_new.serialize()],
+        modified_days=[care_day_needs_resubmission.serialize()],
+        removed_days=[care_day_deleted.serialize()]
+    )
 
     # Verify last_submitted_at is updated for submitted days
     with client.application.app_context():
@@ -185,7 +191,13 @@ def test_submit_care_days_no_care_days(client, seed_db, mock_send_submission_not
     assert len(response.json['new_days']) == 0
     assert len(response.json['modified_days']) == 0
     assert len(response.json['removed_days']) == 0
-    mock_send_submission_notification.assert_called_once()
+    mock_send_submission_notification.assert_called_once_with(
+        provider_id=1,
+        child_id=new_allocation_child_id,
+        new_days=[],
+        modified_days=[],
+        removed_days=[]
+    )
 
 def test_submit_care_days_allocation_not_found(client, seed_db, mock_send_submission_notification):
     _, _, _, _, _, _ = seed_db
