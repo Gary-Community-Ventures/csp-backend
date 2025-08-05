@@ -16,8 +16,17 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     care_month_allocation_id = db.Column(
         db.Integer, db.ForeignKey("month_allocation.id"), nullable=False
     )
-    care_month_allocation = db.relationship("MonthAllocation", back_populates="care_days", foreign_keys=[care_month_allocation_id])
-    month_allocation_with_deleted = db.relationship("MonthAllocation", back_populates="all_care_days", foreign_keys=[care_month_allocation_id], overlaps="care_days,care_month_allocation")
+    care_month_allocation = db.relationship(
+        "MonthAllocation",
+        back_populates="care_days",
+        foreign_keys=[care_month_allocation_id],
+    )
+    month_allocation_with_deleted = db.relationship(
+        "MonthAllocation",
+        back_populates="all_care_days",
+        foreign_keys=[care_month_allocation_id],
+        overlaps="care_days,care_month_allocation",
+    )
 
     # Care day details
     date = db.Column(db.Date, nullable=False, index=True)
@@ -39,9 +48,12 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     locked_date = db.Column(db.DateTime, nullable=False)
 
     __table_args__ = (
-        # Prevent duplicate care days for same allocation/date (including soft deleted)
+        # Prevent duplicate care days for same allocation/provider/date (including soft deleted)
         db.UniqueConstraint(
-            "care_month_allocation_id", "date", name="unique_allocation_date"
+            "care_month_allocation_id",
+            "provider_google_sheets_id",
+            "date",
+            name="unique_allocation_provider_date",
         ),
     )
 
@@ -104,7 +116,9 @@ class AllocatedCareDay(db.Model, TimestampMixin):
 
         # Check for existing care day on this date
         existing = AllocatedCareDay.query.filter_by(
-            care_month_allocation_id=allocation.id, date=care_date
+            care_month_allocation_id=allocation.id,
+            date=care_date,
+            provider_google_sheets_id=provider_id,
         ).first()
 
         if existing and not existing.is_deleted:

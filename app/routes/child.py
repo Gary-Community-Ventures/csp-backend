@@ -26,18 +26,21 @@ bp = Blueprint("child", __name__)
 @auth_required(ClerkUserType.FAMILY)
 def get_month_allocation(child_id, month, year):
     provider_id = request.args.get("provider_id", type=int)
-    if not provider_id:
-        return jsonify({"error": "provider_id query parameter is required"}), 400
-
     try:
         month_date = date(year, month, 1)
         allocation = MonthAllocation.get_or_create_for_month(child_id, month_date)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
-    care_days_query = AllocatedCareDay.query.filter_by(
-        care_month_allocation_id=allocation.id, provider_google_sheets_id=provider_id
-    )
+    if provider_id:
+        care_days_query = AllocatedCareDay.query.filter_by(
+            care_month_allocation_id=allocation.id,
+            provider_google_sheets_id=provider_id,
+        )
+    else:
+        care_days_query = AllocatedCareDay.query.filter_by(
+            care_month_allocation_id=allocation.id
+        )
     care_days = care_days_query.all()
 
     # Serialize care_days using Pydantic model
