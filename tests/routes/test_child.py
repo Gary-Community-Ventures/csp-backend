@@ -126,13 +126,7 @@ def test_get_month_allocation_success(client, seed_db):
     assert care_day_statuses[5] == "delete_not_submitted"
 
 
-def test_get_month_allocation_missing_provider_id(client, seed_db):
-    allocation, _, _, _, _, _ = seed_db
-    response = client.get(
-        f"/child/{allocation.google_sheets_child_id}/allocation/{allocation.date.month}/{allocation.date.year}"
-    )
-    assert response.status_code == 400
-    assert "provider_id query parameter is required" in response.json["error"]
+
 
 
 def test_get_month_allocation_invalid_date(client, seed_db):

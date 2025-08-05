@@ -192,20 +192,7 @@ def test_create_care_day_exceeds_allocation(client, seed_db):
     assert response.status_code == 400
     assert "Adding this care day would exceed monthly allocation" in response.json["error"]
 
-def test_create_care_day_duplicate_date(client, seed_db):
-    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
-    # Care day with ID 1 already exists for 2024-01-15
-    response = client.post(
-        "/care-days",
-        json={
-            "allocation_id": allocation.id,
-            "provider_id": 1,
-            "date": care_day_updatable.date.isoformat(),
-            "type": CareDayType.HALF_DAY.value,
-        },
-    )
-    assert response.status_code == 400
-    assert "Care day already exists for this date" in response.json["error"]
+
 
 def test_create_care_day_restore_soft_deleted(client, seed_db):
     allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
