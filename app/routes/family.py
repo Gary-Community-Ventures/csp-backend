@@ -6,7 +6,12 @@ from flask import Blueprint, abort, jsonify, request, current_app
 from app.data.providers.mappings import ProviderListColumnNames
 from app.extensions import db
 from app.models.family import Family
-from app.auth.decorators import ClerkUserType, auth_optional, auth_required, api_key_required
+from app.auth.decorators import (
+    ClerkUserType,
+    auth_optional,
+    auth_required,
+    api_key_required,
+)
 from app.auth.helpers import get_current_user
 from app.models.provider_invitation import ProviderInvitation
 from app.sheets.helpers import KeyMap, format_name, get_row, get_rows
@@ -65,13 +70,17 @@ def new_family():
     clerk: Clerk = current_app.clerk_client
     fe_domain = current_app.config.get("FRONTEND_DOMAIN")
     meta_data = {
-        "types": [ClerkUserType.FAMILY],  # NOTE: list in case we need to have people who fit into multiple categories
+        "types": [
+            ClerkUserType.FAMILY
+        ],  # NOTE: list in case we need to have people who fit into multiple categories
         "family_id": family.id,
     }
 
     clerk.invitations.create(
         request=CreateInvitationRequestBody(
-            email_address=data["email"], redirect_url=f"{fe_domain}/auth/sign-up", public_metadata=meta_data
+            email_address=data["email"],
+            redirect_url=f"{fe_domain}/auth/sign-up",
+            public_metadata=meta_data,
         )
     )
 
@@ -135,8 +144,12 @@ def family_data(child_id: Optional[str] = None):
         active_child_id = family_children[0].get(ChildColumnNames.ID)
 
     child_data = get_child(active_child_id, child_rows)
-    provider_data = get_child_providers(active_child_id, provider_child_mapping_rows, provider_rows)
-    transaction_data = get_child_transactions(active_child_id, provider_child_mapping_rows, transaction_rows)
+    provider_data = get_child_providers(
+        active_child_id, provider_child_mapping_rows, provider_rows
+    )
+    transaction_data = get_child_transactions(
+        active_child_id, provider_child_mapping_rows, transaction_rows
+    )
 
     selected_child_info = {
         "id": child_data.get(ChildColumnNames.ID),
@@ -159,7 +172,9 @@ def family_data(child_id: Optional[str] = None):
         {
             "id": t.get(TransactionColumnNames.ID),
             "name": get_provider_child_mapping_provider(
-                t.get(TransactionColumnNames.PROVIDER_CHILD_ID), provider_child_mapping_rows, provider_rows
+                t.get(TransactionColumnNames.PROVIDER_CHILD_ID),
+                provider_child_mapping_rows,
+                provider_rows,
             ).get(ProviderColumnNames.NAME),
             "amount": t.get(TransactionColumnNames.AMOUNT),
             "date": t.get(TransactionColumnNames.DATETIME).isoformat(),
@@ -236,9 +251,16 @@ def add_licensed_provider():
 
     licensed_provideer_rows = get_csv_data("app/data/providers/list.csv")
 
-    provider = get_row(licensed_provideer_rows, data["license_number"], id_key=ProviderListColumnNames.LICENSE_NUMBER)
+    provider = get_row(
+        licensed_provideer_rows,
+        data["license_number"],
+        id_key=ProviderListColumnNames.LICENSE_NUMBER,
+    )
     if provider is None:
-        abort(404, description=f"Provider with license number {data['license_number']} not found.")
+        abort(
+            404,
+            description=f"Provider with license number {data['license_number']} not found.",
+        )
 
     family = get_family(family_id, family_rows)
     if family is None:
@@ -273,7 +295,9 @@ class InviteProviderMessage:
     sms: str
 
 
-def get_invite_provider_message(lang: str, family_name: str, child_names: list[str], link: str):
+def get_invite_provider_message(
+    lang: str, family_name: str, child_names: list[str], link: str
+):
     formatted_child_names = ", ".join([child_name for child_name in child_names])
     if lang == "es":
         return InviteProviderMessage(
@@ -352,7 +376,9 @@ def invite_provider():
 
         from_email = get_from_email_internal()
         if data["provider_email"] != "":
-            email_sent = send_email(from_email, data["provider_email"], message.subject, message.email)
+            email_sent = send_email(
+                from_email, data["provider_email"], message.subject, message.email
+            )
             if email_sent:
                 for invitation in invitations:
                     invitation.record_email_sent()
@@ -378,8 +404,12 @@ def get_invite_data(child_ids: list[int]):
         abort(500, description="Child not found.")
 
     for child in child_data:
-        if child.get(ChildColumnNames.FAMILY_ID) != child_data[0].get(ChildColumnNames.FAMILY_ID):
-            abort(500, description="Child not found.")  # make sure that all the children are in the same family
+        if child.get(ChildColumnNames.FAMILY_ID) != child_data[0].get(
+            ChildColumnNames.FAMILY_ID
+        ):
+            abort(
+                500, description="Child not found."
+            )  # make sure that all the children are in the same family
 
     family_data = get_family(child_data[0].get(ChildColumnNames.FAMILY_ID), family_rows)
     if family_data is None:
