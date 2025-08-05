@@ -6,10 +6,19 @@ from flask import current_app
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from app.sheets.helpers import KeyMap, format_name
-from app.sheets.mappings import ChildColumnNames
+from app.sheets.mappings import (
+    get_provider,
+    get_providers,
+    get_child,
+    get_children,
+    ChildColumnNames,
+    ProviderColumnNames,
+)
 
 
-def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, html_content: str) -> bool:
+def send_email(
+    from_email: str, to_emails: Union[str, List[str]], subject: str, html_content: str
+) -> bool:
     """
     Send an email using SendGrid.
 
@@ -36,7 +45,9 @@ def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, 
 
         sendgrid_client = SendGridAPIClient(current_app.config.get("SENDGRID_API_KEY"))
         response = sendgrid_client.send(message)
-        current_app.logger.info(f"SendGrid email sent with status code: {response.status_code}")
+        current_app.logger.info(
+            f"SendGrid email sent with status code: {response.status_code}"
+        )
         return True
 
     except Exception as e:
@@ -60,14 +71,24 @@ def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, 
         return False
 
 
-def get_from_email() -> str:
-    return str(current_app.config.get("PAYMENT_REQUEST_SENDER_EMAIL"))
+def get_from_email_internal() -> str:
+    # Ensure the FROM_EMAIL_INTERNAL is set in the config
+    if not current_app.config.get("FROM_EMAIL_INTERNAL"):
+        raise ValueError("FROM_EMAIL_INTERNAL is not set in the configuration.")
+    return str(current_app.config.get("FROM_EMAIL_INTERNAL"))
+
+
+def get_from_email_external() -> str:
+    # Ensure the FROM_EMAIL_EXTERNAL is set in the config
+    if not current_app.config.get("FROM_EMAIL_EXTERNAL"):
+        raise ValueError("FROM_EMAIL_EXTERNAL is not set in the configuration.")
+    return str(current_app.config.get("FROM_EMAIL_EXTERNAL"))
 
 
 def get_internal_emails() -> tuple[str, list[str]]:
     # Ensure email addresses are strings
-    from_email = get_from_email()
-    to_emails = current_app.config.get("PAYMENT_REQUEST_RECIPIENT_EMAILS", [])
+    from_email = get_from_email_internal()
+    to_emails = current_app.config.get("INTERNAL_EMAIL_RECIPIENTS", [])
 
     # Filter out empty strings from the list (in case of trailing commas in env var)
     to_emails = [email.strip() for email in to_emails if email.strip()]
@@ -130,7 +151,9 @@ def send_payment_request_email(
     )
 
     subject = "New Payment Request Notification"
-    description = f"A new payment request has been submitted through your payment system:"
+    description = (
+        f"A new payment request has been submitted through your payment system:"
+    )
     rows = [
         SystemMessageRow(
             title="Provider Name",
@@ -247,6 +270,83 @@ def send_provider_invite_accept_email(
     return send_email(
         from_email=from_email,
         to_emails=to_emails,
+        subject=subject,
+        html_content=html_content,
+    )
+
+
+def send_submission_notification(
+    provider_id, child_id, new_days, modified_days, removed_days
+):
+    """Sends a submission notification email to the provider."""
+    from_email = get_from_email_external()
+
+    provider = get_provider(provider_id, get_providers())
+    child = get_child(child_id, get_children())
+
+    provider_name = (
+        provider.get(ProviderColumnNames.NAME)
+        if provider
+        else f"Provider {provider_id}"
+    )
+    to_email = provider.get(ProviderColumnNames.EMAIL) if provider else None
+    child_name = (
+        f"{child.get(ChildColumnNames.FIRST_NAME)} {child.get(ChildColumnNames.LAST_NAME)}"
+        if child
+        else f"Child {child_id}"
+    )
+
+    current_app.logger.info(
+        f"Sending submission notification to {to_email} for provider ID: {provider_id} and child ID: {child_id}"
+    )
+
+    if not to_email:
+        current_app.logger.warning(
+            f"Provider {provider_id} has no email address. Skipping notification."
+        )
+        return False
+
+    subject = f"Care Day Submission Update for {child_name}"
+
+    # Build the HTML content for the email
+    html_content = f"""
+    <html>
+        <body style="font-family: sans-serif;">
+            <h2>Care Day Submission Update</h2>
+            <p>Hello {provider_name},</p>
+            <p>This email is to notify you of an update to the care day submission for <strong>{child_name}</strong>.</p>
+    """
+
+    if new_days:
+        html_content += "<h3>New Days Added:</h3><ul>"
+        for day in new_days:
+            html_content += f"<li>{day.date} - {day.type.value}</li>"
+        html_content += "</ul>"
+
+    if modified_days:
+        html_content += "<h3>Days Modified:</h3><ul>"
+        for day in modified_days:
+            html_content += f"<li>{day.date} - Now: {day.type.value}</li>"
+        html_content += "</ul>"
+
+    if removed_days:
+        html_content += "<h3>Days Removed:</h3><ul>"
+        for day in removed_days:
+            html_content += f"<li>{day.date} - {day.type.value}</li>"
+        html_content += "</ul>"
+
+    html_content += """
+            <p>Thank you,</p>
+            <p>The LaLa App Team</p>
+            <hr>
+            <p style="font-size: 12px; color: #666;">This is an automated notification from the LaLa app system.</p>
+        </body>
+    </html>
+    """
+
+    return send_email(
+        from_email=from_email,
+        to_emails=[to_email],
         subject=subject,
         html_content=html_content,
     )

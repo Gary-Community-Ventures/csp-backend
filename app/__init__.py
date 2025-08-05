@@ -7,7 +7,7 @@ from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
 from clerk_backend_api import Clerk
-from .config import ENV_DEVELOPMENT, ENV_STAGING, ENV_PRODUCTION
+from .config import ENV_DEVELOPMENT, ENV_STAGING, ENV_PRODUCTION, ENV_TESTING
 
 # Import extensions from the extensions module
 from .extensions import db, migrate, cors
@@ -37,6 +37,10 @@ def create_app(config_class=None):
             from .config import StagingConfig
 
             config_class = StagingConfig
+        elif env == ENV_TESTING:
+            from .config import TestingConfig
+
+            config_class = TestingConfig
         else:  # Default to development
             from .config import DevelopmentConfig
 
@@ -66,7 +70,9 @@ def create_app(config_class=None):
     clerk_secret_key = app.config.get("CLERK_SECRET_KEY")
 
     if not clerk_secret_key:
-        print("WARNING: CLERK_SECRET_KEY not found. Clerk authentication will be disabled.")
+        print(
+            "WARNING: CLERK_SECRET_KEY not found. Clerk authentication will be disabled."
+        )
         app.clerk_client = None
     else:
         app.clerk_client = Clerk(bearer_auth=clerk_secret_key)
@@ -82,10 +88,17 @@ def create_app(config_class=None):
 
     # --- CORS Configuration ---
     # For production, use the configured origins, credentials, and headers
-    if app.config["FLASK_ENV"] == ENV_PRODUCTION or app.config["FLASK_ENV"] == ENV_STAGING:
+    if (
+        app.config["FLASK_ENV"] == ENV_PRODUCTION
+        or app.config["FLASK_ENV"] == ENV_STAGING
+    ):
         configured_origins = app.config.get("CORS_ORIGINS", [])
-        configured_supports_credentials = app.config.get("CORS_SUPPORTS_CREDENTIALS", False)
-        configured_allow_headers = app.config.get("CORS_ALLOW_HEADERS", ["Content-Type"])
+        configured_supports_credentials = app.config.get(
+            "CORS_SUPPORTS_CREDENTIALS", False
+        )
+        configured_allow_headers = app.config.get(
+            "CORS_ALLOW_HEADERS", ["Content-Type"]
+        )
         cors.init_app(
             app,
             resources={
@@ -103,7 +116,10 @@ def create_app(config_class=None):
                 r"/*": {
                     "origins": "*",  # Allow all for development
                     "supports_credentials": True,
-                    "allow_headers": ["Content-Type", "Authorization"],  # Be explicit for dev
+                    "allow_headers": [
+                        "Content-Type",
+                        "Authorization",
+                    ],  # Be explicit for dev
                 }
             },
         )
@@ -113,12 +129,16 @@ def create_app(config_class=None):
     from .routes.auth import bp as auth_bp
     from .routes.family import bp as family_bp
     from .routes.provider import bp as provider_bp
-    from .routes.payment_request import bp as payment_request_bp
+    from .routes.care_day import bp as care_day_bp
+    from .routes.child import bp as child_bp
+    from .routes.payment_rate import payment_rate_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(family_bp)
     app.register_blueprint(provider_bp)
-    app.register_blueprint(payment_request_bp)
+    app.register_blueprint(care_day_bp)
+    app.register_blueprint(child_bp)
+    app.register_blueprint(payment_rate_bp)
 
     return app

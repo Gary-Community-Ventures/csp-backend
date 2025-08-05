@@ -4,6 +4,7 @@ import os
 ENV_DEVELOPMENT = "development"
 ENV_STAGING = "staging"
 ENV_PRODUCTION = "production"
+ENV_TESTING = "testing"
 # --- End Environment Constants ---
 
 
@@ -21,8 +22,9 @@ class Config:
     GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     GOOGLE_SPREADSHEET_ID = os.getenv("GOOGLE_SPREADSHEET_ID")
     SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
-    PAYMENT_REQUEST_SENDER_EMAIL = os.getenv("PAYMENT_REQUEST_SENDER_EMAIL")
-    PAYMENT_REQUEST_RECIPIENT_EMAILS = os.getenv("PAYMENT_REQUEST_RECIPIENT_EMAILS", "").split(",")
+    FROM_EMAIL_INTERNAL = os.getenv("FROM_EMAIL_INTERNAL")
+    FROM_EMAIL_EXTERNAL = os.getenv("FROM_EMAIL_EXTERNAL")
+    INTERNAL_EMAIL_RECIPIENTS = os.getenv("INTERNAL_EMAIL_RECIPIENTS", "").split(",")
     TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
     TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
     TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
@@ -38,6 +40,12 @@ class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "postgresql://dev:dev@localhost/myapp")  # Fallback for local
     CORS_HEADERS = "Content-Type"  # Example CORS setting
+
+class TestingConfig(Config):
+    """Testing configuration."""
+
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
 
 
 class StagingConfig(Config):

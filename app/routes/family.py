@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional
+from datetime import date
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, jsonify, request, current_app
 from app.data.providers.mappings import ProviderListColumnNames
@@ -28,7 +29,7 @@ from app.sheets.mappings import (
     get_transactions,
 )
 from app.utils.email_service import (
-    get_from_email,
+    get_from_email_internal,
     send_add_licensed_provider_email,
     send_email,
     send_provider_invite_accept_email,
@@ -142,6 +143,7 @@ def family_data(child_id: Optional[str] = None):
         "first_name": child_data.get(ChildColumnNames.FIRST_NAME),
         "last_name": child_data.get(ChildColumnNames.LAST_NAME),
         "balance": child_data.get(ChildColumnNames.BALANCE),
+        "monthly_allocation": child_data.get(ChildColumnNames.MONTHLY_ALLOCATION),
     }
 
     providers = [
@@ -348,7 +350,7 @@ def invite_provider():
             link,
         )
 
-        from_email = get_from_email()
+        from_email = get_from_email_internal()
         if data["provider_email"] != "":
             email_sent = send_email(from_email, data["provider_email"], message.subject, message.email)
             if email_sent:

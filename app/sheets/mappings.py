@@ -21,6 +21,7 @@ class ChildColumnNames:
     LAST_NAME = Key("Last Name")
     BIRTH_DATE = Key("Birth Date")
     BALANCE = Key("Balance", money_to_float)
+    MONTHLY_ALLOCATION = Key("Monthly Allocation", money_to_float)
 
 
 class ProviderColumnNames:
@@ -31,6 +32,7 @@ class ProviderColumnNames:
     FIRST_NAME = Key("First Name")
     LAST_NAME = Key("Last Name")
     STATUS = Key("Status")
+    EMAIL = Key("Email")
 
 
 class ContentColumnNames:
