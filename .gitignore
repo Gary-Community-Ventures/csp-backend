@@ -30,3 +30,4 @@ venv
 
 # Visual Studio Code
 .vscode
+.env.local
