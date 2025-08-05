@@ -6,10 +6,10 @@ from app.auth.decorators import (
     auth_required,
 )
 from app.utils.email_service import send_submission_notification
-from app.schemas.care_day import AllocatedCareDayResponse  # Import the Pydantic model
+from app.schemas.care_day import AllocatedCareDayResponse
 from app.schemas.month_allocation import (
     MonthAllocationResponse,
-)  # Import the MonthAllocationResponse
+)
 from app.utils.json_utils import custom_jsonify
 
 
@@ -47,7 +47,9 @@ def get_month_allocation(child_id, month, year):
         serialized_care_days.append(care_day_data)
 
     # Serialize allocation using MonthAllocationResponse
-    serialized_allocation = MonthAllocationResponse.model_validate(allocation).model_dump()
+    serialized_allocation = MonthAllocationResponse.model_validate(
+        allocation
+    ).model_dump()
     serialized_allocation["care_days"] = serialized_care_days
 
     return custom_jsonify(serialized_allocation)
@@ -78,9 +80,7 @@ def submit_care_days(child_id, provider_id, month, year):
 
     new_days = [day for day in care_days_to_submit if day.is_new]
     modified_days = [
-        day
-        for day in care_days_to_submit
-        if day.needs_resubmission and not day.is_new
+        day for day in care_days_to_submit if day.needs_resubmission and not day.is_new
     ]
 
     removed_days = AllocatedCareDay.query.filter(
@@ -113,7 +113,8 @@ def submit_care_days(child_id, provider_id, month, year):
         {
             "message": "Submission successful",
             "new_days": [
-                AllocatedCareDayResponse.model_validate(day).model_dump() for day in new_days
+                AllocatedCareDayResponse.model_validate(day).model_dump()
+                for day in new_days
             ],
             "modified_days": [
                 AllocatedCareDayResponse.model_validate(day).model_dump()

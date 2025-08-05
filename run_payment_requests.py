@@ -20,18 +20,18 @@ from app.sheets.mappings import (
 app = create_app()
 app.app_context().push()
 
+
 def run_payment_requests():
     print("Starting payment request processing...")
 
     # Query for submitted and unprocessed care days
     care_days_to_process = (
-        AllocatedCareDay.query
-        .join(MonthAllocation)
+        AllocatedCareDay.query.join(MonthAllocation)
         .filter(
             AllocatedCareDay.last_submitted_at.isnot(None),
             AllocatedCareDay.payment_distribution_requested == False,
             AllocatedCareDay.deleted_at.is_(None),
-            AllocatedCareDay.locked_date <= datetime.utcnow()
+            AllocatedCareDay.locked_date <= datetime.utcnow(),
         )
         .all()
     )
@@ -43,7 +43,12 @@ def run_payment_requests():
     # Group care days by provider and child
     grouped_care_days = defaultdict(list)
     for day in care_days_to_process:
-        grouped_care_days[(day.provider_google_sheets_id, day.care_month_allocation.google_sheets_child_id)].append(day)
+        grouped_care_days[
+            (
+                day.provider_google_sheets_id,
+                day.care_month_allocation.google_sheets_child_id,
+            )
+        ].append(day)
 
     all_children_data = get_children()
     all_providers_data = get_providers()
@@ -56,13 +61,20 @@ def run_payment_requests():
         child_data = get_child(child_id, all_children_data)
 
         if not provider_data:
-            print(f"Skipping payment request for provider ID {provider_id}: Provider not found in Google Sheets.")
+            print(
+                f"Skipping payment request for provider ID {provider_id}: Provider not found in Google Sheets."
+            )
             continue
         if not child_data:
-            print(f"Skipping payment request for child ID {child_id}: Child not found in Google Sheets.")
+            print(
+                f"Skipping payment request for child ID {child_id}: Child not found in Google Sheets."
+            )
             continue
 
-        provider_name = provider_data.get(ProviderColumnNames.NAME) or f"{provider_data.get(ProviderColumnNames.FIRST_NAME)} {provider_data.get(ProviderColumnNames.LAST_NAME)}"
+        provider_name = (
+            provider_data.get(ProviderColumnNames.NAME)
+            or f"{provider_data.get(ProviderColumnNames.FIRST_NAME)} {provider_data.get(ProviderColumnNames.LAST_NAME)}"
+        )
         child_first_name = child_data.get(ChildColumnNames.FIRST_NAME)
         child_last_name = child_data.get(ChildColumnNames.LAST_NAME)
 
@@ -76,7 +88,7 @@ def run_payment_requests():
         )
         db.session.add(payment_request)
 
-        # Write payment request information to a spreadsheet for James
+        # TODO Write payment request information to a spreadsheet for James
 
         # Mark care days as payment_distribution_requested
         for day in days:
@@ -84,6 +96,7 @@ def run_payment_requests():
 
     db.session.commit()
     print("Payment request processing finished.")
+
 
 if __name__ == "__main__":
     run_payment_requests()

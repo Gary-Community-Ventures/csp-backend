@@ -1,8 +1,8 @@
 from pydantic import BaseModel
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from decimal import Decimal
 from typing import List
-from app.schemas.care_day import AllocatedCareDayResponse # Import the care day schema
+from app.schemas.care_day import AllocatedCareDayResponse
 
 class MonthAllocationResponse(BaseModel):
     id: int
@@ -13,9 +13,9 @@ class MonthAllocationResponse(BaseModel):
     used_cents: float
     remaining_cents: float
     over_allocation: bool
-    locked_until_date: date # Add the new field
+    locked_until_date: date
     created_at: datetime
     updated_at: datetime
-    care_days: List[AllocatedCareDayResponse] # Add the care_days field
+    care_days: List[AllocatedCareDayResponse]
 
     model_config = {'from_attributes': True}

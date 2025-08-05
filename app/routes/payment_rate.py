@@ -2,7 +2,11 @@ from flask import Blueprint, request, jsonify
 from app.models import PaymentRate
 from app.extensions import db
 from app.auth.decorators import auth_required, ClerkUserType
-from app.schemas.payment_rate import PaymentRateResponse, PaymentRateCreate, PaymentRateUpdate
+from app.schemas.payment_rate import (
+    PaymentRateResponse,
+    PaymentRateCreate,
+    PaymentRateUpdate,
+)
 from pydantic import ValidationError
 
 payment_rate_bp = Blueprint("payment_rate_bp", __name__, url_prefix="/payment-rates")
@@ -17,9 +21,17 @@ def create_payment_rate():
     except ValidationError as e:
         return jsonify({"error": e.errors()}), 400
 
-    existing_rate = PaymentRate.get(provider_id=payment_rate_data.google_sheets_provider_id, child_id=payment_rate_data.google_sheets_child_id)
+    existing_rate = PaymentRate.get(
+        provider_id=payment_rate_data.google_sheets_provider_id,
+        child_id=payment_rate_data.google_sheets_child_id,
+    )
     if existing_rate:
-        return jsonify({"error": "Payment rate already exists for this provider and child"}), 400
+        return (
+            jsonify(
+                {"error": "Payment rate already exists for this provider and child"}
+            ),
+            400,
+        )
 
     payment_rate = PaymentRate.create(
         provider_id=payment_rate_data.google_sheets_provider_id,

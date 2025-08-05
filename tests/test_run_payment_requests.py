@@ -14,7 +14,7 @@ def setup_payment_request_data(app):
         allocation = MonthAllocation(
             date=date.today().replace(day=1),
             allocation_cents=1000000,
-            google_sheets_child_id=101
+            google_sheets_child_id=101,
         )
         db.session.add(allocation)
         db.session.commit()
@@ -78,14 +78,16 @@ def setup_payment_request_data(app):
         care_day_4.payment_distribution_requested = True
 
         # Care day that is submitted but not yet locked (locked_date in future)
-        future_date = date.today() + timedelta(days=7) # A week from now
+        future_date = date.today() + timedelta(days=7)  # A week from now
         care_day_5 = AllocatedCareDay.create_care_day(
             allocation=allocation,
             provider_id=201,
             care_date=future_date,
             day_type=CareDayType.FULL_DAY,
         )
-        care_day_5.last_submitted_at = datetime.utcnow() - timedelta(days=1) # Submitted yesterday
+        care_day_5.last_submitted_at = datetime.utcnow() - timedelta(
+            days=1
+        )  # Submitted yesterday
         care_day_5.payment_distribution_requested = False
 
         db.session.add_all([care_day_1, care_day_2, care_day_3, care_day_4, care_day_5])
@@ -93,20 +95,57 @@ def setup_payment_request_data(app):
 
         yield allocation, care_day_1, care_day_2, care_day_3, care_day_4, care_day_5
 
+
 def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
-    allocation, care_day_1, care_day_2, care_day_3, care_day_4, care_day_5 = setup_payment_request_data
+    allocation, care_day_1, care_day_2, care_day_3, care_day_4, care_day_5 = (
+        setup_payment_request_data
+    )
 
     # Mock external dependencies
-    mocker.patch.dict('os.environ', {'GOOGLE_SHEETS_CREDENTIALS': '{"type": "service_account"}'})
-    mocker.patch('run_payment_requests.get_children', return_value=[
-        KeyMap({ChildColumnNames.ID.key: 101, ChildColumnNames.FIRST_NAME.key: "Test", ChildColumnNames.LAST_NAME.key: "Child"})
-    ])
-    mocker.patch('run_payment_requests.get_providers', return_value=[
-        KeyMap({ProviderColumnNames.ID.key: 201, ProviderColumnNames.NAME.key: "Test Provider"}),
-        KeyMap({ProviderColumnNames.ID.key: 202, ProviderColumnNames.NAME.key: "Another Provider"})
-    ])
-    mocker.patch('run_payment_requests.get_child', side_effect=lambda child_id, children: next((c for c in children if c.get(ChildColumnNames.ID) == child_id), None))
-    mocker.patch('run_payment_requests.get_provider', side_effect=lambda provider_id, providers: next((p for p in providers if p.get(ProviderColumnNames.ID) == provider_id), None))
+    mocker.patch.dict(
+        "os.environ", {"GOOGLE_SHEETS_CREDENTIALS": '{"type": "service_account"}'}
+    )
+    mocker.patch(
+        "run_payment_requests.get_children",
+        return_value=[
+            KeyMap(
+                {
+                    ChildColumnNames.ID.key: 101,
+                    ChildColumnNames.FIRST_NAME.key: "Test",
+                    ChildColumnNames.LAST_NAME.key: "Child",
+                }
+            )
+        ],
+    )
+    mocker.patch(
+        "run_payment_requests.get_providers",
+        return_value=[
+            KeyMap(
+                {
+                    ProviderColumnNames.ID.key: 201,
+                    ProviderColumnNames.NAME.key: "Test Provider",
+                }
+            ),
+            KeyMap(
+                {
+                    ProviderColumnNames.ID.key: 202,
+                    ProviderColumnNames.NAME.key: "Another Provider",
+                }
+            ),
+        ],
+    )
+    mocker.patch(
+        "run_payment_requests.get_child",
+        side_effect=lambda child_id, children: next(
+            (c for c in children if c.get(ChildColumnNames.ID) == child_id), None
+        ),
+    )
+    mocker.patch(
+        "run_payment_requests.get_provider",
+        side_effect=lambda provider_id, providers: next(
+            (p for p in providers if p.get(ProviderColumnNames.ID) == provider_id), None
+        ),
+    )
 
     # Run the script
     run_payment_requests()
@@ -116,17 +155,21 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
         db.session.expire_all()
 
         # Verify PaymentRequest was created
-        payment_requests = PaymentRequest.query.order_by(PaymentRequest.google_sheets_provider_id).all()
+        payment_requests = PaymentRequest.query.order_by(
+            PaymentRequest.google_sheets_provider_id
+        ).all()
         assert len(payment_requests) == 2
 
-        pr1 = payment_requests[0] # For provider 201, child 101
+        pr1 = payment_requests[0]  # For provider 201, child 101
         assert pr1.google_sheets_provider_id == 201
         assert pr1.google_sheets_child_id == 101
         assert pr1.care_days_count == 2
-        assert pr1.amount_in_cents == (care_day_1.amount_cents + care_day_2.amount_cents)
+        assert pr1.amount_in_cents == (
+            care_day_1.amount_cents + care_day_2.amount_cents
+        )
         assert set(pr1.care_day_ids) == {care_day_1.id, care_day_2.id}
 
-        pr2 = payment_requests[1] # For provider 202, child 101
+        pr2 = payment_requests[1]  # For provider 202, child 101
         assert pr2.google_sheets_provider_id == 202
         assert pr2.google_sheets_child_id == 101
         assert pr2.care_days_count == 1
