@@ -123,7 +123,7 @@ def system_message(subject: str, description: str, rows: list[SystemMessageRow])
             </table>
             <p>
                 <a href="https://www.espn.com/nfl/story/_/id/45711952/2025-nfl-roster-ranking-starting-lineups-projection-32-teams" style="color: #0066cc; text-decoration: underline;">
-                P.S. Check out the Saints Power Rankings
+                P.S. Check out the Saints (Lack of) Power Rankings
                 </a>
             </p>
             <hr>
