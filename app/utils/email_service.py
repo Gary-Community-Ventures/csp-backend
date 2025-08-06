@@ -127,7 +127,7 @@ def system_message(subject: str, description: str, rows: list[SystemMessageRow])
                 </a>
             </p>
             <hr>
-            <p style="font-size: 12px; color: #666;">This is an automated notification from the LaLa app system.</p>
+            <p style="font-size: 12px; color: #666;">This is an automated notification from the CAP portal system.</p>
         </body>
     </html>
     """
@@ -337,9 +337,9 @@ def send_submission_notification(
 
     html_content += """
             <p>Thank you,</p>
-            <p>The LaLa App Team</p>
+            <p>The CAP Team</p>
             <hr>
-            <p style="font-size: 12px; color: #666;">This is an automated notification from the LaLa app system.</p>
+            <p style="font-size: 12px; color: #666;">This is an automated notification from the CAP portal system.</p>
         </body>
     </html>
     """
