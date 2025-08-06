@@ -70,9 +70,7 @@ def new_family():
     clerk: Clerk = current_app.clerk_client
     fe_domain = current_app.config.get("FRONTEND_DOMAIN")
     meta_data = {
-        "types": [
-            ClerkUserType.FAMILY
-        ],  # NOTE: list in case we need to have people who fit into multiple categories
+        "types": [ClerkUserType.FAMILY],  # NOTE: list in case we need to have people who fit into multiple categories
         "family_id": family.id,
     }
 
@@ -144,12 +142,8 @@ def family_data(child_id: Optional[str] = None):
         active_child_id = family_children[0].get(ChildColumnNames.ID)
 
     child_data = get_child(active_child_id, child_rows)
-    provider_data = get_child_providers(
-        active_child_id, provider_child_mapping_rows, provider_rows
-    )
-    transaction_data = get_child_transactions(
-        active_child_id, provider_child_mapping_rows, transaction_rows
-    )
+    provider_data = get_child_providers(active_child_id, provider_child_mapping_rows, provider_rows)
+    transaction_data = get_child_transactions(active_child_id, provider_child_mapping_rows, transaction_rows)
 
     selected_child_info = {
         "id": child_data.get(ChildColumnNames.ID),
@@ -295,15 +289,13 @@ class InviteProviderMessage:
     sms: str
 
 
-def get_invite_provider_message(
-    lang: str, family_name: str, child_names: list[str], link: str
-):
+def get_invite_provider_message(lang: str, family_name: str, child_names: list[str], link: str):
     formatted_child_names = ", ".join([child_name for child_name in child_names])
     if lang == "es":
         return InviteProviderMessage(
             subject=f"¡{family_name} se complace en invitarte al programa CAP!",
             email=f'<html><body>¡{family_name} te invitó a unirte al programa CAP para cuidar a {formatted_child_names}!<br><br>CAP ayuda a las familias a pagar el cuidado infantil y a proveedores como tú a recibir su pago. Únete a este programa piloto de 9 meses y obtén pagos flexibles por el cuidado que ya brindas.<br><br><a href="{link}" style="color: #0066cc; text-decoration: underline;">Toque para aceptar</a><br><br>¿Preguntas? cap@garycommunity.org</body></html>',
-            sms=f"¡{family_name} te invitó a unirte al programa CAP para cuidar a {child_names}! CAP ayuda a las familias a pagar el cuidado infantil y a proveedores como tú a recibir su pago. Únete a este programa piloto de 9 meses y obtén pagos flexibles por el cuidado que ya brindas. Toque para aceptar: {link} ¿Preguntas? cap@garycommunity.org",
+            sms=f"¡{family_name} te invitó a unirte al programa CAP para cuidar a {formatted_child_names}! CAP ayuda a las familias a pagar el cuidado infantil y a proveedores como tú a recibir su pago. Únete a este programa piloto de 9 meses y obtén pagos flexibles por el cuidado que ya brindas. Toque para aceptar: {link} ¿Preguntas? cap@garycommunity.org",
         )
 
     return InviteProviderMessage(
@@ -375,15 +367,12 @@ def invite_provider():
         )
 
         from_email = get_from_email_internal()
-        if data["provider_email"] != "":
-            email_sent = send_email(
-                from_email, data["provider_email"], message.subject, message.email
-            )
-            if email_sent:
-                for invitation in invitations:
-                    invitation.record_email_sent()
+        email_sent = send_email(from_email, data["provider_email"], message.subject, message.email)
+        if email_sent:
+            for invitation in invitations:
+                invitation.record_email_sent()
 
-        if data["provider_cell"] != "":
+        if data["provider_cell"] is not None:
             sms_sent = send_sms(data["provider_cell"], message.sms, data["lang"])
             if sms_sent:
                 for invitation in invitations:
@@ -404,12 +393,8 @@ def get_invite_data(child_ids: list[int]):
         abort(500, description="Child not found.")
 
     for child in child_data:
-        if child.get(ChildColumnNames.FAMILY_ID) != child_data[0].get(
-            ChildColumnNames.FAMILY_ID
-        ):
-            abort(
-                500, description="Child not found."
-            )  # make sure that all the children are in the same family
+        if child.get(ChildColumnNames.FAMILY_ID) != child_data[0].get(ChildColumnNames.FAMILY_ID):
+            abort(500, description="Child not found.")  # make sure that all the children are in the same family
 
     family_data = get_family(child_data[0].get(ChildColumnNames.FAMILY_ID), family_rows)
     if family_data is None:
