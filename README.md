@@ -1,6 +1,6 @@
-# Lala Childcare Backend
+# CAP Colorado Childcare Portal Backend
 
-This repo is a Flask backend with a Postgres database used for the LaLa Childcare web application.
+This repo is a Flask backend with a Postgres database used for the CAP Colorado Childcare Portal web application.
 It also uses Clerk for authentication and Sentry for error tracking.
 
 To get started make a copy of `.env.example` to a `.env` file and populate any keys/values that need to be set.
