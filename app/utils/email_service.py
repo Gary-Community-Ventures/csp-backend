@@ -16,9 +16,7 @@ from app.sheets.mappings import (
 )
 
 
-def send_email(
-    from_email: str, to_emails: Union[str, List[str]], subject: str, html_content: str
-) -> bool:
+def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, html_content: str) -> bool:
     """
     Send an email using SendGrid.
 
@@ -45,9 +43,7 @@ def send_email(
 
         sendgrid_client = SendGridAPIClient(current_app.config.get("SENDGRID_API_KEY"))
         response = sendgrid_client.send(message)
-        current_app.logger.info(
-            f"SendGrid email sent with status code: {response.status_code}"
-        )
+        current_app.logger.info(f"SendGrid email sent with status code: {response.status_code}")
         return True
 
     except Exception as e:
@@ -151,9 +147,7 @@ def send_payment_request_email(
     )
 
     subject = "New Payment Request Notification"
-    description = (
-        f"A new payment request has been submitted through your payment system:"
-    )
+    description = f"A new payment request has been submitted through your payment system:"
     rows = [
         SystemMessageRow(
             title="Provider Name",
@@ -275,20 +269,14 @@ def send_provider_invite_accept_email(
     )
 
 
-def send_submission_notification(
-    provider_id, child_id, new_days, modified_days, removed_days
-):
+def send_submission_notification(provider_id, child_id, new_days, modified_days, removed_days):
     """Sends a submission notification email to the provider."""
     from_email = get_from_email_external()
 
     provider = get_provider(provider_id, get_providers())
     child = get_child(child_id, get_children())
 
-    provider_name = (
-        provider.get(ProviderColumnNames.NAME)
-        if provider
-        else f"Provider {provider_id}"
-    )
+    provider_name = provider.get(ProviderColumnNames.NAME) if provider else f"Provider {provider_id}"
     to_email = provider.get(ProviderColumnNames.EMAIL) if provider else None
     child_name = (
         f"{child.get(ChildColumnNames.FIRST_NAME)} {child.get(ChildColumnNames.LAST_NAME)}"
@@ -301,9 +289,7 @@ def send_submission_notification(
     )
 
     if not to_email:
-        current_app.logger.warning(
-            f"Provider {provider_id} has no email address. Skipping notification."
-        )
+        current_app.logger.warning(f"Provider {provider_id} has no email address. Skipping notification.")
         return False
 
     subject = f"Care Day Submission Update for {child_name}"
@@ -347,6 +333,50 @@ def send_submission_notification(
     return send_email(
         from_email=from_email,
         to_emails=[to_email],
+        subject=subject,
+        html_content=html_content,
+    )
+
+
+def send_family_invite_accept_email(
+    provider_name: str,
+    provider_id: int,
+    parent_name: str,
+    parent_id: str,
+    children: list[KeyMap],
+):
+    from_email, to_emails = get_internal_emails()
+
+    current_app.logger.info(
+        f"Sending accept invite request email to {to_emails} for provider ID: {provider_id} for family ID: {parent_id} for children: {[format_name(child) for child in children]}"
+    )
+
+    rows = [
+        SystemMessageRow(
+            title="Provider Name",
+            value=f"{provider_name} (ID: {provider_id})",
+        ),
+        SystemMessageRow(
+            title=f"Parent Name",
+            value=f"{parent_name} (ID: {parent_id})",
+        ),
+    ]
+
+    for child in children:
+        rows.append(
+            SystemMessageRow(
+                title="Child Name",
+                value=f"{format_name(child)} (ID: {child.get(ChildColumnNames.ID)})",
+            )
+        )
+
+    subject = "New Add Family Invite Accepted Notification"
+    description = f"A new family invite request has been submitted:"
+    html_content = system_message(subject, description, rows)
+
+    return send_email(
+        from_email=from_email,
+        to_emails=to_emails,
         subject=subject,
         html_content=html_content,
     )
