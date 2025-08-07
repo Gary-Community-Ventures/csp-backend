@@ -112,8 +112,8 @@ class MonthAllocation(db.Model, TimestampMixin):
             raise ValueError(f"Cannot create allocation for a past month. {today} vs {month_start}")
 
         # Prevent creating allocations for future months too far in advance
-        if month_start > today + timedelta(days=7):
-            raise ValueError(f"Cannot create allocation for a month that is more than 7 days away.")
+        if month_start > today + timedelta(days=14):
+            raise ValueError(f"Cannot create allocation for a month that is more than 14 days away.")
 
         allocation = MonthAllocation.query.filter_by(
             google_sheets_child_id=child_id, date=month_start
