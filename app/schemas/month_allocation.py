@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from datetime import date, datetime
-from decimal import Decimal
 from typing import List
 from app.schemas.care_day import AllocatedCareDayResponse
 
