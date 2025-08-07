@@ -16,11 +16,11 @@ def get_allocation_amount(child_id: int) -> int:
     child_data = get_child(child_id, get_children())
     allocation_dollars = child_data.get(ChildColumnNames.MONTHLY_ALLOCATION)
 
-    # Get prorated first month allocation if available
-    allocation = MonthAllocation.query.filter_by(
+    # If no prior allocation exists, use prorated amount
+    prior_allocation = MonthAllocation.query.filter_by(
         google_sheets_child_id=child_id
     ).first()
-    if not allocation:
+    if not prior_allocation:
         allocation_dollars = child_data.get(
             ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION
         )
