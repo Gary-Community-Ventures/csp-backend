@@ -19,6 +19,7 @@ from app.sheets.mappings import (
 )
 from datetime import date
 from collections import defaultdict
+from app.const import SUPPORTED_LANGUAGES
 
 bp = Blueprint("provider", __name__)
 
@@ -34,6 +35,12 @@ def new_provider():
 
     if "email" not in data:
         abort(400, description="Missing required field: email")
+
+    # Default to English if no language is specified
+    lang = data.get("language", "en")
+
+    if lang not in SUPPORTED_LANGUAGES:
+        abort(400, description=f"Unsupported language: {lang}")
 
     if Provider.query.filter_by(google_sheet_id=data["google_sheet_id"]).first():
         abort(409, description=f"A provider with that Google Sheet ID already exists.")
@@ -51,6 +58,8 @@ def new_provider():
             ClerkUserType.PROVIDER
         ],  # NOTE: list in case we need to have people who fit into multiple categories
         "provider_id": provider.id,
+        "language": lang,
+        "es": lang == "es", # We need this because it seems like Clerk email template can only handle boolean values
     }
 
     clerk.invitations.create(
