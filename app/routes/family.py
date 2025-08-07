@@ -295,7 +295,7 @@ def get_invite_provider_message(lang: str, family_name: str, child_names: list[s
         return InviteProviderMessage(
             subject=f"¡{family_name} se complace en invitarte al programa CAP!",
             email=f'<html><body>¡{family_name} lo ha invitado a unirse al programa piloto Childcare Affordability Pilot (CAP) como proveedor de {formatted_child_names}, ¡Y nos encantaría tenerte a bordo!<br><br>CAP es un programa de 9 meses que ayuda a las familias a pagar el cuidado infantil y a proveedores como usted a recibir su pago. Recibirá pagos a través del portal de cuidado infantil de CAP, mantendrá sus rutinas de cuidado habituales y apoyará a las familias con las que ya trabaja, o a nuevas familias.<br><br>¡Haga clic <a href="{link}" style="color: #0066cc; text-decoration: underline;">aquí</a> para aceptar la invitación y comenzar!<br><br>¿Tienes preguntas? Escríbenos a <a href="mailto:support@capcolorado.org" style="color: #0066cc; text-decoration: underline;">support@capcolorado.org</a></body></html>',
-            sms=f"¡{family_name} te invitó a unirte al programa CAP para cuidar a familias [{formatted_child_names}]! CAP ayuda a las familias a pagar el cuidado infantil y a proveedores como tú a recibir su pago. Toque para aceptar: {link} ¿Preguntas? support@capcolorado.org",
+            sms=f"¡{family_name} te invitó a unirte al programa CAP para cuidar a su familia! CAP ayuda a las familias a pagar el cuidado infantil y a proveedores como tú a recibir su pago. Toque para aceptar: {link} ¿Preguntas? support@capcolorado.org",
         )
 
     return InviteProviderMessage(
