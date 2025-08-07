@@ -18,8 +18,8 @@ def seed_db(app):
     with app.app_context():
         # Create a PaymentRate for testing
         payment_rate = PaymentRate(
-            google_sheets_provider_id=1,
-            google_sheets_child_id=1,
+            google_sheets_provider_id="1",
+            google_sheets_child_id="1",
             full_day_rate_cents=60000,
             half_day_rate_cents=40000,
         )
@@ -29,7 +29,7 @@ def seed_db(app):
         allocation = MonthAllocation(
             date=date.today().replace(day=1),
             allocation_cents=1000000,
-            google_sheets_child_id=1,
+            google_sheets_child_id="1",
         )
         db.session.add(allocation)
         db.session.commit()
@@ -37,7 +37,7 @@ def seed_db(app):
         # Create a care day that is new (never submitted)
         care_day_new = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
-            provider_google_sheets_id=1,
+            provider_google_sheets_id="1",
             date=date.today() + timedelta(days=7), # Set date to a week in the future
             locked_date=datetime.now() + timedelta(days=20),
             type=CareDayType.FULL_DAY,
@@ -50,7 +50,7 @@ def seed_db(app):
         # Create a care day that can be updated/deleted
         care_day_updatable = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
-            provider_google_sheets_id=1,
+            provider_google_sheets_id="1",
             date=date.today() + timedelta(days=1), # Set date to tomorrow
             locked_date=datetime.now() + timedelta(days=8),
             type=CareDayType.FULL_DAY,
@@ -64,7 +64,7 @@ def seed_db(app):
         locked_date = datetime.now() - timedelta(days=7)  # A week ago
         care_day_locked = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
-            provider_google_sheets_id=1,
+            provider_google_sheets_id="1",
             locked_date=locked_date,
             date=locked_date.date(),
             type=CareDayType.FULL_DAY,
@@ -80,7 +80,7 @@ def seed_db(app):
         # Create a soft-deleted care day
         care_day_soft_deleted = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
-            provider_google_sheets_id=1,
+            provider_google_sheets_id="1",
             date=date.today() + timedelta(days=2), # Set date to two days from now
             locked_date=datetime.now() + timedelta(days=10), # Set locked_date to future
             type=CareDayType.FULL_DAY,
@@ -107,7 +107,7 @@ def test_create_care_day_success(client, seed_db):
         "/care-days",
         json={
             "allocation_id": allocation.id,
-            "provider_id": 1,
+            "provider_id": "1",
             "date": (date.today() + timedelta(days=10)).isoformat(),
             "type": CareDayType.FULL_DAY.value,
         },
@@ -125,7 +125,7 @@ def test_create_care_day_missing_fields(client, seed_db):
     response = client.post(
         "/care-days",
         json={
-            "provider_id": 1,
+            "provider_id": "1",
             "date": "2024-01-17",
             "type": CareDayType.FULL_DAY.value,
         },
@@ -139,7 +139,7 @@ def test_create_care_day_invalid_date_format(client, seed_db):
         "/care-days",
         json={
             "allocation_id": allocation.id,
-            "provider_id": 1,
+            "provider_id": "1",
             "date": "invalid-date",
             "type": CareDayType.FULL_DAY.value,
         },
@@ -153,7 +153,7 @@ def test_create_care_day_allocation_not_found(client, seed_db):
         "/care-days",
         json={
             "allocation_id": 999,  # Non-existent ID
-            "provider_id": 1,
+            "provider_id": "1",
             "date": "2024-01-17",
             "type": CareDayType.FULL_DAY.value,
         },
@@ -169,7 +169,7 @@ def test_create_care_day_exceeds_allocation(client, seed_db):
         for i in range(1, 20):  # 10 full days
             care_day = AllocatedCareDay(
                 care_month_allocation_id=allocation.id,
-                provider_google_sheets_id=1,
+                provider_google_sheets_id="1",
                 locked_date=datetime.now() + timedelta(days=10),
                 date=date.today() + timedelta(days=i + 10),
                 type=CareDayType.FULL_DAY,
@@ -184,7 +184,7 @@ def test_create_care_day_exceeds_allocation(client, seed_db):
         "/care-days",
         json={
             "allocation_id": allocation.id,
-            "provider_id": 1,
+            "provider_id": "1",
             "date": (date.today() + timedelta(days=30)).isoformat(),
             "type": CareDayType.FULL_DAY.value,
         },
@@ -222,7 +222,7 @@ def test_create_care_day_past_date_fails(client, seed_db):
         '/care-days',
         json={
             'allocation_id': allocation.id,
-            'provider_id': 1,
+            'provider_id': "1",
             'date': past_date.isoformat(),
             'type': 'Full Day'
         }

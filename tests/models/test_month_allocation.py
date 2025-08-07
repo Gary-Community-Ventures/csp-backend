@@ -23,7 +23,7 @@ def test_get_allocation_amount_prorated(mock_get_child, db_session, mock_get_chi
         }
     )
 
-    amount = get_allocation_amount(child_id=1)
+    amount = get_allocation_amount(child_id="1")
     assert amount == 50000
 
 
@@ -38,7 +38,7 @@ def test_get_allocation_amount_normal(
         }
     )
 
-    amount = get_allocation_amount(child_id=1)
+    amount = get_allocation_amount(child_id="1")
     assert amount == 100000
 
 
@@ -60,8 +60,8 @@ def test_get_or_create_for_month_new(db_session, mock_get_child, mock_get_childr
         }
     )
     today = date.today()
-    allocation = MonthAllocation.get_or_create_for_month(child_id=1, month_date=today)
-    assert allocation.google_sheets_child_id == 1
+    allocation = MonthAllocation.get_or_create_for_month(child_id="1", month_date=today)
+    assert allocation.google_sheets_child_id == "1"
     assert allocation.date == today.replace(day=1)
     assert allocation.allocation_cents == 50000
 

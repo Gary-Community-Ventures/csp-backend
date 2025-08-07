@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Literal, Optional
@@ -9,11 +9,11 @@ class AllocatedCareDayBase(BaseModel):
     provider_google_sheets_id: str
 
 class AllocatedCareDayCreate(AllocatedCareDayBase):
-    care_month_allocation_id: str
+    care_month_allocation_id: int
 
 class AllocatedCareDayResponse(AllocatedCareDayBase):
     id: int
-    care_month_allocation_id: str
+    care_month_allocation_id: int
     amount_cents: int
     day_count: float
     payment_distribution_requested: bool
