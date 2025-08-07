@@ -118,11 +118,6 @@ def family_data(child_id: Optional[str] = None):
         abort(404, description="No children found for this family.")
 
     if child_id is not None:
-        try:
-            child_id = int(child_id)
-        except ValueError:
-            abort(400, description=f"Invalid child ID: {child_id}")
-
         selected_child = get_child(child_id, family_children)
 
         if selected_child is None:
@@ -377,7 +372,7 @@ def invite_provider():
     return jsonify({"message": "Success"}, 201)
 
 
-def get_invite_data(child_ids: list[int]):
+def get_invite_data(child_ids: list[str]):
     child_rows = get_children()
     family_rows = get_families()
 
@@ -402,12 +397,12 @@ def get_invite_data(child_ids: list[int]):
 def provider_invite(invite_id: str):
     invitations = ProviderInvitation.invitations_by_id(invite_id)
 
-    child_ids: list[int] = []
+    child_ids: list[str] = []
     accepted = False
     for invitation in invitations:
         if invitation.accepted:
             accepted = True
-        child_ids.append(int(invitation.child_google_sheet_id))
+        child_ids.append(invitation.child_google_sheet_id)
         invitation.record_opened()
 
     db.session.add_all(invitations)
@@ -450,11 +445,11 @@ def accept_provider_invite(invite_id: str):
 
     invitations = ProviderInvitation.invitations_by_id(invite_id)
 
-    child_ids: list[int] = []
+    child_ids: list[str] = []
     for invitation in invitations:
         if invitation.accepted:
             abort(400, description="Invitation already accepted.")
-        child_ids.append(int(invitation.child_google_sheet_id))
+        child_ids.append(invitation.child_google_sheet_id)
 
     child_data, family_data = get_invite_data(child_ids)
 

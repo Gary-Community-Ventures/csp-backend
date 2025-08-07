@@ -43,7 +43,7 @@ def create_payment_rate():
     return jsonify(PaymentRateResponse.model_validate(payment_rate).model_dump()), 201
 
 
-@payment_rate_bp.route("/<int:provider_id>/<int:child_id>", methods=["GET"])
+@payment_rate_bp.route("/<string:provider_id>/<string:child_id>", methods=["GET"])
 @auth_required(ClerkUserType.FAMILY)
 def get_payment_rate(provider_id, child_id):
     """Get a payment rate for a given provider and child."""
@@ -54,7 +54,7 @@ def get_payment_rate(provider_id, child_id):
     return jsonify(PaymentRateResponse.model_validate(payment_rate).model_dump()), 200
 
 
-@payment_rate_bp.route("/<int:provider_id>/<int:child_id>", methods=["PUT"])
+@payment_rate_bp.route("/<string:provider_id>/<string:child_id>", methods=["PUT"])
 @auth_required(ClerkUserType.FAMILY)
 def update_payment_rate(provider_id, child_id):
     """Update a payment rate for a given provider and child."""

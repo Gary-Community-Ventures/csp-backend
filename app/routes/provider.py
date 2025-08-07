@@ -69,7 +69,7 @@ def get_provider_data():
     provider_child_mapping_rows = get_provider_child_mappings()
     transaction_rows = get_transactions()
 
-    provider_id = user.user_data.provider_id  # TODO: Get Google Sheet ID from DB
+    provider_id = user.user_data.provider_id
 
     provider_data = get_provider(provider_id, provider_rows)
     children_data = get_provider_children(
@@ -121,10 +121,10 @@ def get_provider_data():
     )
 
 
-@bp.route("/provider/<int:provider_id>/allocated_care_days", methods=["GET"])
+@bp.route("/provider/<string:provider_id>/allocated_care_days", methods=["GET"])
 @auth_required(ClerkUserType.PROVIDER)
 def get_allocated_care_days(provider_id):
-    child_id = request.args.get("childId", type=int)
+    child_id = request.args.get("childId")
     start_date_str = request.args.get("startDate")
     end_date_str = request.args.get("endDate")
 

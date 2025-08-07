@@ -7,7 +7,7 @@ class MonthAllocationResponse(BaseModel):
     id: int
     date: date
     allocation_cents: int
-    google_sheets_child_id: int
+    google_sheets_child_id: str
     used_days: float
     used_cents: float
     remaining_cents: float

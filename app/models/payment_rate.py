@@ -7,8 +7,8 @@ class PaymentRate(db.Model, TimestampMixin):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    google_sheets_provider_id = db.Column(db.Integer, nullable=False, index=True)
-    google_sheets_child_id = db.Column(db.Integer, nullable=False, index=True)
+    google_sheets_provider_id = db.Column(db.String(64), nullable=False, index=True)
+    google_sheets_child_id = db.Column(db.String(64), nullable=False, index=True)
 
     half_day_rate_cents = db.Column(db.Integer, nullable=False)
     full_day_rate_cents = db.Column(db.Integer, nullable=False)
@@ -23,7 +23,7 @@ class PaymentRate(db.Model, TimestampMixin):
     )
 
     @staticmethod
-    def get(provider_id: int, child_id: int):
+    def get(provider_id: str, child_id: str):
         """Get existing rate or create a new one"""
         rate = PaymentRate.query.filter_by(
             google_sheets_provider_id=provider_id, google_sheets_child_id=child_id
@@ -35,7 +35,7 @@ class PaymentRate(db.Model, TimestampMixin):
             return None
 
     @staticmethod
-    def create(provider_id: int, child_id: int, half_day_rate: int, full_day_rate: int):
+    def create(provider_id: str, child_id: str, half_day_rate: str, full_day_rate: str):
         """Create a new payment rate"""
         rate = PaymentRate(
             google_sheets_provider_id=provider_id,

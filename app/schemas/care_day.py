@@ -6,14 +6,14 @@ from typing import Literal, Optional
 class AllocatedCareDayBase(BaseModel):
     date: date
     type: Literal["Full Day", "Half Day"]
-    provider_google_sheets_id: int
+    provider_google_sheets_id: str
 
 class AllocatedCareDayCreate(AllocatedCareDayBase):
-    care_month_allocation_id: int
+    care_month_allocation_id: str
 
 class AllocatedCareDayResponse(AllocatedCareDayBase):
     id: int
-    care_month_allocation_id: int
+    care_month_allocation_id: str
     amount_cents: int
     day_count: float
     payment_distribution_requested: bool
