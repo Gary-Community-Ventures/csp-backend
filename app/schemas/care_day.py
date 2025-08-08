@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Literal, Optional
@@ -6,7 +6,7 @@ from typing import Literal, Optional
 class AllocatedCareDayBase(BaseModel):
     date: date
     type: Literal["Full Day", "Half Day"]
-    provider_google_sheets_id: int
+    provider_google_sheets_id: str
 
 class AllocatedCareDayCreate(AllocatedCareDayBase):
     care_month_allocation_id: int

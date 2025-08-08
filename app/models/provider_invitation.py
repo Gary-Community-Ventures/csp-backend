@@ -17,7 +17,7 @@ class ProviderInvitation(db.Model, TimestampMixin):
         return f"<ProviderInvitation {self.id} - Child Sheet ID: {self.child_google_sheet_id}>"
 
     @staticmethod
-    def new(public_id: str, invite_email: str, child_ids: list[int]):
+    def new(public_id: str, invite_email: str, child_ids: list[str]):
         provider_invitations: list[ProviderInvitation] = []
 
         for child_id in child_ids:

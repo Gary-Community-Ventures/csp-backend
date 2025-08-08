@@ -2,16 +2,35 @@ from ..enums.care_day_type import CareDayType
 from ..extensions import db
 from .mixins import TimestampMixin
 from datetime import datetime, date, timedelta, time as dt_time
-from typing import List
-from decimal import Decimal
 from .utils import get_care_day_cost
-
-
 from app.sheets.mappings import (
     ChildColumnNames,
     get_child,
     get_children,
 )
+
+
+def get_allocation_amount(child_id: str) -> int:
+    """Get the monthly allocation amount for a child"""
+
+    child_data = get_child(child_id, get_children())
+    allocation_dollars = child_data.get(ChildColumnNames.MONTHLY_ALLOCATION)
+
+    # If no prior allocation exists, use prorated amount
+    prior_allocation = MonthAllocation.query.filter_by(
+        google_sheets_child_id=child_id
+    ).first()
+    if not prior_allocation:
+        allocation_dollars = child_data.get(
+            ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION
+        )
+
+    if allocation_dollars is None or allocation_dollars == "":
+        raise ValueError(
+            f"Child {child_id} does not have a valid monthly allocation amount {allocation_dollars}"
+        )
+
+    return int(allocation_dollars * 100)
 
 
 class MonthAllocation(db.Model, TimestampMixin):
@@ -26,7 +45,7 @@ class MonthAllocation(db.Model, TimestampMixin):
     allocation_cents = db.Column(db.Integer, nullable=False)
 
     # Child reference
-    google_sheets_child_id = db.Column(db.Integer, nullable=False, index=True)
+    google_sheets_child_id = db.Column(db.String(64), nullable=False, index=True)
 
     # Relationships
     care_days = db.relationship(
@@ -68,7 +87,7 @@ class MonthAllocation(db.Model, TimestampMixin):
         """Calculate remaining cents available"""
         return self.allocation_cents - self.used_cents
 
-    def can_add_care_day(self, day_type: CareDayType, provider_id: int) -> bool:
+    def can_add_care_day(self, day_type: CareDayType, provider_id: str) -> bool:
         """Check if we can add a care day of given type without over-allocating"""
         cents_amount = get_care_day_cost(
             day_type, provider_id=provider_id, child_id=self.google_sheets_child_id
@@ -82,7 +101,7 @@ class MonthAllocation(db.Model, TimestampMixin):
         return self.used_cents + cents_amount <= self.allocation_cents
 
     @staticmethod
-    def get_or_create_for_month(child_id: int, month_date: date):
+    def get_or_create_for_month(child_id: str, month_date: date):
         """Get existing allocation or create with default values"""
         # Normalize to first of month
         month_start = month_date.replace(day=1)
@@ -93,8 +112,8 @@ class MonthAllocation(db.Model, TimestampMixin):
             raise ValueError(f"Cannot create allocation for a past month. {today} vs {month_start}")
 
         # Prevent creating allocations for future months too far in advance
-        if month_start > today + timedelta(days=7):
-            raise ValueError(f"Cannot create allocation for a month that is more than 7 days away.")
+        if month_start > today + timedelta(days=14):
+            raise ValueError(f"Cannot create allocation for a month that is more than 14 days away.")
 
         allocation = MonthAllocation.query.filter_by(
             google_sheets_child_id=child_id, date=month_start
@@ -102,13 +121,12 @@ class MonthAllocation(db.Model, TimestampMixin):
 
         if not allocation:
             # Get allocation amount from child data
-            child_data = get_child(child_id, get_children())
-            allocation_dollars = child_data.get(ChildColumnNames.MONTHLY_ALLOCATION)
-            
+            allocation_cents = get_allocation_amount(child_id)
+
             allocation = MonthAllocation(
                 google_sheets_child_id=child_id,
                 date=month_start,
-                allocation_cents=allocation_dollars * 100,  # Convert to cents
+                allocation_cents=allocation_cents,
             )
             db.session.add(allocation)
             db.session.commit()

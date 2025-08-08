@@ -6,8 +6,8 @@ from flask import g
 @dataclass
 class UserData:
     types: list[str]
-    family_id: Optional[int] = None
-    provider_id: Optional[int] = None
+    family_id: Optional[str] = None
+    provider_id: Optional[str] = None
 
 
 @dataclass

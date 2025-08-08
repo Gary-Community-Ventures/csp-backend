@@ -4,7 +4,6 @@ from datetime import date, datetime, timedelta
 from app.models import AllocatedCareDay, MonthAllocation, PaymentRate
 from app.enums.care_day_type import CareDayType
 from app.extensions import db
-from decimal import Decimal
 
 
 @pytest.fixture
@@ -12,14 +11,14 @@ def seed_db(app):
     with app.app_context():
         # Create a PaymentRate for testing
         payment_rate = PaymentRate(
-            google_sheets_provider_id=1,
-            google_sheets_child_id=1,
+            google_sheets_provider_id="1",
+            google_sheets_child_id="1",
             full_day_rate_cents=60000,
             half_day_rate_cents=40000,
         )
         payment_rate_2 = PaymentRate(
-            google_sheets_provider_id=2,
-            google_sheets_child_id=1,
+            google_sheets_provider_id="2",
+            google_sheets_child_id="1",
             full_day_rate_cents=60000,
             half_day_rate_cents=40000,
         )
@@ -30,7 +29,7 @@ def seed_db(app):
         allocation = MonthAllocation(
             date=date.today().replace(day=1),
             allocation_cents=1000000,
-            google_sheets_child_id=1,
+            google_sheets_child_id="1",
         )
         db.session.add(allocation)
         db.session.commit()
@@ -38,7 +37,7 @@ def seed_db(app):
         # Create a care day that is new (never submitted)
         care_day_new = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
-            provider_google_sheets_id=1,
+            provider_google_sheets_id="1",
             date=date.today() + timedelta(days=7), # Set date to a week in the future
             locked_date=datetime.now() + timedelta(days=20),
             type=CareDayType.FULL_DAY,
@@ -65,7 +64,7 @@ def test_create_care_day_duplicate_date_different_provider(client, seed_db):
         "/care-days",
         json={
             "allocation_id": allocation.id,
-            "provider_id": 2, # Different provider
+            "provider_id": "2", # Different provider
             "date": care_day_new.date.isoformat(),
             "type": CareDayType.FULL_DAY.value,
         },
@@ -80,7 +79,7 @@ def test_create_care_day_duplicate_date_same_provider(client, seed_db):
         "/care-days",
         json={
             "allocation_id": allocation.id,
-            "provider_id": 1, # Same provider
+            "provider_id": "1", # Same provider
             "date": care_day_new.date.isoformat(),
             "type": CareDayType.FULL_DAY.value,
         },
