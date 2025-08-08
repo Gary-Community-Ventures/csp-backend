@@ -20,12 +20,12 @@ bp = Blueprint("child", __name__)
 
 
 @bp.route(
-    "/child/<int:child_id>/allocation/<int:month>/<int:year>",
+    "/child/<string:child_id>/allocation/<int:month>/<int:year>",
     methods=["GET"],
 )
 @auth_required(ClerkUserType.FAMILY)
 def get_month_allocation(child_id, month, year):
-    provider_id = request.args.get("provider_id", type=int)
+    provider_id = request.args.get("provider_id")
     try:
         month_date = date(year, month, 1)
         allocation = MonthAllocation.get_or_create_for_month(child_id, month_date)
@@ -59,7 +59,7 @@ def get_month_allocation(child_id, month, year):
 
 
 @bp.route(
-    "/child/<int:child_id>/provider/<int:provider_id>/allocation/<int:month>/<int:year>/submit",
+    "/child/<string:child_id>/provider/<string:provider_id>/allocation/<int:month>/<int:year>/submit",
     methods=["POST"],
 )
 @auth_required(ClerkUserType.FAMILY)

@@ -36,7 +36,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     amount_cents = db.Column(db.Integer, nullable=False)
 
     # Provider info
-    provider_google_sheets_id = db.Column(db.Integer, nullable=False, index=True)
+    provider_google_sheets_id = db.Column(db.String(64), nullable=False, index=True)
 
     # Status tracking
     payment_distribution_requested = db.Column(db.Boolean, default=False)
@@ -101,7 +101,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     @staticmethod
     def create_care_day(
         allocation: "MonthAllocation",
-        provider_id: int,
+        provider_id: str,
         care_date: date,
         day_type: CareDayType,
     ):

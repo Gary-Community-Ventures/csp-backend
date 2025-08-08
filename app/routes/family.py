@@ -1,11 +1,9 @@
 from dataclasses import dataclass
 from typing import Optional
-from datetime import date
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, jsonify, request, current_app
 from app.data.providers.mappings import ProviderListColumnNames
 from app.extensions import db
-from app.models.family import Family
 from app.auth.decorators import (
     ClerkUserType,
     auth_optional,
@@ -58,20 +56,12 @@ def new_family():
     if "email" not in data:
         abort(400, description="Missing required field: email")
 
-    if Family.query.filter_by(google_sheet_id=data["google_sheet_id"]).first():
-        abort(409, description=f"A family with that Google Sheet ID already exists.")
-
-    # Create new family
-    family = Family.new(google_sheet_id=data["google_sheet_id"])
-    db.session.add(family)
-    db.session.commit()
-
     # send clerk invite
     clerk: Clerk = current_app.clerk_client
     fe_domain = current_app.config.get("FRONTEND_DOMAIN")
     meta_data = {
         "types": [ClerkUserType.FAMILY],  # NOTE: list in case we need to have people who fit into multiple categories
-        "family_id": family.id,
+        "family_id": data["google_sheet_id"],
     }
 
     clerk.invitations.create(
@@ -127,11 +117,6 @@ def family_data(child_id: Optional[str] = None):
         abort(404, description="No children found for this family.")
 
     if child_id is not None:
-        try:
-            child_id = int(child_id)
-        except ValueError:
-            abort(400, description=f"Invalid child ID: {child_id}")
-
         selected_child = get_child(child_id, family_children)
 
         if selected_child is None:
@@ -386,7 +371,7 @@ def invite_provider():
     return jsonify({"message": "Success"}, 201)
 
 
-def get_invite_data(child_ids: list[int]):
+def get_invite_data(child_ids: list[str]):
     child_rows = get_children()
     family_rows = get_families()
 
@@ -411,12 +396,12 @@ def get_invite_data(child_ids: list[int]):
 def provider_invite(invite_id: str):
     invitations = ProviderInvitation.invitations_by_id(invite_id)
 
-    child_ids: list[int] = []
+    child_ids: list[str] = []
     accepted = False
     for invitation in invitations:
         if invitation.accepted:
             accepted = True
-        child_ids.append(int(invitation.child_google_sheet_id))
+        child_ids.append(invitation.child_google_sheet_id)
         invitation.record_opened()
 
     db.session.add_all(invitations)
@@ -459,11 +444,11 @@ def accept_provider_invite(invite_id: str):
 
     invitations = ProviderInvitation.invitations_by_id(invite_id)
 
-    child_ids: list[int] = []
+    child_ids: list[str] = []
     for invitation in invitations:
         if invitation.accepted:
             abort(400, description="Invitation already accepted.")
-        child_ids.append(int(invitation.child_google_sheet_id))
+        child_ids.append(invitation.child_google_sheet_id)
 
     child_data, family_data = get_invite_data(child_ids)
 
