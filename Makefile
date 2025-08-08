@@ -1,7 +1,7 @@
 GOALS := $(MAKECMDGOALS)
 TARGET := $(firstword $(GOALS))
 ARGS := $(wordlist 2,$(words $(GOALS)),$(GOALS))
-.PHONY: format build logs run down exec db
+.PHONY: format build logs run down exec db db-shell db-upgrade
 
 format:
 	black --line-length 120 . $(ARGS)
