@@ -35,7 +35,7 @@ class PaymentRate(db.Model, TimestampMixin):
             return None
 
     @staticmethod
-    def create(provider_id: str, child_id: str, half_day_rate: str, full_day_rate: str):
+    def create(provider_id: str, child_id: str, half_day_rate: int, full_day_rate: int):
         """Create a new payment rate"""
         rate = PaymentRate(
             google_sheets_provider_id=provider_id,
