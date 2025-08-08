@@ -275,7 +275,7 @@ def family_invite(invite_id: str):
 
     user = get_current_user()
 
-    provider_data = get_invite_data(int(invitation.provider_google_sheet_id))
+    provider_data = get_invite_data(invitation.provider_google_sheet_id)
 
     provider = {
         "id": provider_data.get(ProviderColumnNames.ID),
@@ -335,7 +335,7 @@ def accept_family_invite(invite_id: str):
     if invitation.accepted:
         abort(400, description="Invitation already accepted.")
 
-    provider = get_invite_data(int(invitation.provider_google_sheet_id))
+    provider = get_invite_data(invitation.provider_google_sheet_id)
 
     family_rows = get_families()
     child_rows = get_children()

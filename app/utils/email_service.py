@@ -340,7 +340,7 @@ def send_submission_notification(provider_id, child_id, new_days, modified_days,
 
 def send_family_invite_accept_email(
     provider_name: str,
-    provider_id: int,
+    provider_id: str,
     parent_name: str,
     parent_id: str,
     children: list[KeyMap],
