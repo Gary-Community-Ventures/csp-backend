@@ -3,7 +3,7 @@ from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, jsonify, request, current_app
 from app.auth.helpers import get_current_user
 from app.extensions import db
-from app.models import Provider, AllocatedCareDay, MonthAllocation
+from app.models import AllocatedCareDay, MonthAllocation
 from app.auth.decorators import ClerkUserType, auth_optional, auth_required, api_key_required
 from app.models.family_invitation import FamilyInvitation
 from app.sheets.helpers import KeyMap, format_name
@@ -51,9 +51,7 @@ def new_provider():
     clerk: Clerk = current_app.clerk_client
     fe_domain = current_app.config.get("FRONTEND_DOMAIN")
     meta_data = {
-        "types": [
-            ClerkUserType.PROVIDER
-        ],  # NOTE: list in case we need to have people who fit into multiple categories
+        "types": [ClerkUserType.PROVIDER],  # NOTE: list in case we need to have people who fit into multiple categories
         "provider_id": data["google_sheet_id"],
     }
 
