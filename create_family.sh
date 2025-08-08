@@ -2,8 +2,8 @@
 #!/bin/bash
 
 # Create Family Script
-# Usage: ./create_family.sh <environment> [email] [google_sheet_id]
-# Example: ./create_family.sh "dev" "family@example.com" "1abc123def456ghi789jkl"
+# Usage: ./create_family.sh <environment> [email] [google_sheet_id] [language]
+# Example: ./create_family.sh "dev" "family@example.com" "1abc123def456ghi789jkl" "en"
 # Environments: dev, staging, prod
 
 # Load environment variables from .env.local
@@ -20,9 +20,9 @@ fi
 
 # Check if required parameters are provided
 if [ $# -lt 1 ]; then
-    echo "Usage: $0 <environment> [email] [google_sheet_id]"
+    echo "Usage: $0 <environment> [email] [google_sheet_id] [language]"
     echo "Environments: dev, staging, prod"
-    echo "Example: $0 'dev' 'family@example.com' '1abc123def456ghi789jkl'"
+    echo "Example: $0 'dev' 'family@example.com' '1abc123def456ghi789jkl' 'en'"
     exit 1
 fi
 
@@ -60,6 +60,7 @@ fi
 # Get optional parameters from command line or use defaults
 EMAIL=${2:-"family@example.com"}
 GOOGLE_SHEET_ID=${3:-"1abc123def456ghi789jkl"}
+LANGUAGE=${4:-"en"}
 
 echo "Creating new family..."
 echo "Environment: $ENVIRONMENT"
@@ -73,7 +74,8 @@ curl -X POST "$BASE_URL/family" \
     -H "X-API-Key: $API_KEY" \
     -d "{
         \"google_sheet_id\": \"$GOOGLE_SHEET_ID\",
-        \"email\": \"$EMAIL\"
+        \"email\": \"$EMAIL\",
+        \"language\": \"$LANGUAGE\"
     }" \
     -w "\nHTTP Status: %{http_code}\n" \
     -v

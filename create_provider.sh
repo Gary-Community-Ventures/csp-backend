@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Create Provider Script
-# Usage: ./create_provider.sh <environment> [email] [google_sheet_id]
-# Example: ./create_provider.sh "dev" "provider@example.com" "1xyz789abc123def456ghi"
+# Usage: ./create_provider.sh <environment> [email] [google_sheet_id] [language]
+# Example: ./create_provider.sh "dev" "provider@example.com" "1xyz789abc123def456ghi" "en"
 # Environments: dev, staging, prod
 
 # Load environment variables from .env.local
@@ -19,9 +19,9 @@ fi
 
 # Check if required parameters are provided
 if [ $# -lt 1 ]; then
-    echo "Usage: $0 <environment> [email] [google_sheet_id]"
+    echo "Usage: $0 <environment> [email] [google_sheet_id] [language]"
     echo "Environments: dev, staging, prod"
-    echo "Example: $0 'dev' 'provider@example.com' '1xyz789abc123def456ghi'"
+    echo "Example: $0 'dev' 'provider@example.com' '1xyz789abc123def456ghi' 'en'"
     exit 1
 fi
 
@@ -59,6 +59,7 @@ fi
 # Get optional parameters from command line or use defaults
 EMAIL=${2:-"provider@example.com"}
 GOOGLE_SHEET_ID=${3:-"1xyz789abc123def456ghi"}
+LANGUAGE=${4:-"en"}
 
 echo "Creating new provider..."
 echo "Environment: $ENVIRONMENT"
@@ -72,7 +73,8 @@ curl -X POST "$BASE_URL/provider" \
     -H "X-API-Key: $API_KEY" \
     -d "{
         \"google_sheet_id\": \"$GOOGLE_SHEET_ID\",
-        \"email\": \"$EMAIL\"
+        \"email\": \"$EMAIL\",
+        \"language\": \"$LANGUAGE\"
     }" \
     -w "\nHTTP Status: %{http_code}\n" \
     -v

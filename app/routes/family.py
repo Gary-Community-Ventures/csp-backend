@@ -41,6 +41,7 @@ from app.utils.email_service import (
 )
 from uuid import uuid4
 from app.utils.sms_service import send_sms
+from app.const import SUPPORTED_LANGUAGES
 
 
 bp = Blueprint("family", __name__)
@@ -58,6 +59,12 @@ def new_family():
     if "email" not in data:
         abort(400, description="Missing required field: email")
 
+    # Default to English if no language is specified
+    lang = data.get("language", "en")
+
+    if lang not in SUPPORTED_LANGUAGES:
+        abort(400, description=f"Unsupported language: {lang}")
+
     if Family.query.filter_by(google_sheet_id=data["google_sheet_id"]).first():
         abort(409, description=f"A family with that Google Sheet ID already exists.")
 
@@ -72,6 +79,8 @@ def new_family():
     meta_data = {
         "types": [ClerkUserType.FAMILY],  # NOTE: list in case we need to have people who fit into multiple categories
         "family_id": family.id,
+        "language": lang,
+        "es": lang == "es", # We need this because it seems like Clerk email template can only handle boolean values
     }
 
     clerk.invitations.create(
