@@ -22,9 +22,7 @@ class ChildColumnNames:
     BIRTH_DATE = Key("Birth Date")
     BALANCE = Key("Balance", money_to_float)
     MONTHLY_ALLOCATION = Key("Monthly Allocation", money_to_float)
-    PRORATED_FIRST_MONTH_ALLOCATION = Key(
-        "Prorated First Month Allocation", money_to_float
-    )
+    PRORATED_FIRST_MONTH_ALLOCATION = Key("Prorated First Month Allocation", money_to_float)
 
 
 class ProviderColumnNames:
@@ -34,7 +32,7 @@ class ProviderColumnNames:
     NAME = Key("Name")
     FIRST_NAME = Key("First Name")
     LAST_NAME = Key("Last Name")
-    STATUS = Key("Status")
+    STATUS = Key("Status", default="Pending")
     EMAIL = Key("Email")
 
 
@@ -59,7 +57,7 @@ class TransactionColumnNames:
     ID = Key("ID")
     PROVIDER_CHILD_ID = Key("Provider Child ID")
     AMOUNT = Key("Amount", money_to_float)
-    DATETIME = Key("Datetime", datetime.fromisoformat)
+    DATETIME = Key("Datetime", datetime.fromisoformat, datetime.now())
 
 
 def get_families() -> list[KeyMap]:
