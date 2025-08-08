@@ -126,9 +126,6 @@ def test_get_month_allocation_success(client, seed_db):
     assert care_day_statuses[5] == "delete_not_submitted"
 
 
-
-
-
 def test_get_month_allocation_invalid_date(client, seed_db):
     allocation, _, _, _, _, _ = seed_db
     response = client.get(
@@ -142,7 +139,11 @@ def test_get_month_allocation_allocation_not_found(client, seed_db, mocker):
     _, _, _, _, _, _ = seed_db
     # Mock get_children to return a list containing the mocked child data
     mock_child_data = KeyMap(
-        {ChildColumnNames.MONTHLY_ALLOCATION.key: "5000", ChildColumnNames.ID.key: 999}
+        {
+            ChildColumnNames.MONTHLY_ALLOCATION.key: "5000",
+            ChildColumnNames.ID.key: 999,
+            ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION.key: "5000",
+        },
     )
     mocker.patch(
         "app.models.month_allocation.get_children", return_value=[mock_child_data]
@@ -216,7 +217,7 @@ def test_submit_care_days_no_care_days(
 ):
 
     # Create a new allocation with no care days
-    new_allocation_child_id = 2
+    new_allocation_child_id = "2"
     new_allocation_month = date.today().month
     new_allocation_year = date.today().year
 
@@ -238,7 +239,7 @@ def test_submit_care_days_no_care_days(
     assert len(response.json["modified_days"]) == 0
     assert len(response.json["removed_days"]) == 0
     mock_send_submission_notification.assert_called_once_with(
-        provider_id=1,
+        provider_id="1",
         child_id=new_allocation_child_id,
         new_days=[],
         modified_days=[],
@@ -277,7 +278,7 @@ def test_get_month_allocation_future_month_creation_fails(client):
     )
     assert response.status_code == 400
     assert (
-        "Cannot create allocation for a month that is more than 7 days away."
+        "Cannot create allocation for a month that is more than 14 days away."
         in response.json["error"]
     )
 
