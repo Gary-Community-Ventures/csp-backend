@@ -8,8 +8,8 @@ def seed_db(app):
     with app.app_context():
         # Create a PaymentRate for testing
         payment_rate = PaymentRate(
-            google_sheets_provider_id=1,
-            google_sheets_child_id=1,
+            google_sheets_provider_id="1",
+            google_sheets_child_id="1",
             full_day_rate_cents=50000,
             half_day_rate_cents=40000,
         )
@@ -35,15 +35,15 @@ def test_create_payment_rate_success(client):
     response = client.post(
         "/payment-rates",
         json={
-            "google_sheets_provider_id": 2,
-            "google_sheets_child_id": 2,
+            "google_sheets_provider_id": "2",
+            "google_sheets_child_id": "2",
             "half_day_rate_cents": 30000,
             "full_day_rate_cents": 50000,
         },
     )
     assert response.status_code == 201
-    assert response.json["google_sheets_provider_id"] == 2
-    assert response.json["google_sheets_child_id"] == 2
+    assert response.json["google_sheets_provider_id"] == "2"
+    assert response.json["google_sheets_child_id"] == "2"
     assert response.json["half_day_rate_cents"] == 30000
     assert response.json["full_day_rate_cents"] == 50000
 
@@ -52,8 +52,8 @@ def test_create_payment_rate_missing_fields(client):
     response = client.post(
         "/payment-rates",
         json={
-            "google_sheets_provider_id": 2,
-            "google_sheets_child_id": 2,
+            "google_sheets_provider_id": "2",
+            "google_sheets_child_id": "2",
             "half_day_rate_cents": 30000,
             # Missing full_day_rate_cents
         },
@@ -67,8 +67,8 @@ def test_create_payment_rate_already_exists(client, seed_db):
     response = client.post(
         "/payment-rates",
         json={
-            "google_sheets_provider_id": 1,
-            "google_sheets_child_id": 1,
+            "google_sheets_provider_id": "1",
+            "google_sheets_child_id": "1",
             "half_day_rate_cents": 30000,
             "full_day_rate_cents": 50000,
         },
@@ -81,8 +81,8 @@ def test_create_payment_rate_already_exists(client, seed_db):
 def test_get_payment_rate_success(client, seed_db):
     response = client.get("/payment-rates/1/1")
     assert response.status_code == 200
-    assert response.json["google_sheets_provider_id"] == 1
-    assert response.json["google_sheets_child_id"] == 1
+    assert response.json["google_sheets_provider_id"] == "1"
+    assert response.json["google_sheets_child_id"] == "1"
     assert response.json["half_day_rate_cents"] == 40000
     assert response.json["full_day_rate_cents"] == 50000
 
@@ -118,8 +118,8 @@ def test_create_payment_rate_invalid_values(client):
     response = client.post(
         "/payment-rates",
         json={
-            "google_sheets_provider_id": 3,
-            "google_sheets_child_id": 3,
+            "google_sheets_provider_id": "3",
+            "google_sheets_child_id": "3",
             "half_day_rate_cents": 0,
             "full_day_rate_cents": 50000,
         },

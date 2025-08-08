@@ -135,10 +135,10 @@ def system_message(subject: str, description: str, rows: list[SystemMessageRow])
 
 def send_payment_request_email(
     provider_name: str,
-    google_sheets_provider_id: int,
+    google_sheets_provider_id: str,
     child_first_name: str,
     child_last_name: str,
-    google_sheets_child_id: int,
+    google_sheets_child_id: str,
     amount_in_cents: int,
     hours: float,
 ) -> bool:
@@ -187,7 +187,7 @@ def send_add_licensed_provider_email(
     license_number: str,
     provider_name: str,
     parent_name: str,
-    parent_id: int,
+    parent_id: str,
     children: list[KeyMap],
 ):
     from_email, to_emails = get_internal_emails()
@@ -233,7 +233,7 @@ def send_add_licensed_provider_email(
 
 def send_provider_invite_accept_email(
     provider_name: str,
-    provider_id: int,
+    provider_id: str,
     parent_name: str,
     parent_id: str,
     children: list[KeyMap],

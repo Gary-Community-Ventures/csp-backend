@@ -46,7 +46,7 @@ def mock_get_child():
 @pytest.fixture
 def month_allocation(db_session):
     allocation = MonthAllocation(
-        google_sheets_child_id=1,
+        google_sheets_child_id="1",
         date=date.today().replace(day=1),
         allocation_cents=100000,
     )

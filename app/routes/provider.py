@@ -2,7 +2,7 @@ from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, jsonify, request, current_app
 from app.auth.helpers import get_current_user
 from app.extensions import db
-from app.models import Provider, AllocatedCareDay, MonthAllocation
+from app.models import AllocatedCareDay, MonthAllocation
 from app.auth.decorators import ClerkUserType, auth_required, api_key_required
 from app.sheets.mappings import (
     ChildColumnNames,
@@ -35,14 +35,6 @@ def new_provider():
     if "email" not in data:
         abort(400, description="Missing required field: email")
 
-    if Provider.query.filter_by(google_sheet_id=data["google_sheet_id"]).first():
-        abort(409, description=f"A provider with that Google Sheet ID already exists.")
-
-    # Create new provider
-    provider = Provider.new(google_sheet_id=data["google_sheet_id"])
-    db.session.add(provider)
-    db.session.commit()
-
     # send clerk invite
     clerk: Clerk = current_app.clerk_client
     fe_domain = current_app.config.get("FRONTEND_DOMAIN")
@@ -50,7 +42,7 @@ def new_provider():
         "types": [
             ClerkUserType.PROVIDER
         ],  # NOTE: list in case we need to have people who fit into multiple categories
-        "provider_id": provider.id,
+        "provider_id": data["google_sheet_id"],
     }
 
     clerk.invitations.create(
@@ -77,7 +69,7 @@ def get_provider_data():
     provider_child_mapping_rows = get_provider_child_mappings()
     transaction_rows = get_transactions()
 
-    provider_id = user.user_data.provider_id  # TODO: Get Google Sheet ID from DB
+    provider_id = user.user_data.provider_id
 
     provider_data = get_provider(provider_id, provider_rows)
     children_data = get_provider_children(
@@ -129,10 +121,10 @@ def get_provider_data():
     )
 
 
-@bp.route("/provider/<int:provider_id>/allocated_care_days", methods=["GET"])
+@bp.route("/provider/<string:provider_id>/allocated_care_days", methods=["GET"])
 @auth_required(ClerkUserType.PROVIDER)
 def get_allocated_care_days(provider_id):
-    child_id = request.args.get("childId", type=int)
+    child_id = request.args.get("childId")
     start_date_str = request.args.get("startDate")
     end_date_str = request.args.get("endDate")
 

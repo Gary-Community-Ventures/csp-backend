@@ -23,5 +23,7 @@ db-shell:
 	docker compose exec postgres psql -U dev -d myapp $(ARGS)
 db-upgrade:
 	docker-compose exec backend flask db upgrade
+db-downgrade:
+	docker-compose exec backend flask db downgrade
 %:
 	@# Do nothing
