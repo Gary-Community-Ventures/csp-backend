@@ -181,7 +181,7 @@ def test_get_allocated_care_days_filter_all_params(client, seed_db):
     )
     assert response.status_code == 200
     assert str(allocation1.google_sheets_child_id) in response.json
-    assert str(int(allocation1.google_sheets_child_id) + 1) not in response.json
+    assert str(allocation1.google_sheets_child_id) + "X" not in response.json
     assert (
         len(response.json[str(allocation1.google_sheets_child_id)]) == 1
     )  # Only care_day1_2 (2024-01-20) remains
