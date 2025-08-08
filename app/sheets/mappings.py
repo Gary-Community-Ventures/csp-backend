@@ -22,9 +22,7 @@ class ChildColumnNames:
     BIRTH_DATE = Key("Birth Date")
     BALANCE = Key("Balance", money_to_float)
     MONTHLY_ALLOCATION = Key("Monthly Allocation", money_to_float)
-    PRORATED_FIRST_MONTH_ALLOCATION = Key(
-        "Prorated First Month Allocation", money_to_float
-    )
+    PRORATED_FIRST_MONTH_ALLOCATION = Key("Prorated First Month Allocation", money_to_float)
 
 
 class ProviderColumnNames:

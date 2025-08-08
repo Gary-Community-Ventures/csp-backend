@@ -344,7 +344,7 @@ def accept_family_invite(invite_id: str):
         if child is None:
             abort(404, description=f"Child with ID {child_id} not found.")
         if family_data.get(FamilyColumnNames.ID) != child.get(ChildColumnNames.FAMILY_ID):
-            abort(404, description="Child with ID {child_id} not found.")
+            abort(404, description=f"Child with ID {child_id} not found.")
 
         children.append(child)
 

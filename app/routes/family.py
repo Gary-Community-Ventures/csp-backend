@@ -12,10 +12,11 @@ from app.auth.decorators import (
 )
 from app.auth.helpers import get_current_user
 from app.models.provider_invitation import ProviderInvitation
-from app.sheets.helpers import KeyMap, format_name, get_row, get_rows
+from app.sheets.helpers import KeyMap, format_name, get_row
 from app.sheets.integration import get_csv_data
 from app.sheets.mappings import (
     FamilyColumnNames,
+    ProviderChildMappingColumnNames,
     ProviderColumnNames,
     ChildColumnNames,
     TransactionColumnNames,
@@ -136,9 +137,7 @@ def family_data(child_id: Optional[str] = None):
         "last_name": child_data.get(ChildColumnNames.LAST_NAME),
         "balance": child_data.get(ChildColumnNames.BALANCE),
         "monthly_allocation": child_data.get(ChildColumnNames.MONTHLY_ALLOCATION),
-        "prorated_first_month_allocation": child_data.get(
-            ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION
-        ),
+        "prorated_first_month_allocation": child_data.get(ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION),
     }
 
     providers = [
@@ -277,18 +276,17 @@ class InviteProviderMessage:
     sms: str
 
 
-def get_invite_provider_message(lang: str, family_name: str, child_names: list[str], link: str):
-    formatted_child_names = ", ".join([child_name for child_name in child_names])
+def get_invite_provider_message(lang: str, family_name: str, child_name: str, link: str):
     if lang == "es":
         return InviteProviderMessage(
-            subject=f"¡{family_name} se complace en invitarte al programa CAP!",
-            email=f'<html><body>¡{family_name} lo ha invitado a unirse al programa piloto Childcare Affordability Pilot (CAP) como proveedor de {formatted_child_names}, ¡Y nos encantaría tenerte a bordo!<br><br>CAP es un programa de 9 meses que ayuda a las familias a pagar el cuidado infantil y a proveedores como usted a recibir su pago. Recibirá pagos a través del portal de cuidado infantil de CAP, mantendrá sus rutinas de cuidado habituales y apoyará a las familias con las que ya trabaja, o a nuevas familias.<br><br>¡Haga clic <a href="{link}" style="color: #0066cc; text-decoration: underline;">aquí</a> para aceptar la invitación y comenzar!<br><br>¿Tienes preguntas? Escríbenos a <a href="mailto:support@capcolorado.org" style="color: #0066cc; text-decoration: underline;">support@capcolorado.org</a></body></html>',
+            subject=f"¡{family_name} se complace en invitarte al programa CAP para cuidar a {child_name}!",
+            email=f'<html><body>¡{family_name} lo ha invitado a unirse al programa piloto Childcare Affordability Pilot (CAP) como proveedor de {child_name}, ¡Y nos encantaría tenerte a bordo!<br><br>CAP es un programa de 9 meses que ayuda a las familias a pagar el cuidado infantil y a proveedores como usted a recibir su pago. Recibirá pagos a través del portal de cuidado infantil de CAP, mantendrá sus rutinas de cuidado habituales y apoyará a las familias con las que ya trabaja, o a nuevas familias.<br><br>¡Haga clic <a href="{link}" style="color: #0066cc; text-decoration: underline;">aquí</a> para aceptar la invitación y comenzar!<br><br>¿Tienes preguntas? Escríbenos a <a href="mailto:support@capcolorado.org" style="color: #0066cc; text-decoration: underline;">support@capcolorado.org</a></body></html>',
             sms=f"¡{family_name} te invitó a unirte al programa CAP para cuidar a su familia! CAP ayuda a las familias a pagar el cuidado infantil y a proveedores como tú a recibir su pago. Toque para aceptar: {link} ¿Preguntas? support@capcolorado.org",
         )
 
     return InviteProviderMessage(
-        subject=f"{family_name} is excited to invite you to the CAP program!",
-        email=f'<html><body>{family_name} has invited you to join the Childcare Affordability Pilot (CAP) as a provider for {formatted_child_names}—and we’d love to have you on board!<br><br>CAP is a 9-month program that helps families pay for childcare and helps providers like you get paid. You’ll receive payments through the CAP childcare portal, keep your usual care routines, and support families you already work with—or new ones.<br><br>Click <a href="{link}" style="color: #0066cc; text-decoration: underline;">here</a> to accept the invitation and get started!<br><br>Questions? Email us at <a href="mailto:support@capcolorado.org" style="color: #0066cc; text-decoration: underline;">support@capcolorado.org</a>.</body></html>',
+        subject=f"{family_name} is excited to invite you to the CAP program to care for {child_name}!",
+        email=f'<html><body>{family_name} has invited you to join the Childcare Affordability Pilot (CAP) as a provider for {child_name}—and we’d love to have you on board!<br><br>CAP is a 9-month program that helps families pay for childcare and helps providers like you get paid. You’ll receive payments through the CAP childcare portal, keep your usual care routines, and support families you already work with—or new ones.<br><br>Click <a href="{link}" style="color: #0066cc; text-decoration: underline;">here</a> to accept the invitation and get started!<br><br>Questions? Email us at <a href="mailto:support@capcolorado.org" style="color: #0066cc; text-decoration: underline;">support@capcolorado.org</a>.</body></html>',
         sms=f"{family_name} invited you to join the Childcare Affordability Pilot (CAP) to provide care for their family! CAP can help families pay providers like you. Tap to learn more and apply! {link} Questions? support@capcolorado.org",
     )
 
@@ -336,100 +334,130 @@ def invite_provider():
 
         children.append(child)
 
-    id = str(uuid4())
-    child_ids = [child.get(ChildColumnNames.ID) for child in children]
+    for child in children:
+        try:
+            child_id = child.get(ChildColumnNames.ID)
+            id = str(uuid4())
 
-    invitations = ProviderInvitation.new(id, data["provider_email"], child_ids)
-    db.session.add_all(invitations)
+            invitation = ProviderInvitation.new(id, data["provider_email"], child_id)
+            db.session.add(invitation)
 
-    try:
-        domain = current_app.config.get("FRONTEND_DOMAIN")
-        link = f"{domain}/invite/provider/{id}"
-        child_names = [format_name(child) for child in children]
+            domain = current_app.config.get("FRONTEND_DOMAIN")
+            link = f"{domain}/invite/provider/{id}"
 
-        message = get_invite_provider_message(
-            data["lang"],
-            format_name(family),
-            child_names,
-            link,
-        )
+            message = get_invite_provider_message(
+                data["lang"],
+                format_name(family),
+                format_name(child),
+                link,
+            )
 
-        from_email = get_from_email_internal()
-        email_sent = send_email(from_email, data["provider_email"], message.subject, message.email)
-        if email_sent:
-            for invitation in invitations:
+            from_email = get_from_email_internal()
+            email_sent = send_email(from_email, data["provider_email"], message.subject, message.email)
+            if email_sent:
                 invitation.record_email_sent()
 
-        if data["provider_cell"] is not None:
-            sms_sent = send_sms(data["provider_cell"], message.sms, data["lang"])
-            if sms_sent:
-                for invitation in invitations:
+            if data["provider_cell"] is not None:
+                sms_sent = send_sms(data["provider_cell"], message.sms, data["lang"])
+                if sms_sent:
                     invitation.record_sms_sent()
-    finally:
-        db.session.commit()
+
+        except Exception as e:
+            current_app.logger.error(f"Failed to send provider invite for child ID {child_id}: {e}")
+        finally:
+            db.session.commit()
 
     return jsonify({"message": "Success"}, 201)
 
 
-def get_invite_data(child_ids: list[str]):
+MAX_CHILDREN_PER_PROVIDER = 2
+
+
+@dataclass
+class InviteData:
+    child_data: KeyMap
+    family_data: KeyMap
+    current_child_count: int
+    already_caring_for: bool = False
+    at_max_child_count: bool = False
+
+
+def get_invite_data(child_id: list[str], provider_id: Optional[str] = None):
+    current_children_mappings: list[KeyMap] = []
+    if provider_id is not None:
+        provider_child_mapping_rows = get_provider_child_mappings()
+        for provider_child_mapping in provider_child_mapping_rows:
+            if provider_child_mapping.get(ProviderChildMappingColumnNames.PROVIDER_ID) != provider_id:
+                continue
+
+            current_children_mappings.append(provider_child_mapping)
+
     child_rows = get_children()
     family_rows = get_families()
 
-    child_data = get_rows(child_rows, child_ids)
+    child_data = get_row(child_rows, child_id)
 
-    if len(child_data) == 0:
-        abort(500, description="Child not found.")
+    if child_data is None:
+        abort(404, description=f"Child with ID {child_id} not found.")
+    family_data = get_family(child_data.get(ChildColumnNames.FAMILY_ID), family_rows)
 
-    for child in child_data:
-        if child.get(ChildColumnNames.FAMILY_ID) != child_data[0].get(ChildColumnNames.FAMILY_ID):
-            abort(500, description="Child not found.")  # make sure that all the children are in the same family
-
-    family_data = get_family(child_data[0].get(ChildColumnNames.FAMILY_ID), family_rows)
     if family_data is None:
-        abort(500, description="Family not found.")
+        abort(404, description=f"Family with ID {child_data.get(ChildColumnNames.FAMILY_ID)} not found.")
 
-    return child_data, family_data
+    invite_data = InviteData(
+        child_data=child_data, family_data=family_data, current_child_count=len(current_children_mappings)
+    )
+
+    # Remove any children that the provider already has
+    for current_child_mapping in current_children_mappings:
+        if current_child_mapping.get(ProviderChildMappingColumnNames.CHILD_ID) == child_data.get(ChildColumnNames.ID):
+            invite_data.already_caring_for = True
+
+    if len(current_children_mappings) >= MAX_CHILDREN_PER_PROVIDER:
+        invite_data.at_max_child_count = True
+
+    return invite_data
 
 
 @bp.get("/family/provider-invite/<invite_id>")
 @auth_optional
 def provider_invite(invite_id: str):
-    invitations = ProviderInvitation.invitations_by_id(invite_id)
+    invitation_query = ProviderInvitation.invitations_by_id(invite_id)
 
-    child_ids: list[str] = []
-    accepted = False
-    for invitation in invitations:
-        if invitation.accepted:
-            accepted = True
-        child_ids.append(invitation.child_google_sheet_id)
-        invitation.record_opened()
+    invitation = invitation_query.first()
 
-    db.session.add_all(invitations)
+    if invitation is None:
+        abort(404, description=f"Family invitation with ID {invite_id} not found.")
+
+    invitation.record_opened()
+    db.session.add(invitation)
     db.session.commit()
 
-    child_data, family_data = get_invite_data(child_ids)
+    user = get_current_user()
+    if user is not None and user.user_data.provider_id is not None:
+        invite_data = get_invite_data(invitation.child_google_sheet_id, user.user_data.provider_id)
+    else:
+        invite_data = get_invite_data(invitation.child_google_sheet_id)
 
-    children = []
-    for child in child_data:
-        children.append(
-            {
-                "id": child.get(ChildColumnNames.ID),
-                "first_name": child.get(ChildColumnNames.FIRST_NAME),
-                "last_name": child.get(ChildColumnNames.LAST_NAME),
-            }
-        )
+    child = {
+        "id": invite_data.child_data.get(ChildColumnNames.ID),
+        "first_name": invite_data.child_data.get(ChildColumnNames.FIRST_NAME),
+        "last_name": invite_data.child_data.get(ChildColumnNames.LAST_NAME),
+    }
 
     family = {
-        "id": family_data.get(FamilyColumnNames.ID),
-        "first_name": family_data.get(FamilyColumnNames.FIRST_NAME),
-        "last_name": family_data.get(FamilyColumnNames.LAST_NAME),
+        "id": invite_data.family_data.get(FamilyColumnNames.ID),
+        "first_name": invite_data.family_data.get(FamilyColumnNames.FIRST_NAME),
+        "last_name": invite_data.family_data.get(FamilyColumnNames.LAST_NAME),
     }
 
     return jsonify(
         {
-            "accepted": accepted,
-            "children": children,
+            "accepted": invitation.accepted,
+            "child": child,
             "family": family,
+            "already_caring_for": invite_data.already_caring_for,
+            "at_max_child_count": invite_data.at_max_child_count,
         }
     )
 
@@ -442,36 +470,41 @@ def accept_provider_invite(invite_id: str):
     if user is None or user.user_data.provider_id is None:
         abort(401)
 
-    invitations = ProviderInvitation.invitations_by_id(invite_id)
+    invitation_query = ProviderInvitation.invitations_by_id(invite_id)
 
-    child_ids: list[str] = []
-    for invitation in invitations:
-        if invitation.accepted:
-            abort(400, description="Invitation already accepted.")
-        child_ids.append(invitation.child_google_sheet_id)
+    invitation = invitation_query.first()
 
-    child_data, family_data = get_invite_data(child_ids)
+    if invitation.accepted:
+        abort(400, description="Invitation already accepted.")
+
+    invite_data = get_invite_data(invitation.child_google_sheet_id, user.user_data.provider_id)
 
     provider_rows = get_providers()
+
     provider = get_row(provider_rows, user.user_data.provider_id)
+
+    if invite_data.at_max_child_count:
+        abort(400, description=f"Provider cannot have more than {MAX_CHILDREN_PER_PROVIDER} children.")
+
+    if invite_data.already_caring_for:
+        abort(400, description=f"Provider already has a child in the family.")
 
     accept_request = send_provider_invite_accept_email(
         provider_name=provider.get(ProviderColumnNames.NAME),
         provider_id=provider.get(ProviderColumnNames.ID),
-        parent_name=format_name(family_data),
-        parent_id=family_data.get(FamilyColumnNames.ID),
-        children=child_data,
+        parent_name=format_name(invite_data.family_data),
+        parent_id=invite_data.family_data.get(FamilyColumnNames.ID),
+        child_name=format_name(invite_data.child_data),
+        child_id=invite_data.child_data.get(ChildColumnNames.ID),
     )
 
     if not accept_request:
         current_app.logger.error(
-            f"Failed to send provider invite accept email for provider ID {user.user_data.provider_id} and family ID {family_data.get(FamilyColumnNames.ID)}.",
+            f"Failed to send provider invite accept email for provider ID {user.user_data.provider_id} and family ID {invite_data.family_data.get(FamilyColumnNames.ID)}.",
         )
 
-    for invitation in invitations:
-        invitation.record_accepted()
-
-    db.session.add_all(invitations)
+    invitation.record_accepted()
+    db.session.add(invitation)
     db.session.commit()
 
     return jsonify({"message": "Success"}, 200)
