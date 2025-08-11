@@ -12,8 +12,9 @@ from app.sheets.mappings import (
     get_child,
     get_children,
     ChildColumnNames,
-    ProviderColumnNames,
 )
+
+from app.models import AllocatedCareDay
 
 
 def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, html_content: str) -> bool:
@@ -136,7 +137,7 @@ def send_payment_request_email(
     child_last_name: str,
     google_sheets_child_id: str,
     amount_in_cents: int,
-    hours: float,
+    care_days: List[AllocatedCareDay],
 ) -> bool:
     amount_dollars = amount_in_cents / 100
 
@@ -147,7 +148,17 @@ def send_payment_request_email(
     )
 
     subject = "New Payment Request Notification"
-    description = f"A new payment request has been submitted through your payment system:"
+    description = f"A new payment request has been created:"
+
+    care_day_info = "<br>".join(
+        [f"{day.date} - {day.type.value} (${day.amount_cents / 100:.2f})" for day in care_days]
+    )
+
+    if not care_day_info:
+        current_app.logger.warning("No care days provided for payment request email.")
+        return False
+    
+
     rows = [
         SystemMessageRow(
             title="Provider Name",
@@ -162,8 +173,8 @@ def send_payment_request_email(
             value=f"${amount_dollars:.2f}",
         ),
         SystemMessageRow(
-            title="Hours",
-            value=str(hours),
+            title="Care Days Info",
+            value=care_day_info,
         ),
     ]
 
