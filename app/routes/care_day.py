@@ -86,12 +86,14 @@ def update_care_day(care_day_id):
 
     if care_day.type != new_day_type or was_deleted:
         care_day.type = new_day_type
-        # allocation = db.session.get(MonthAllocation, allocation_id)
+
         cost = get_care_day_cost(
             new_day_type,
             provider_id=care_day.provider_google_sheets_id,
             child_id=care_day.care_month_allocation.google_sheets_child_id,
         )
+        # If changing the type results in over-allocation, soft delete the care day
+        # As that resets the day to the default empty state
         if care_day.care_month_allocation.remaining_cents < cost:
             care_day.soft_delete()
             return jsonify(AllocatedCareDayResponse.model_validate(care_day).model_dump())
