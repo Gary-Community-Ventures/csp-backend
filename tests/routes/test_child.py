@@ -260,6 +260,21 @@ def test_submit_care_days_allocation_not_found(
     mock_send_submission_notification.assert_not_called()
 
 
+def test_submit_care_days_over_allocation_fails(
+    client, seed_db, mock_send_submission_notification
+):
+    allocation, _, _, _, _, _ = seed_db
+    allocation.allocation_cents = 0
+    db.session.commit()
+
+    response = client.post(
+        f"/child/{allocation.google_sheets_child_id}/provider/1/allocation/{allocation.date.month}/{allocation.date.year}/submit"
+    )
+    assert response.status_code == 400
+    assert "Cannot submit: allocation exceeded" in response.json["error"]
+    mock_send_submission_notification.assert_not_called()
+
+
 def test_get_month_allocation_past_month_creation_fails(client):
     # Attempt to get an allocation for a past month (e.g., January of the current year)
     past_month = date.today().replace(month=1, day=1)

@@ -263,6 +263,36 @@ def test_update_care_day_missing_type(client, seed_db):
     assert response.status_code == 400
     assert "Missing type field" in response.json["error"]
 
+
+def test_update_care_day_over_allocation_soft_deletes(client, seed_db):
+    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
+    # Set allocation to be less than a full day
+    allocation.allocation_cents = payment_rate.half_day_rate_cents
+    db.session.commit()
+
+    # Create a half day care day
+    care_day = AllocatedCareDay(
+        care_month_allocation_id=allocation.id,
+        provider_google_sheets_id="1",
+        date=date.today() + timedelta(days=3),
+        locked_date=datetime.now() + timedelta(days=10),
+        type=CareDayType.HALF_DAY,
+        amount_cents=payment_rate.half_day_rate_cents,
+    )
+    db.session.add(care_day)
+    db.session.commit()
+
+    # Update the care day to a full day, which should exceed the allocation
+    response = client.put(
+        f"/care-days/{care_day.id}", json={"type": CareDayType.FULL_DAY.value}
+    )
+    assert response.status_code == 200
+    assert response.json["is_deleted"] is True
+
+    with client.application.app_context():
+        updated_day = db.session.get(AllocatedCareDay, care_day.id)
+        assert updated_day.is_deleted is True
+
 # --- DELETE /care-days/<care_day_id> ---
 def test_delete_care_day_success(client, seed_db):
     allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
