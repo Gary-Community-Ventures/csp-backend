@@ -32,7 +32,7 @@ class ProviderColumnNames:
     NAME = Key("Name")
     FIRST_NAME = Key("First Name")
     LAST_NAME = Key("Last Name")
-    STATUS = Key("Status")
+    STATUS = Key("Status", default="Pending")
     EMAIL = Key("Email")
 
 
@@ -57,7 +57,7 @@ class TransactionColumnNames:
     ID = Key("ID")
     PROVIDER_CHILD_ID = Key("Provider Child ID")
     AMOUNT = Key("Amount", money_to_float)
-    DATETIME = Key("Datetime", datetime.fromisoformat)
+    DATETIME = Key("Datetime", datetime.fromisoformat, datetime.now())
 
 
 def get_families() -> list[KeyMap]:
