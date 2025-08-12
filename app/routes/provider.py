@@ -6,10 +6,11 @@ from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation
 from app.auth.decorators import ClerkUserType, auth_optional, auth_required, api_key_required
 from app.models.family_invitation import FamilyInvitation
-from app.sheets.helpers import KeyMap, format_name
+from app.sheets.helpers import KeyMap, format_name, get_row
 from app.sheets.mappings import (
     ChildColumnNames,
     FamilyColumnNames,
+    ProviderChildMappingColumnNames,
     ProviderColumnNames,
     TransactionColumnNames,
     get_child,
@@ -20,6 +21,7 @@ from app.sheets.mappings import (
     get_provider,
     get_provider_child_mapping_child,
     get_provider_child_mappings,
+    get_provider_child_mappings_by_provider_id,
     get_provider_children,
     get_provider_transactions,
     get_providers,
@@ -28,9 +30,9 @@ from app.sheets.mappings import (
 from datetime import date
 from collections import defaultdict
 from uuid import uuid4
-
 from app.utils.email_service import get_from_email_internal, send_email, send_family_invite_accept_email
 from app.utils.sms_service import send_sms
+from app.constants import MAX_CHILDREN_PER_PROVIDER
 
 bp = Blueprint("provider", __name__)
 
@@ -122,6 +124,7 @@ def get_provider_data():
             "children": children,
             "transactions": transactions,
             "curriculum": None,
+            "max_child_count": MAX_CHILDREN_PER_PROVIDER,
             "is_also_family": ClerkUserType.FAMILY.value in user.user_data.types,
         }
     )
@@ -240,15 +243,28 @@ def invite_family():
     return jsonify({"message": "Success"}, 201)
 
 
+@dataclass
+class InviteData:
+    provider_data: KeyMap
+    child_provider_mappings: list[KeyMap]
+    remaining_slots: int
+
+
 def get_invite_data(provider_id: int):
     provider_rows = get_providers()
+    provider_child_mapping_rows = get_provider_child_mappings()
 
     provider = get_provider(provider_id, provider_rows)
 
     if provider is None:
         abort(500, description=f"Provider with ID {provider_id} not found.")
 
-    return provider
+    current_children_mappings = get_provider_child_mappings_by_provider_id(provider_id, provider_child_mapping_rows)
+    remaining_slots = MAX_CHILDREN_PER_PROVIDER - len(current_children_mappings)
+
+    return InviteData(
+        provider_data=provider, child_provider_mappings=current_children_mappings, remaining_slots=remaining_slots
+    )
 
 
 @bp.get("/provider/family-invite/<invite_id>")
@@ -267,13 +283,15 @@ def family_invite(invite_id: str):
 
     user = get_current_user()
 
-    provider_data = get_invite_data(invitation.provider_google_sheet_id)
+    invite_data = get_invite_data(invitation.provider_google_sheet_id)
 
     provider = {
-        "id": provider_data.get(ProviderColumnNames.ID),
-        "first_name": provider_data.get(ProviderColumnNames.FIRST_NAME),
-        "last_name": provider_data.get(ProviderColumnNames.LAST_NAME),
+        "id": invite_data.provider_data.get(ProviderColumnNames.ID),
+        "first_name": invite_data.provider_data.get(ProviderColumnNames.FIRST_NAME),
+        "last_name": invite_data.provider_data.get(ProviderColumnNames.LAST_NAME),
     }
+
+    is_already_provider = False
 
     if user is None or user.user_data.family_id is None:
         children = None
@@ -283,6 +301,17 @@ def family_invite(invite_id: str):
 
         children = []
         for child in child_data:
+            if (
+                get_row(
+                    invite_data.child_provider_mappings,
+                    child.get(ChildColumnNames.ID),
+                    id_key=ProviderChildMappingColumnNames.CHILD_ID,
+                )
+                is not None
+            ):
+                is_already_provider = True
+                continue
+
             children.append(
                 {
                     "id": child.get(ChildColumnNames.ID),
@@ -296,6 +325,8 @@ def family_invite(invite_id: str):
             "accepted": invitation.accepted,
             "provider": provider,
             "children": children,
+            "is_already_provider": is_already_provider,
+            "remaining_slots": invite_data.remaining_slots,
         }
     )
 
@@ -327,7 +358,10 @@ def accept_family_invite(invite_id: str):
     if invitation.accepted:
         abort(400, description="Invitation already accepted.")
 
-    provider = get_invite_data(invitation.provider_google_sheet_id)
+    invite_data = get_invite_data(invitation.provider_google_sheet_id)
+
+    if invite_data.remaining_slots - len(data["child_ids"]) < 0:
+        abort(400, description="Provider already has maximum number of children.")
 
     family_rows = get_families()
     child_rows = get_children()
@@ -344,13 +378,13 @@ def accept_family_invite(invite_id: str):
         if child is None:
             abort(404, description=f"Child with ID {child_id} not found.")
         if family_data.get(FamilyColumnNames.ID) != child.get(ChildColumnNames.FAMILY_ID):
-            abort(404, description="Child with ID {child_id} not found.")
+            abort(404, description=f"Child with ID {child_id} not found.")
 
         children.append(child)
 
     accept_request = send_family_invite_accept_email(
-        provider_name=provider.get(ProviderColumnNames.NAME),
-        provider_id=provider.get(ProviderColumnNames.ID),
+        provider_name=invite_data.provider_data.get(ProviderColumnNames.NAME),
+        provider_id=invite_data.provider_data.get(ProviderColumnNames.ID),
         parent_name=format_name(family_data),
         parent_id=family_data.get(FamilyColumnNames.ID),
         children=children,
@@ -358,7 +392,7 @@ def accept_family_invite(invite_id: str):
 
     if not accept_request:
         current_app.logger.error(
-            f"Failed to send family invite accept email for family ID {user.user_data.family_id} and provider ID {provider.get(ProviderColumnNames.ID)}.",
+            f"Failed to send family invite accept email for family ID {user.user_data.family_id} and provider ID {invite_data.provider_data.get(ProviderColumnNames.ID)}.",
         )
 
     invitation.record_accepted()
