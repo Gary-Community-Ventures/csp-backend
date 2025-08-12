@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, current_app
+from app.jobs import get_job_status, retry_failed_job, get_queue_info
 
 bp = Blueprint("main", __name__)
 
@@ -68,3 +69,23 @@ def sentry_db_test():
         jsonify({"message": ("Database operation attempted ", "(might have failed and been captured by Sentry)")}),
         200,
     )
+
+@bp.route('/jobs/<job_id>/status', methods=['GET'])
+def job_status(job_id):
+    status = get_job_status(job_id)
+    return jsonify(status)
+
+@bp.route('/jobs/<job_id>/retry', methods=['POST'])
+def retry_job(job_id):
+    result = retry_failed_job(job_id)
+    return jsonify(result)
+
+@bp.route('/jobs/queue-info', methods=['GET'])
+def queue_info():
+    info = get_queue_info()
+    return jsonify(info)
+
+@bp.route('/example-job', methods=['POST'])
+def example_job():
+    # Call the job function here
+    return jsonify({"message": "Example job enqueued"}), 202

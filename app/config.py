@@ -29,6 +29,7 @@ class Config:
     TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
     TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
     API_KEY = os.getenv("API_KEY")
+    REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
     # Clerk Configuration
     CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
