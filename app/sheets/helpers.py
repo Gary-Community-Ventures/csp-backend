@@ -1,4 +1,3 @@
-
 from typing import Callable, Generic, Optional, TypeVar
 
 from flask import current_app

@@ -1,6 +1,5 @@
 from datetime import date, datetime, timedelta
 
-
 import pytest
 
 from app.extensions import db

@@ -1,5 +1,3 @@
-
-
 from app.enums.care_day_type import CareDayType
 from app.models.payment_rate import PaymentRate
 

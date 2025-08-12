@@ -1,4 +1,3 @@
-
 import hmac
 from enum import Enum
 from functools import wraps
