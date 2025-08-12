@@ -88,7 +88,7 @@ def create_app(config_class=None):
     migrate.init_app(app, db)
 
     # --- Google Sheets Integration ---
-    credentials = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    credentials = app.config.get("GOOGLE_APPLICATION_CREDENTIALS")
     if credentials:
         info = json.loads(credentials)
         creds = service_account.Credentials.from_service_account_info(
