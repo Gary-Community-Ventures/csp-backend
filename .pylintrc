@@ -1,0 +1,32 @@
+[MAIN]
+ignore=venv,.vscode,dist,build,eggs,parts,bin,var,sdist,develop-eggs,lib,lib64,.git
+ignore-patterns=.*\.py[cod]$,.*\.so$,.*\.egg$,.*\.egg-info$,.*\.installed\.cfg$,.*\.env$,.*\.env\.local$,.*pip-log\.txt$,__pycache__
+
+[MESSAGES CONTROL]
+disable=all
+enable=
+    E0602, # undefined-variable
+    E0001, # syntax-error
+    E0702, # raising-non-exception
+    E0710, # bad-exception-cause
+
+    W0611, # unused-import
+    W0614, # unused-wildcard-import
+    C0303, # trailing-whitespace
+    C0200, # consider-using-enumerate
+    W0105, # pointless-string-statement
+    W0603, # global-statement
+
+    C0103,  # invalid-name
+    R0915   # too-many-statements
+
+[BASIC]
+argument-naming-style=snake_case
+attr-naming-style=snake_case
+class-naming-style=PascalCase
+const-naming-style=UPPER_CASE
+function-naming-style=snake_case
+method-naming-style=snake_case
+module-naming-style=snake_case
+variable-naming-style=snake_case
+

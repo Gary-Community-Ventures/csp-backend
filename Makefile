@@ -5,6 +5,8 @@ ARGS := $(wordlist 2,$(words $(GOALS)),$(GOALS))
 
 format:
 	black --line-length 120 . $(ARGS)
+lint:
+	pylint . $(ARGS)
 build:
 	docker compose up --build -d $(ARGS)
 logs:
