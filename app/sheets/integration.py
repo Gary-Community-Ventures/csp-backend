@@ -1,14 +1,9 @@
-import json
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
 from flask import current_app
 from app.sheets.helpers import KeyMap
 import csv
 
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
-
-def get_sheet_data(sheet_name: str = "Sheet1") -> list[dict]:
+def get_sheet_data(sheet_name: str = "Sheet1") -> list[KeyMap]:
     """
     Retrieves data from a Google Sheet, assuming the first row contains column names.
 
@@ -20,15 +15,10 @@ def get_sheet_data(sheet_name: str = "Sheet1") -> list[dict]:
         A list of dictionaries, where each dictionary represents a row of data.
         Returns an empty list if no data is found or on error.
     """
-    credentials = current_app.config.get("GOOGLE_APPLICATION_CREDENTIALS")
     spreadsheet_id = current_app.config.get("GOOGLE_SPREADSHEET_ID")
 
-    info = json.loads(credentials)
-    creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+    result = current_app.google_sheets_service.values().get(spreadsheetId=spreadsheet_id, range=sheet_name).execute()
 
-    service = build("sheets", "v4", credentials=creds)
-
-    result = service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range=sheet_name).execute()
     values = result.get("values", [])
 
     if not values:
