@@ -74,6 +74,9 @@ def submit_care_days(child_id, provider_id, month, year):
     ).first()
     if not allocation:
         return jsonify({"error": "Allocation not found"}), 404
+    
+    if allocation.over_allocation:
+        return jsonify({"error": "Cannot submit: allocation exceeded"}), 400
 
     care_days_to_submit = AllocatedCareDay.query.filter(
         AllocatedCareDay.care_month_allocation_id == allocation.id,
