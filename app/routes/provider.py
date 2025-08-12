@@ -13,6 +13,7 @@ from app.auth.decorators import (
     auth_required,
 )
 from app.auth.helpers import get_current_user
+from app.constants import MAX_CHILDREN_PER_PROVIDER
 from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation
 from app.models.family_invitation import FamilyInvitation
@@ -43,7 +44,6 @@ from app.utils.email_service import (
     send_family_invite_accept_email,
 )
 from app.utils.sms_service import send_sms
-from app.constants import MAX_CHILDREN_PER_PROVIDER
 
 bp = Blueprint("provider", __name__)
 

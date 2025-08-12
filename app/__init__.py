@@ -5,6 +5,8 @@ import sentry_sdk
 from clerk_backend_api import Clerk
 from dotenv import load_dotenv
 from flask import Flask
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
@@ -15,8 +17,6 @@ from .config import ENV_DEVELOPMENT, ENV_PRODUCTION, ENV_STAGING, ENV_TESTING
 # Import extensions from the extensions module
 from .extensions import cors, db, migrate
 
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
 
 def create_app(config_class=None):
     """
