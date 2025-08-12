@@ -52,7 +52,11 @@ class StagingConfig(Config):
     """Staging configuration."""
 
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
+    # Fix for Heroku's 'postgres://' scheme
+    db_url = os.getenv("DATABASE_URL")
+    if db_url and db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+    SQLALCHEMY_DATABASE_URI = db_url
     SENTRY_TRACES_SAMPLE_RATE = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.5"))
     SENTRY_PROFILES_SAMPLE_RATE = float(os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "0.25"))
     CORS_ORIGINS = os.getenv(
@@ -67,7 +71,11 @@ class ProductionConfig(Config):
     """Production configuration."""
 
     DEBUG = False
-    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")  # No fallback, must be set in prod env
+    # Fix for Heroku's 'postgres://' scheme
+    db_url = os.getenv("DATABASE_URL")
+    if db_url and db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+    SQLALCHEMY_DATABASE_URI = db_url
     SENTRY_TRACES_SAMPLE_RATE = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1"))  # Lower sample rate for prod
     SENTRY_PROFILES_SAMPLE_RATE = float(os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "0.05"))
     CORS_ORIGINS = os.getenv(
