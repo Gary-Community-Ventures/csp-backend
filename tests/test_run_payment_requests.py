@@ -14,21 +14,21 @@ def setup_payment_request_data(app):
         allocation = MonthAllocation(
             date=date.today().replace(day=1),
             allocation_cents=1000000,
-            google_sheets_child_id=101,
+            google_sheets_child_id="101",
         )
         db.session.add(allocation)
         db.session.commit()
 
         # Create PaymentRates for testing
         payment_rate_1 = PaymentRate(
-            google_sheets_provider_id=201,
-            google_sheets_child_id=101,
+            google_sheets_provider_id="201",
+            google_sheets_child_id="101",
             full_day_rate_cents=60000,
             half_day_rate_cents=30000,
         )
         payment_rate_2 = PaymentRate(
-            google_sheets_provider_id=202,
-            google_sheets_child_id=101,
+            google_sheets_provider_id="202",
+            google_sheets_child_id="101",
             full_day_rate_cents=70000,
             half_day_rate_cents=35000,
         )
@@ -38,7 +38,7 @@ def setup_payment_request_data(app):
         # Create submitted care days for processing
         care_day_1 = AllocatedCareDay.create_care_day(
             allocation=allocation,
-            provider_id=201,
+            provider_id="201",
             care_date=date.today() + timedelta(days=10),
             day_type=CareDayType.FULL_DAY,
         )
@@ -48,7 +48,7 @@ def setup_payment_request_data(app):
 
         care_day_2 = AllocatedCareDay.create_care_day(
             allocation=allocation,
-            provider_id=201,
+            provider_id="201",
             care_date=date.today() + timedelta(days=11),
             day_type=CareDayType.HALF_DAY,
         )
@@ -59,7 +59,7 @@ def setup_payment_request_data(app):
         # Care day for a different provider/child that should NOT be processed by this run
         care_day_3 = AllocatedCareDay.create_care_day(
             allocation=allocation,
-            provider_id=202,
+            provider_id="202",
             care_date=date.today() + timedelta(days=12),
             day_type=CareDayType.FULL_DAY,
         )
@@ -70,7 +70,7 @@ def setup_payment_request_data(app):
         # Care day that is already processed
         care_day_4 = AllocatedCareDay.create_care_day(
             allocation=allocation,
-            provider_id=201,
+            provider_id="201",
             care_date=date.today() + timedelta(days=13),
             day_type=CareDayType.FULL_DAY,
         )
@@ -81,7 +81,7 @@ def setup_payment_request_data(app):
         future_date = date.today() + timedelta(days=7)  # A week from now
         care_day_5 = AllocatedCareDay.create_care_day(
             allocation=allocation,
-            provider_id=201,
+            provider_id="201",
             care_date=future_date,
             day_type=CareDayType.FULL_DAY,
         )
@@ -110,7 +110,7 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
         return_value=[
             KeyMap(
                 {
-                    ChildColumnNames.ID.key: 101,
+                    ChildColumnNames.ID.key: "101",
                     ChildColumnNames.FIRST_NAME.key: "Test",
                     ChildColumnNames.LAST_NAME.key: "Child",
                 }
@@ -122,13 +122,13 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
         return_value=[
             KeyMap(
                 {
-                    ProviderColumnNames.ID.key: 201,
+                    ProviderColumnNames.ID.key: "201",
                     ProviderColumnNames.NAME.key: "Test Provider",
                 }
             ),
             KeyMap(
                 {
-                    ProviderColumnNames.ID.key: 202,
+                    ProviderColumnNames.ID.key: "202",
                     ProviderColumnNames.NAME.key: "Another Provider",
                 }
             ),
@@ -161,8 +161,8 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
         assert len(payment_requests) == 2
 
         pr1 = payment_requests[0]  # For provider 201, child 101
-        assert pr1.google_sheets_provider_id == 201
-        assert pr1.google_sheets_child_id == 101
+        assert pr1.google_sheets_provider_id == "201"
+        assert pr1.google_sheets_child_id == "101"
         assert pr1.care_days_count == 2
         assert pr1.amount_in_cents == (
             care_day_1.amount_cents + care_day_2.amount_cents
@@ -170,8 +170,8 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
         assert set(pr1.care_day_ids) == {care_day_1.id, care_day_2.id}
 
         pr2 = payment_requests[1]  # For provider 202, child 101
-        assert pr2.google_sheets_provider_id == 202
-        assert pr2.google_sheets_child_id == 101
+        assert pr2.google_sheets_provider_id == "202"
+        assert pr2.google_sheets_child_id == "101"
         assert pr2.care_days_count == 1
         assert pr2.amount_in_cents == care_day_3.amount_cents
         assert set(pr2.care_day_ids) == {care_day_3.id}

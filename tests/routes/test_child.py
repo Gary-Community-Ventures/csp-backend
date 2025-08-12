@@ -217,7 +217,7 @@ def test_submit_care_days_no_care_days(
 ):
 
     # Create a new allocation with no care days
-    new_allocation_child_id = 2
+    new_allocation_child_id = "2"
     new_allocation_month = date.today().month
     new_allocation_year = date.today().year
 
@@ -239,7 +239,7 @@ def test_submit_care_days_no_care_days(
     assert len(response.json["modified_days"]) == 0
     assert len(response.json["removed_days"]) == 0
     mock_send_submission_notification.assert_called_once_with(
-        provider_id=1,
+        provider_id="1",
         child_id=new_allocation_child_id,
         new_days=[],
         modified_days=[],

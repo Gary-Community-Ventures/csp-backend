@@ -42,10 +42,10 @@ class KeyMap(dict):
         return key.convert(self[key.key])
 
 
-ID_COLUMN_KEY = Key("ID", int)
+ID_COLUMN_KEY = Key("ID")
 
 
-def get_row(data: list[KeyMap], id: int, id_key: Key[int] = ID_COLUMN_KEY) -> Optional[KeyMap]:
+def get_row(data: list[KeyMap], id: str, id_key: Key[str] = ID_COLUMN_KEY) -> Optional[KeyMap]:
     for item in data:
         if item.get(id_key) == id:
             return item
@@ -53,7 +53,7 @@ def get_row(data: list[KeyMap], id: int, id_key: Key[int] = ID_COLUMN_KEY) -> Op
     return None
 
 
-def get_rows(data: list[KeyMap], ids: list[int], id_key: Key[int] = ID_COLUMN_KEY) -> list[KeyMap]:
+def get_rows(data: list[KeyMap], ids: list[str], id_key: Key[str] = ID_COLUMN_KEY) -> list[KeyMap]:
     items = []
     for item in data:
         if item.get(id_key) in ids:
