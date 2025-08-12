@@ -15,6 +15,7 @@ down:
 	docker compose down $(ARGS)
 test:
 	docker-compose -f docker-compose.yml -f docker-compose.test.yml run --rm backend pytest $(ARGS)
+	docker-compose -f docker-compose.yml -f docker-compose.test.yml down
 exec:
 	docker compose exec backend $(ARGS)
 db:
