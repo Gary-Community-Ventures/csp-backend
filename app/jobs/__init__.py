@@ -2,6 +2,8 @@ from redis import Redis
 from rq import Queue
 from rq.job import Job
 from rq_scheduler import Scheduler
+import functools
+from flask import current_app
 
 # Redis connection
 redis_conn = None
@@ -38,21 +40,48 @@ def get_redis():
     return redis_conn
 
 
-# Job decorators and utilities
-def job(f):
-    """Decorator to ensure jobs run with Flask app context"""
-
+def job(func):
+    """
+    Decorator that:
+    1. Ensures Flask app context is available in jobs
+    2. Keeps the original function importable by RQ
+    3. Provides a clean @job decorator interface
+    """
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        # Import your app factory - adjust this path to match your structure
-        from app import create_app  # or from .. import create_app if needed
-        app = create_app()
-        with app.app_context():
-            return f(*args, **kwargs)
+        # Only create app context if we don't already have one
+        if current_app:
+            # We already have app context (probably in a request)
+            return func(*args, **kwargs)
+        else:
+            # We're in a worker process, need to create app context
+            from app import create_app
+            app = create_app()
+            with app.app_context():
+                return func(*args, **kwargs)
     
-    # Important: Set these attributes so RQ can properly serialize the function
-    wrapper.__name__ = f.__name__
-    wrapper.__module__ = f.__module__
-    wrapper.__qualname__ = f.__qualname__
+    # Make sure RQ can import this function properly
+    wrapper.__name__ = func.__name__
+    wrapper.__module__ = func.__module__
+    wrapper.__qualname__ = func.__qualname__
+    
+    # Add a helper method to easily queue this job
+    def delay(*args, **kwargs):
+        """Queue this job for immediate execution"""
+        return get_queue().enqueue(wrapper, *args, **kwargs)
+    
+    def delay_in(delay, *args, **kwargs):
+        """Queue this job for delayed execution"""
+        return get_queue().enqueue_in(delay, wrapper, *args, **kwargs)
+    
+    def schedule_cron(cron_string, *args, **kwargs):
+        """Schedule this job with cron syntax"""
+        return get_scheduler().cron(cron_string, wrapper, args=args, kwargs=kwargs)
+    
+    # Attach helper methods to the wrapper
+    wrapper.delay = delay
+    wrapper.delay_in = delay_in
+    wrapper.schedule_cron = schedule_cron
     
     return wrapper
 

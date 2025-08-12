@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from . import get_queue, get_scheduler
 import time
 from . import job
 from flask import current_app
@@ -29,24 +28,29 @@ def example_job(user_id, from_info, **kwargs):
 
 def example_call_job_from_function(user_id, delay_seconds=0, sleep_time=0, **kwargs):
     """Queue a job to run in the background"""
-    queue = get_queue()
-
     if delay_seconds > 0:
-        return queue.enqueue_in(
-            timedelta(seconds=delay_seconds), example_job, user_id=user_id, sleep_time=sleep_time, **kwargs
+        return example_job.delay_in(
+            timedelta(seconds=delay_seconds),
+            user_id=user_id,
+            from_info=kwargs.get('from_info', 'unknown'),
+            sleep_time=sleep_time,
+            **{k: v for k, v in kwargs.items() if k != 'from_info'}
         )
     else:
-        return queue.enqueue(example_job, user_id=user_id, sleep_time=sleep_time, **kwargs)
+        return example_job.delay(
+            user_id=user_id,
+            from_info=kwargs.get('from_info', 'unknown'),
+            sleep_time=sleep_time,
+            **{k: v for k, v in kwargs.items() if k != 'from_info'}
+        )
 
 
 def example_schedule_job():
     """Schedule job"""
-    scheduler = get_scheduler()
-
-    # Run every day at 2 AM
-    return scheduler.cron(
-        cron_string="0 2 * * *",
-        func=example_job,
-        kwargs={"user_id": None, "from_info": "daily_scheduler", "sleep_time": 10},
-        id="daily_job",
+    return example_job.schedule_cron(
+        '0 2 * * *',
+        user_id=None,
+        from_info='daily_scheduler',
+        sleep_time=10
     )
+
