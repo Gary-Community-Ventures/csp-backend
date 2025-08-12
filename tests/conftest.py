@@ -16,21 +16,25 @@ def db_session(app):
 
 @pytest.fixture(autouse=True)
 def mock_send_submission_notification(mocker: MockerFixture):
-    mock = mocker.patch('app.routes.child.send_submission_notification')
+    mock = mocker.patch("app.routes.child.send_submission_notification")
     return mock
+
 
 @pytest.fixture
 def app():
     app = create_app()
-    app.config.update({
-        "TESTING": True,
-    })
+    app.config.update(
+        {
+            "TESTING": True,
+        }
+    )
 
     with app.app_context():
         db.create_all()
         yield app
         db.session.remove()
         db.drop_all()
+
 
 @pytest.fixture
 def client(app):

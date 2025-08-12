@@ -136,9 +136,7 @@ def family_data(child_id: Optional[str] = None):
         "last_name": child_data.get(ChildColumnNames.LAST_NAME),
         "balance": child_data.get(ChildColumnNames.BALANCE),
         "monthly_allocation": child_data.get(ChildColumnNames.MONTHLY_ALLOCATION),
-        "prorated_first_month_allocation": child_data.get(
-            ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION
-        ),
+        "prorated_first_month_allocation": child_data.get(ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION),
     }
 
     providers = [

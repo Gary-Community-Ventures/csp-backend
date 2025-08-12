@@ -13,9 +13,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     id = db.Column(db.Integer, primary_key=True)
 
     # Relationships
-    care_month_allocation_id = db.Column(
-        db.Integer, db.ForeignKey("month_allocation.id"), nullable=False
-    )
+    care_month_allocation_id = db.Column(db.Integer, db.ForeignKey("month_allocation.id"), nullable=False)
     care_month_allocation = db.relationship(
         "MonthAllocation",
         back_populates="care_days",
@@ -187,9 +185,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
             "day_count": self.day_count,
             "provider_google_sheets_id": self.provider_google_sheets_id,
             "payment_distribution_requested": self.payment_distribution_requested,
-            "last_submitted_at": (
-                self.last_submitted_at.isoformat() if self.last_submitted_at else None
-            ),
+            "last_submitted_at": (self.last_submitted_at.isoformat() if self.last_submitted_at else None),
             "deleted_at": self.deleted_at.isoformat() if self.deleted_at else None,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
@@ -219,11 +215,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     @property
     def delete_not_submitted(self):
         """Check if this care day is previously submitted deleted but not submitted again"""
-        return (
-            self.is_deleted
-            and self.last_submitted_at is not None
-            and self.last_submitted_at < self.deleted_at
-        )
+        return self.is_deleted and self.last_submitted_at is not None and self.last_submitted_at < self.deleted_at
 
     def __repr__(self):
         return f"<AllocatedCareDay {self.date} {self.type} - Provider {self.provider_google_sheets_id}>"

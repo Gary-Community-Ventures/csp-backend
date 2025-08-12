@@ -8,9 +8,7 @@ def get_care_day_cost(day_type: CareDayType, provider_id: str, child_id: str) ->
     rate = PaymentRate.get(provider_id=provider_id, child_id=child_id)
 
     if not rate:
-        raise ValueError(
-            f"No payment rate found for provider {provider_id} and child {child_id}"
-        )
+        raise ValueError(f"No payment rate found for provider {provider_id} and child {child_id}")
 
     if day_type == CareDayType.FULL_DAY:
         return rate.full_day_rate_cents

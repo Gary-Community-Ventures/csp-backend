@@ -48,4 +48,6 @@ class PaymentRate(db.Model, TimestampMixin):
         return rate
 
     def __repr__(self):
-        return f"<PaymentRate {self.id} - Provider {self.google_sheets_provider_id}, Child {self.google_sheets_child_id}>"
+        return (
+            f"<PaymentRate {self.id} - Provider {self.google_sheets_provider_id}, Child {self.google_sheets_child_id}>"
+        )

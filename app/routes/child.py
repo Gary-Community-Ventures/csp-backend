@@ -38,9 +38,7 @@ def get_month_allocation(child_id, month, year):
             provider_google_sheets_id=provider_id,
         )
     else:
-        care_days_query = AllocatedCareDay.query.filter_by(
-            care_month_allocation_id=allocation.id
-        )
+        care_days_query = AllocatedCareDay.query.filter_by(care_month_allocation_id=allocation.id)
     care_days = care_days_query.all()
 
     # Serialize care_days using Pydantic model
@@ -50,9 +48,7 @@ def get_month_allocation(child_id, month, year):
         serialized_care_days.append(care_day_data)
 
     # Serialize allocation using MonthAllocationResponse
-    serialized_allocation = MonthAllocationResponse.model_validate(
-        allocation
-    ).model_dump()
+    serialized_allocation = MonthAllocationResponse.model_validate(allocation).model_dump()
     serialized_allocation["care_days"] = serialized_care_days
 
     return custom_jsonify(serialized_allocation)
@@ -69,12 +65,10 @@ def submit_care_days(child_id, provider_id, month, year):
     except ValueError:
         return jsonify({"error": "Invalid month or year"}), 400
 
-    allocation = MonthAllocation.query.filter_by(
-        google_sheets_child_id=child_id, date=month_date
-    ).first()
+    allocation = MonthAllocation.query.filter_by(google_sheets_child_id=child_id, date=month_date).first()
     if not allocation:
         return jsonify({"error": "Allocation not found"}), 404
-    
+
     if allocation.over_allocation:
         return jsonify({"error": "Cannot submit: allocation exceeded"}), 400
 
@@ -85,18 +79,14 @@ def submit_care_days(child_id, provider_id, month, year):
     ).all()
 
     new_days = [day for day in care_days_to_submit if day.is_new]
-    modified_days = [
-        day for day in care_days_to_submit if day.needs_resubmission and not day.is_new
-    ]
+    modified_days = [day for day in care_days_to_submit if day.needs_resubmission and not day.is_new]
 
     removed_days = AllocatedCareDay.query.filter(
         AllocatedCareDay.care_month_allocation_id == allocation.id,
         AllocatedCareDay.provider_google_sheets_id == provider_id,
         AllocatedCareDay.deleted_at.isnot(None),
     ).all()
-    removed_days_where_delete_not_submitted = [
-        day for day in removed_days if day.delete_not_submitted
-    ]
+    removed_days_where_delete_not_submitted = [day for day in removed_days if day.delete_not_submitted]
 
     # Send email notification
     send_submission_notification(
@@ -118,14 +108,8 @@ def submit_care_days(child_id, provider_id, month, year):
     return jsonify(
         {
             "message": "Submission successful",
-            "new_days": [
-                AllocatedCareDayResponse.model_validate(day).model_dump()
-                for day in new_days
-            ],
-            "modified_days": [
-                AllocatedCareDayResponse.model_validate(day).model_dump()
-                for day in modified_days
-            ],
+            "new_days": [AllocatedCareDayResponse.model_validate(day).model_dump() for day in new_days],
+            "modified_days": [AllocatedCareDayResponse.model_validate(day).model_dump() for day in modified_days],
             "removed_days": [
                 AllocatedCareDayResponse.model_validate(day).model_dump()
                 for day in removed_days_where_delete_not_submitted

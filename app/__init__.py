@@ -70,9 +70,7 @@ def create_app(config_class=None):
     clerk_secret_key = app.config.get("CLERK_SECRET_KEY")
 
     if not clerk_secret_key:
-        print(
-            "WARNING: CLERK_SECRET_KEY not found. Clerk authentication will be disabled."
-        )
+        print("WARNING: CLERK_SECRET_KEY not found. Clerk authentication will be disabled.")
         app.clerk_client = None
     else:
         app.clerk_client = Clerk(bearer_auth=clerk_secret_key)
@@ -88,17 +86,10 @@ def create_app(config_class=None):
 
     # --- CORS Configuration ---
     # For production, use the configured origins, credentials, and headers
-    if (
-        app.config["FLASK_ENV"] == ENV_PRODUCTION
-        or app.config["FLASK_ENV"] == ENV_STAGING
-    ):
+    if app.config["FLASK_ENV"] == ENV_PRODUCTION or app.config["FLASK_ENV"] == ENV_STAGING:
         configured_origins = app.config.get("CORS_ORIGINS", [])
-        configured_supports_credentials = app.config.get(
-            "CORS_SUPPORTS_CREDENTIALS", False
-        )
-        configured_allow_headers = app.config.get(
-            "CORS_ALLOW_HEADERS", ["Content-Type"]
-        )
+        configured_supports_credentials = app.config.get("CORS_SUPPORTS_CREDENTIALS", False)
+        configured_allow_headers = app.config.get("CORS_ALLOW_HEADERS", ["Content-Type"])
         cors.init_app(
             app,
             resources={

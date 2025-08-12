@@ -6,11 +6,7 @@ from datetime import datetime, date, timezone
 class CustomJSONEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime):
-            return (
-                obj.astimezone(timezone.utc)
-                .isoformat(timespec="milliseconds")
-                .replace("+00:00", "Z")
-            )
+            return obj.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
         if isinstance(obj, date):
             return obj.isoformat()
         return super().default(obj)

@@ -27,9 +27,7 @@ def create_payment_rate():
     )
     if existing_rate:
         return (
-            jsonify(
-                {"error": "Payment rate already exists for this provider and child"}
-            ),
+            jsonify({"error": "Payment rate already exists for this provider and child"}),
             400,
         )
 

@@ -151,14 +151,11 @@ def send_payment_request_email(
     subject = "New Payment Request Notification"
     description = f"A new payment request has been created:"
 
-    care_day_info = "<br>".join(
-        [f"{day.date} - {day.type.value} (${day.amount_cents / 100:.2f})" for day in care_days]
-    )
+    care_day_info = "<br>".join([f"{day.date} - {day.type.value} (${day.amount_cents / 100:.2f})" for day in care_days])
 
     if not care_day_info:
         current_app.logger.error("No care days provided for payment request email.")
         return False
-    
 
     rows = [
         SystemMessageRow(

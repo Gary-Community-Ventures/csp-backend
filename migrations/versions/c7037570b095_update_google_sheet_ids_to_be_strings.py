@@ -29,30 +29,18 @@ def upgrade():
 
     # First, add temporary string columns
     with op.batch_alter_table("allocated_care_day", schema=None) as batch_op:
-        batch_op.add_column(
-            sa.Column("provider_google_sheets_id_temp", sa.String(length=64))
-        )
+        batch_op.add_column(sa.Column("provider_google_sheets_id_temp", sa.String(length=64)))
 
     with op.batch_alter_table("month_allocation", schema=None) as batch_op:
-        batch_op.add_column(
-            sa.Column("google_sheets_child_id_temp", sa.String(length=64))
-        )
+        batch_op.add_column(sa.Column("google_sheets_child_id_temp", sa.String(length=64)))
 
     with op.batch_alter_table("payment_rate", schema=None) as batch_op:
-        batch_op.add_column(
-            sa.Column("google_sheets_provider_id_temp", sa.String(length=64))
-        )
-        batch_op.add_column(
-            sa.Column("google_sheets_child_id_temp", sa.String(length=64))
-        )
+        batch_op.add_column(sa.Column("google_sheets_provider_id_temp", sa.String(length=64)))
+        batch_op.add_column(sa.Column("google_sheets_child_id_temp", sa.String(length=64)))
 
     with op.batch_alter_table("payment_request", schema=None) as batch_op:
-        batch_op.add_column(
-            sa.Column("google_sheets_provider_id_temp", sa.String(length=64))
-        )
-        batch_op.add_column(
-            sa.Column("google_sheets_child_id_temp", sa.String(length=64))
-        )
+        batch_op.add_column(sa.Column("google_sheets_provider_id_temp", sa.String(length=64)))
+        batch_op.add_column(sa.Column("google_sheets_child_id_temp", sa.String(length=64)))
 
     # Reflect the current table structures after adding temp columns
     metadata.reflect(bind=connection)
@@ -68,9 +56,7 @@ def upgrade():
         session.execute(
             allocated_care_day.update()
             .values(
-                provider_google_sheets_id_temp=sa.func.cast(
-                    allocated_care_day.c.provider_google_sheets_id, sa.String
-                )
+                provider_google_sheets_id_temp=sa.func.cast(allocated_care_day.c.provider_google_sheets_id, sa.String)
             )
             .where(allocated_care_day.c.provider_google_sheets_id.isnot(None))
         )
@@ -78,51 +64,31 @@ def upgrade():
         # Update month_allocation
         session.execute(
             month_allocation.update()
-            .values(
-                google_sheets_child_id_temp=sa.func.cast(
-                    month_allocation.c.google_sheets_child_id, sa.String
-                )
-            )
+            .values(google_sheets_child_id_temp=sa.func.cast(month_allocation.c.google_sheets_child_id, sa.String))
             .where(month_allocation.c.google_sheets_child_id.isnot(None))
         )
 
         # Update payment_rate
         session.execute(
             payment_rate.update()
-            .values(
-                google_sheets_provider_id_temp=sa.func.cast(
-                    payment_rate.c.google_sheets_provider_id, sa.String
-                )
-            )
+            .values(google_sheets_provider_id_temp=sa.func.cast(payment_rate.c.google_sheets_provider_id, sa.String))
             .where(payment_rate.c.google_sheets_provider_id.isnot(None))
         )
         session.execute(
             payment_rate.update()
-            .values(
-                google_sheets_child_id_temp=sa.func.cast(
-                    payment_rate.c.google_sheets_child_id, sa.String
-                )
-            )
+            .values(google_sheets_child_id_temp=sa.func.cast(payment_rate.c.google_sheets_child_id, sa.String))
             .where(payment_rate.c.google_sheets_child_id.isnot(None))
         )
 
         # Update payment_request
         session.execute(
             payment_request.update()
-            .values(
-                google_sheets_provider_id_temp=sa.func.cast(
-                    payment_request.c.google_sheets_provider_id, sa.String
-                )
-            )
+            .values(google_sheets_provider_id_temp=sa.func.cast(payment_request.c.google_sheets_provider_id, sa.String))
             .where(payment_request.c.google_sheets_provider_id.isnot(None))
         )
         session.execute(
             payment_request.update()
-            .values(
-                google_sheets_child_id_temp=sa.func.cast(
-                    payment_request.c.google_sheets_child_id, sa.String
-                )
-            )
+            .values(google_sheets_child_id_temp=sa.func.cast(payment_request.c.google_sheets_child_id, sa.String))
             .where(payment_request.c.google_sheets_child_id.isnot(None))
         )
 
@@ -216,19 +182,13 @@ def downgrade():
         # Update payment_request
         session.execute(
             payment_request.update()
-            .values(
-                google_sheets_child_id_temp=sa.func.cast(
-                    payment_request.c.google_sheets_child_id, sa.Integer
-                )
-            )
+            .values(google_sheets_child_id_temp=sa.func.cast(payment_request.c.google_sheets_child_id, sa.Integer))
             .where(payment_request.c.google_sheets_child_id.isnot(None))
         )
         session.execute(
             payment_request.update()
             .values(
-                google_sheets_provider_id_temp=sa.func.cast(
-                    payment_request.c.google_sheets_provider_id, sa.Integer
-                )
+                google_sheets_provider_id_temp=sa.func.cast(payment_request.c.google_sheets_provider_id, sa.Integer)
             )
             .where(payment_request.c.google_sheets_provider_id.isnot(None))
         )
@@ -236,31 +196,19 @@ def downgrade():
         # Update payment_rate
         session.execute(
             payment_rate.update()
-            .values(
-                google_sheets_child_id_temp=sa.func.cast(
-                    payment_rate.c.google_sheets_child_id, sa.Integer
-                )
-            )
+            .values(google_sheets_child_id_temp=sa.func.cast(payment_rate.c.google_sheets_child_id, sa.Integer))
             .where(payment_rate.c.google_sheets_child_id.isnot(None))
         )
         session.execute(
             payment_rate.update()
-            .values(
-                google_sheets_provider_id_temp=sa.func.cast(
-                    payment_rate.c.google_sheets_provider_id, sa.Integer
-                )
-            )
+            .values(google_sheets_provider_id_temp=sa.func.cast(payment_rate.c.google_sheets_provider_id, sa.Integer))
             .where(payment_rate.c.google_sheets_provider_id.isnot(None))
         )
 
         # Update month_allocation
         session.execute(
             month_allocation.update()
-            .values(
-                google_sheets_child_id_temp=sa.func.cast(
-                    month_allocation.c.google_sheets_child_id, sa.Integer
-                )
-            )
+            .values(google_sheets_child_id_temp=sa.func.cast(month_allocation.c.google_sheets_child_id, sa.Integer))
             .where(month_allocation.c.google_sheets_child_id.isnot(None))
         )
 
@@ -268,9 +216,7 @@ def downgrade():
         session.execute(
             allocated_care_day.update()
             .values(
-                provider_google_sheets_id_temp=sa.func.cast(
-                    allocated_care_day.c.provider_google_sheets_id, sa.Integer
-                )
+                provider_google_sheets_id_temp=sa.func.cast(allocated_care_day.c.provider_google_sheets_id, sa.Integer)
             )
             .where(allocated_care_day.c.provider_google_sheets_id.isnot(None))
         )

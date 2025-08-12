@@ -3,13 +3,16 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Literal, Optional
 
+
 class AllocatedCareDayBase(BaseModel):
     date: date
     type: Literal["Full Day", "Half Day"]
     provider_google_sheets_id: str
 
+
 class AllocatedCareDayCreate(AllocatedCareDayBase):
     care_month_allocation_id: int
+
 
 class AllocatedCareDayResponse(AllocatedCareDayBase):
     id: int
@@ -29,4 +32,4 @@ class AllocatedCareDayResponse(AllocatedCareDayBase):
     delete_not_submitted: bool
     status: str
 
-    model_config = {'from_attributes': True}
+    model_config = {"from_attributes": True}

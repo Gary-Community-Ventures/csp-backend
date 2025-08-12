@@ -17,18 +17,12 @@ def get_allocation_amount(child_id: str) -> int:
     allocation_dollars = child_data.get(ChildColumnNames.MONTHLY_ALLOCATION)
 
     # If no prior allocation exists, use prorated amount
-    prior_allocation = MonthAllocation.query.filter_by(
-        google_sheets_child_id=child_id
-    ).first()
+    prior_allocation = MonthAllocation.query.filter_by(google_sheets_child_id=child_id).first()
     if not prior_allocation:
-        allocation_dollars = child_data.get(
-            ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION
-        )
+        allocation_dollars = child_data.get(ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION)
 
     if allocation_dollars is None or allocation_dollars == "":
-        raise ValueError(
-            f"Child {child_id} does not have a valid monthly allocation amount {allocation_dollars}"
-        )
+        raise ValueError(f"Child {child_id} does not have a valid monthly allocation amount {allocation_dollars}")
 
     return int(allocation_dollars * 100)
 
@@ -53,7 +47,7 @@ class MonthAllocation(db.Model, TimestampMixin):
         back_populates="care_month_allocation",
         primaryjoin="and_(MonthAllocation.id==AllocatedCareDay.care_month_allocation_id, "
         "AllocatedCareDay.deleted_at.is_(None))",
-        overlaps="all_care_days"
+        overlaps="all_care_days",
     )
 
     # Include soft-deleted care days for admin purposes
@@ -61,11 +55,7 @@ class MonthAllocation(db.Model, TimestampMixin):
         "AllocatedCareDay", back_populates="month_allocation_with_deleted", overlaps="care_days,care_month_allocation"
     )
 
-    __table_args__ = (
-        db.UniqueConstraint(
-            "google_sheets_child_id", "date", name="unique_child_month"
-        ),
-    )
+    __table_args__ = (db.UniqueConstraint("google_sheets_child_id", "date", name="unique_child_month"),)
 
     @property
     def over_allocation(self):
@@ -89,15 +79,9 @@ class MonthAllocation(db.Model, TimestampMixin):
 
     def can_add_care_day(self, day_type: CareDayType, provider_id: str) -> bool:
         """Check if we can add a care day of given type without over-allocating"""
-        cents_amount = get_care_day_cost(
-            day_type, provider_id=provider_id, child_id=self.google_sheets_child_id
-        )
-        print(
-            f"Checking if can add care day of type '{day_type}' costing {cents_amount} cents"
-        )
-        print(
-            f"Current used cents: {self.used_cents}, Allocation cents: {self.allocation_cents}"
-        )
+        cents_amount = get_care_day_cost(day_type, provider_id=provider_id, child_id=self.google_sheets_child_id)
+        print(f"Checking if can add care day of type '{day_type}' costing {cents_amount} cents")
+        print(f"Current used cents: {self.used_cents}, Allocation cents: {self.allocation_cents}")
         return self.used_cents + cents_amount <= self.allocation_cents
 
     @staticmethod
@@ -115,9 +99,7 @@ class MonthAllocation(db.Model, TimestampMixin):
         if month_start > today + timedelta(days=14):
             raise ValueError(f"Cannot create allocation for a month that is more than 14 days away.")
 
-        allocation = MonthAllocation.query.filter_by(
-            google_sheets_child_id=child_id, date=month_start
-        ).first()
+        allocation = MonthAllocation.query.filter_by(google_sheets_child_id=child_id, date=month_start).first()
 
         if not allocation:
             # Get allocation amount from child data
@@ -144,10 +126,10 @@ class MonthAllocation(db.Model, TimestampMixin):
 
         if datetime.now() > current_monday_eod:
             # If current time is past Monday EOD, all days in current week are locked
-            return current_monday + timedelta(days=6) # Sunday of current week
+            return current_monday + timedelta(days=6)  # Sunday of current week
         else:
             # If current time is not yet past Monday EOD, days up to previous Sunday are locked
-            return current_monday - timedelta(days=1) # Sunday of previous week
+            return current_monday - timedelta(days=1)  # Sunday of previous week
 
     def __repr__(self):
         return f"<MonthAllocation Child:{self.google_sheets_child_id} {self.date.strftime('%Y-%m')}"
