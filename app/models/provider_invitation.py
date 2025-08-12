@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Query
+
 from ..extensions import db
 from .mixins import TimestampMixin
 

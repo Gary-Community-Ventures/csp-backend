@@ -1,6 +1,7 @@
 import pytest
-from app.models import PaymentRate
+
 from app.extensions import db
+from app.models import PaymentRate
 
 
 @pytest.fixture

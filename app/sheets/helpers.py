@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import Callable, Optional, TypeVar, Generic
+from typing import Callable, Generic, Optional, TypeVar
+
 from flask import current_app
 
 T = TypeVar("T")

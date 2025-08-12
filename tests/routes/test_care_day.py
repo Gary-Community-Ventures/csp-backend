@@ -1,16 +1,12 @@
-import pytest
 from datetime import date, datetime, timedelta
-from app.models import AllocatedCareDay, MonthAllocation
-from app.models.utils import get_care_day_cost
-from app.extensions import db
 from decimal import Decimal
 
 import pytest
-from datetime import date, datetime, timedelta
-from app.models import AllocatedCareDay, MonthAllocation, PaymentRate
+
 from app.enums.care_day_type import CareDayType
 from app.extensions import db
-from decimal import Decimal
+from app.models import AllocatedCareDay, MonthAllocation, PaymentRate
+from app.models.utils import get_care_day_cost
 
 
 @pytest.fixture

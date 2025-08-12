@@ -1,20 +1,19 @@
-from flask import Blueprint, request, jsonify
-from app.extensions import db
-from app.models import MonthAllocation, AllocatedCareDay
+from datetime import date
+
+from flask import Blueprint, jsonify, request
+
 from app.auth.decorators import (
     ClerkUserType,
     auth_required,
 )
-from app.utils.email_service import send_submission_notification
+from app.extensions import db
+from app.models import AllocatedCareDay, MonthAllocation
 from app.schemas.care_day import AllocatedCareDayResponse
 from app.schemas.month_allocation import (
     MonthAllocationResponse,
 )
+from app.utils.email_service import send_submission_notification
 from app.utils.json_utils import custom_jsonify
-
-
-from datetime import date
-
 
 bp = Blueprint("child", __name__)
 

@@ -1,6 +1,7 @@
-from flask import Response
+from datetime import date, datetime, timezone
 from json import JSONEncoder, dumps
-from datetime import datetime, date, timezone
+
+from flask import Response
 
 
 class CustomJSONEncoder(JSONEncoder):

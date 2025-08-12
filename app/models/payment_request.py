@@ -1,8 +1,8 @@
-from ..extensions import db
-from .mixins import TimestampMixin
 from datetime import date
 
+from ..extensions import db
 from .allocated_care_day import AllocatedCareDay
+from .mixins import TimestampMixin
 from .month_allocation import MonthAllocation
 
 

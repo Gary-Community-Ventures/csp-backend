@@ -1,6 +1,8 @@
-from pydantic import BaseModel
 from datetime import date, datetime
 from typing import List
+
+from pydantic import BaseModel
+
 from app.schemas.care_day import AllocatedCareDayResponse
 
 

@@ -1,6 +1,7 @@
 from decimal import Decimal
-from app.models.payment_rate import PaymentRate
+
 from app.enums.care_day_type import CareDayType
+from app.models.payment_rate import PaymentRate
 
 
 def get_care_day_cost(day_type: CareDayType, provider_id: str, child_id: str) -> int:

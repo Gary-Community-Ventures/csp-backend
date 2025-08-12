@@ -1,8 +1,10 @@
-import pytest
 from datetime import date, datetime, timedelta
-from app.models import AllocatedCareDay, MonthAllocation
-from app.extensions import db
 from decimal import Decimal
+
+import pytest
+
+from app.extensions import db
+from app.models import AllocatedCareDay, MonthAllocation
 
 
 @pytest.fixture

@@ -1,11 +1,13 @@
+from datetime import date
+from unittest.mock import patch
+
 import pytest
 from pytest_mock import MockerFixture
+
 from app import create_app
 from app.extensions import db
-from app.models.month_allocation import MonthAllocation
 from app.models.allocated_care_day import AllocatedCareDay
-from unittest.mock import patch
-from datetime import date
+from app.models.month_allocation import MonthAllocation
 
 
 @pytest.fixture

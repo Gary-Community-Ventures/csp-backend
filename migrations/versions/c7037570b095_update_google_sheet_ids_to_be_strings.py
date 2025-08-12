@@ -6,9 +6,9 @@ Create Date: 2025-08-07 14:47:50.375451
 
 """
 
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy import Table, MetaData
+from alembic import op
+from sqlalchemy import MetaData, Table
 from sqlalchemy.orm import sessionmaker
 
 # revision identifiers, used by Alembic.

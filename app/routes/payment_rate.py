@@ -1,13 +1,14 @@
-from flask import Blueprint, request, jsonify
-from app.models import PaymentRate
+from flask import Blueprint, jsonify, request
+from pydantic import ValidationError
+
+from app.auth.decorators import ClerkUserType, auth_required
 from app.extensions import db
-from app.auth.decorators import auth_required, ClerkUserType
+from app.models import PaymentRate
 from app.schemas.payment_rate import (
-    PaymentRateResponse,
     PaymentRateCreate,
+    PaymentRateResponse,
     PaymentRateUpdate,
 )
-from pydantic import ValidationError
 
 payment_rate_bp = Blueprint("payment_rate_bp", __name__, url_prefix="/payment-rates")
 

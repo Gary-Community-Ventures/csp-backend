@@ -1,11 +1,11 @@
 from datetime import date, datetime, timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from app.models.month_allocation import MonthAllocation, get_allocation_amount
-from app.sheets.mappings import ChildColumnNames
 from app.sheets.helpers import KeyMap
+from app.sheets.mappings import ChildColumnNames
 
 
 @pytest.fixture

@@ -1,8 +1,10 @@
-import pytest
 from datetime import date, datetime, timedelta
-from app.models import AllocatedCareDay, MonthAllocation, PaymentRate
+
+import pytest
+
 from app.enums.care_day_type import CareDayType
 from app.extensions import db
+from app.models import AllocatedCareDay, MonthAllocation, PaymentRate
 
 
 @pytest.fixture
