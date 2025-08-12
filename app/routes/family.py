@@ -24,6 +24,7 @@ from app.sheets.mappings import (
     get_family,
     get_provider_child_mapping_provider,
     get_provider_child_mappings,
+    get_provider_child_mappings_by_provider_id,
     get_providers,
     get_child,
     get_child_providers,
@@ -40,6 +41,7 @@ from app.utils.email_service import (
 )
 from uuid import uuid4
 from app.utils.sms_service import send_sms
+from app.constants import MAX_CHILDREN_PER_PROVIDER
 
 
 bp = Blueprint("family", __name__)
@@ -370,9 +372,6 @@ def invite_provider():
     return jsonify({"message": "Success"}, 201)
 
 
-MAX_CHILDREN_PER_PROVIDER = 2
-
-
 @dataclass
 class InviteData:
     child_data: KeyMap
@@ -386,11 +385,7 @@ def get_invite_data(child_id: list[str], provider_id: Optional[str] = None):
     current_children_mappings: list[KeyMap] = []
     if provider_id is not None:
         provider_child_mapping_rows = get_provider_child_mappings()
-        for provider_child_mapping in provider_child_mapping_rows:
-            if provider_child_mapping.get(ProviderChildMappingColumnNames.PROVIDER_ID) != provider_id:
-                continue
-
-            current_children_mappings.append(provider_child_mapping)
+        current_children_mappings = get_provider_child_mappings_by_provider_id(provider_id, provider_child_mapping_rows)
 
     child_rows = get_children()
     family_rows = get_families()
