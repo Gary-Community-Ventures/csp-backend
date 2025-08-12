@@ -103,7 +103,7 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
 
     # Mock external dependencies
     mocker.patch.dict(
-        "os.environ", {"GOOGLE_SHEETS_CREDENTIALS": '{"type": "service_account"}'}
+        "os.environ", {"GOOGLE_APPLICATION_CREDENTIALS": '{"type": "service_account"}'}
     )
     mocker.patch(
         "run_payment_requests.get_children",
