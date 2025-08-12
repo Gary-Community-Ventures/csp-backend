@@ -22,7 +22,7 @@ app.app_context().push()
 
 
 def run_payment_requests():
-    print("Starting payment request processing...")
+    app.logger.info("run_payment_requests: Starting payment request processing...")
 
     # Query for submitted and unprocessed care days
     care_days_to_process = (
@@ -37,7 +37,7 @@ def run_payment_requests():
     )
 
     if not care_days_to_process:
-        print("No submitted and unprocessed care days found.")
+        app.logger.warning("run_payment_requests: No submitted and unprocessed care days found.")
         return
 
     # Group care days by provider and child
@@ -60,13 +60,13 @@ def run_payment_requests():
         child_data = get_child(child_id, all_children_data)
 
         if not provider_data:
-            print(
-                f"Skipping payment request for provider ID {provider_id}: Provider not found in Google Sheets."
+            app.logger.warning(
+                f"run_payment_requests: Skipping payment request for provider ID {provider_id}: Provider not found in Google Sheets."
             )
             continue
         if not child_data:
-            print(
-                f"Skipping payment request for child ID {child_id}: Child not found in Google Sheets."
+            app.logger.warning(
+                f"run_payment_requests: Skipping payment request for child ID {child_id}: Child not found in Google Sheets."
             )
             continue
 
@@ -98,8 +98,8 @@ def run_payment_requests():
             care_days=days,
         )
         if not sent_email:
-            print(
-                f"Failed to send payment request email for provider {provider_name} (ID: {provider_id}) and child {child_first_name} {child_last_name} (ID: {child_id})."
+            app.logger.error(
+                f"run_payment_requests: Failed to send payment request email for provider {provider_name} (ID: {provider_id}) and child {child_first_name} {child_last_name} (ID: {child_id})."
             )
             payment_request.is_email_sent = False
             continue
@@ -109,7 +109,7 @@ def run_payment_requests():
             day.payment_distribution_requested = True
 
     db.session.commit()
-    print("Payment request processing finished.")
+    app.logger.info("run_payment_requests: Payment request processing finished.")
 
 
 if __name__ == "__main__":
