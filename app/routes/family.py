@@ -1,11 +1,9 @@
 from dataclasses import dataclass
 from typing import Optional
-from datetime import date
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, jsonify, request, current_app
 from app.data.providers.mappings import ProviderListColumnNames
 from app.extensions import db
-from app.models.family import Family
 from app.auth.decorators import (
     ClerkUserType,
     auth_optional,
@@ -58,20 +56,12 @@ def new_family():
     if "email" not in data:
         abort(400, description="Missing required field: email")
 
-    if Family.query.filter_by(google_sheet_id=data["google_sheet_id"]).first():
-        abort(409, description=f"A family with that Google Sheet ID already exists.")
-
-    # Create new family
-    family = Family.new(google_sheet_id=data["google_sheet_id"])
-    db.session.add(family)
-    db.session.commit()
-
     # send clerk invite
     clerk: Clerk = current_app.clerk_client
     fe_domain = current_app.config.get("FRONTEND_DOMAIN")
     meta_data = {
         "types": [ClerkUserType.FAMILY],  # NOTE: list in case we need to have people who fit into multiple categories
-        "family_id": family.id,
+        "family_id": data["google_sheet_id"],
     }
 
     clerk.invitations.create(
@@ -127,11 +117,6 @@ def family_data(child_id: Optional[str] = None):
         abort(404, description="No children found for this family.")
 
     if child_id is not None:
-        try:
-            child_id = int(child_id)
-        except ValueError:
-            abort(400, description=f"Invalid child ID: {child_id}")
-
         selected_child = get_child(child_id, family_children)
 
         if selected_child is None:
@@ -151,6 +136,9 @@ def family_data(child_id: Optional[str] = None):
         "last_name": child_data.get(ChildColumnNames.LAST_NAME),
         "balance": child_data.get(ChildColumnNames.BALANCE),
         "monthly_allocation": child_data.get(ChildColumnNames.MONTHLY_ALLOCATION),
+        "prorated_first_month_allocation": child_data.get(
+            ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION
+        ),
     }
 
     providers = [
@@ -294,14 +282,14 @@ def get_invite_provider_message(lang: str, family_name: str, child_names: list[s
     if lang == "es":
         return InviteProviderMessage(
             subject=f"¡{family_name} se complace en invitarte al programa CAP!",
-            email=f'<html><body>¡{family_name} te invitó a unirte al programa CAP para cuidar a {formatted_child_names}!<br><br>CAP ayuda a las familias a pagar el cuidado infantil y a proveedores como tú a recibir su pago. Únete a este programa piloto de 9 meses y obtén pagos flexibles por el cuidado que ya brindas.<br><br><a href="{link}" style="color: #0066cc; text-decoration: underline;">Toque para aceptar</a><br><br>¿Preguntas? cap@garycommunity.org</body></html>',
-            sms=f"¡{family_name} te invitó a unirte al programa CAP para cuidar a {formatted_child_names}! CAP ayuda a las familias a pagar el cuidado infantil y a proveedores como tú a recibir su pago. Únete a este programa piloto de 9 meses y obtén pagos flexibles por el cuidado que ya brindas. Toque para aceptar: {link} ¿Preguntas? cap@garycommunity.org",
+            email=f'<html><body>¡{family_name} lo ha invitado a unirse al programa piloto Childcare Affordability Pilot (CAP) como proveedor de {formatted_child_names}, ¡Y nos encantaría tenerte a bordo!<br><br>CAP es un programa de 9 meses que ayuda a las familias a pagar el cuidado infantil y a proveedores como usted a recibir su pago. Recibirá pagos a través del portal de cuidado infantil de CAP, mantendrá sus rutinas de cuidado habituales y apoyará a las familias con las que ya trabaja, o a nuevas familias.<br><br>¡Haga clic <a href="{link}" style="color: #0066cc; text-decoration: underline;">aquí</a> para aceptar la invitación y comenzar!<br><br>¿Tienes preguntas? Escríbenos a <a href="mailto:support@capcolorado.org" style="color: #0066cc; text-decoration: underline;">support@capcolorado.org</a></body></html>',
+            sms=f"¡{family_name} te invitó a unirte al programa CAP para cuidar a su familia! CAP ayuda a las familias a pagar el cuidado infantil y a proveedores como tú a recibir su pago. Toque para aceptar: {link} ¿Preguntas? support@capcolorado.org",
         )
 
     return InviteProviderMessage(
         subject=f"{family_name} is excited to invite you to the CAP program!",
-        email=f'<html><body>{family_name} has invited you to join the Childcare Affordability Pilot (CAP) as a provider for {formatted_child_names}—and we’d love to have you on board!<br><br>CAP is a 9-month program that helps families pay for childcare and helps providers like you get paid. You’ll receive payments through the CAP app, keep your usual care routines, and support families you already work with—or new ones.<br><br>Click <a href="{link}" style="color: #0066cc; text-decoration: underline;">here</a> to accept the invitation and get started!<br><br>Questions? Email us at cap@garycommunity.org.</body></html>',
-        sms=f"{family_name} invited you to join the CAP program to provide care for {formatted_child_names}! CAP helps families pay for childcare—and helps providers like you get paid. Join this 9-month pilot and get flexible payments for care you already provide. Tap to accept: {link} Questions? cap@garycommunity.org",
+        email=f'<html><body>{family_name} has invited you to join the Childcare Affordability Pilot (CAP) as a provider for {formatted_child_names}—and we’d love to have you on board!<br><br>CAP is a 9-month program that helps families pay for childcare and helps providers like you get paid. You’ll receive payments through the CAP childcare portal, keep your usual care routines, and support families you already work with—or new ones.<br><br>Click <a href="{link}" style="color: #0066cc; text-decoration: underline;">here</a> to accept the invitation and get started!<br><br>Questions? Email us at <a href="mailto:support@capcolorado.org" style="color: #0066cc; text-decoration: underline;">support@capcolorado.org</a>.</body></html>',
+        sms=f"{family_name} invited you to join the Childcare Affordability Pilot (CAP) to provide care for their family! CAP can help families pay providers like you. Tap to learn more and apply! {link} Questions? support@capcolorado.org",
     )
 
 
@@ -383,7 +371,7 @@ def invite_provider():
     return jsonify({"message": "Success"}, 201)
 
 
-def get_invite_data(child_ids: list[int]):
+def get_invite_data(child_ids: list[str]):
     child_rows = get_children()
     family_rows = get_families()
 
@@ -408,12 +396,12 @@ def get_invite_data(child_ids: list[int]):
 def provider_invite(invite_id: str):
     invitations = ProviderInvitation.invitations_by_id(invite_id)
 
-    child_ids: list[int] = []
+    child_ids: list[str] = []
     accepted = False
     for invitation in invitations:
         if invitation.accepted:
             accepted = True
-        child_ids.append(int(invitation.child_google_sheet_id))
+        child_ids.append(invitation.child_google_sheet_id)
         invitation.record_opened()
 
     db.session.add_all(invitations)
@@ -456,11 +444,11 @@ def accept_provider_invite(invite_id: str):
 
     invitations = ProviderInvitation.invitations_by_id(invite_id)
 
-    child_ids: list[int] = []
+    child_ids: list[str] = []
     for invitation in invitations:
         if invitation.accepted:
             abort(400, description="Invitation already accepted.")
-        child_ids.append(int(invitation.child_google_sheet_id))
+        child_ids.append(invitation.child_google_sheet_id)
 
     child_data, family_data = get_invite_data(child_ids)
 
