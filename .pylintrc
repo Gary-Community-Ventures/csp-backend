@@ -1,6 +1,7 @@
 [MAIN]
 ignore=venv,.vscode,dist,build,eggs,parts,bin,var,sdist,develop-eggs,lib,lib64,.git
 ignore-patterns=.*\.py[cod]$,.*\.so$,.*\.egg$,.*\.egg-info$,.*\.installed\.cfg$,.*\.env$,.*\.env\.local$,.*pip-log\.txt$,__pycache__
+ignore-paths=migrations/versions/
 
 [MESSAGES CONTROL]
 disable=all
@@ -18,7 +19,11 @@ enable=
     W0603, # global-statement
 
     C0103,  # invalid-name
-    R0915   # too-many-statements
+    C0121,  # singlton-comparison
+
+    R1702,  # too-many-nested-blocks
+    W0612,  # unused-variable
+    W0102,  # dangerous-default-value
 
 [BASIC]
 argument-naming-style=snake_case
