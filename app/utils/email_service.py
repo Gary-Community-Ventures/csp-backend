@@ -156,7 +156,7 @@ def send_payment_request_email(
     )
 
     if not care_day_info:
-        current_app.logger.warning("No care days provided for payment request email.")
+        current_app.logger.error("No care days provided for payment request email.")
         return False
     
 
