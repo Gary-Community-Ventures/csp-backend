@@ -1,5 +1,7 @@
-from flask import Blueprint, jsonify, current_app
+from app.auth.helpers import get_current_user
+from flask import Blueprint, jsonify, current_app, request
 from app.jobs import get_job_status, retry_failed_job, get_queue_info
+from app.jobs.example_job import example_call_job_from_function
 
 bp = Blueprint("main", __name__)
 
@@ -70,22 +72,38 @@ def sentry_db_test():
         200,
     )
 
-@bp.route('/jobs/<job_id>/status', methods=['GET'])
+
+@bp.route("/jobs/<job_id>/status", methods=["GET"])
 def job_status(job_id):
     status = get_job_status(job_id)
     return jsonify(status)
 
-@bp.route('/jobs/<job_id>/retry', methods=['POST'])
+
+@bp.route("/jobs/<job_id>/retry", methods=["POST"])
 def retry_job(job_id):
     result = retry_failed_job(job_id)
     return jsonify(result)
 
-@bp.route('/jobs/queue-info', methods=['GET'])
+
+@bp.route("/jobs/queue-info", methods=["GET"])
 def queue_info():
     info = get_queue_info()
     return jsonify(info)
 
-@bp.route('/example-job', methods=['POST'])
+
+@bp.route("/example-job", methods=["POST"])
 def example_job():
-    # Call the job function here
+    current_app.logger.info("Enqueuing example job...")
+
+    user = get_current_user()
+
+    data = request.json
+
+    example_call_job_from_function(
+        user_id=user.id if user else None,
+        delay_seconds=data.get("delay_seconds", 0),
+        sleep_time=data.get("sleep_time", 0),
+        from_info="example_job_endpoint",
+    )
+    current_app.logger.info("Example job enqueued")
     return jsonify({"message": "Example job enqueued"}), 202

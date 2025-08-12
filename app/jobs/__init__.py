@@ -43,13 +43,17 @@ def job(f):
     """Decorator to ensure jobs run with Flask app context"""
 
     def wrapper(*args, **kwargs):
-        from app import create_app  # Import your app factory
-
+        # Import your app factory - adjust this path to match your structure
+        from app import create_app  # or from .. import create_app if needed
         app = create_app()
         with app.app_context():
             return f(*args, **kwargs)
-
+    
+    # Important: Set these attributes so RQ can properly serialize the function
     wrapper.__name__ = f.__name__
+    wrapper.__module__ = f.__module__
+    wrapper.__qualname__ = f.__qualname__
+    
     return wrapper
 
 

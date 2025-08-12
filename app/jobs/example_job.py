@@ -27,16 +27,16 @@ def example_job(user_id, from_info, **kwargs):
     return {"status": "success", "user_id": user_id, **kwargs}
 
 
-def example_call_job_from_function(user_id, email_type, delay_seconds=0, **kwargs):
+def example_call_job_from_function(user_id, delay_seconds=0, sleep_time=0, **kwargs):
     """Queue a job to run in the background"""
     queue = get_queue()
 
     if delay_seconds > 0:
         return queue.enqueue_in(
-            timedelta(seconds=delay_seconds), example_job, user_id=user_id, email_type=email_type, **kwargs
+            timedelta(seconds=delay_seconds), example_job, user_id=user_id, sleep_time=sleep_time, **kwargs
         )
     else:
-        return queue.enqueue(example_job, user_id=user_id, email_type=email_type, **kwargs)
+        return queue.enqueue(example_job, user_id=user_id, sleep_time=sleep_time, **kwargs)
 
 
 def example_schedule_job():
