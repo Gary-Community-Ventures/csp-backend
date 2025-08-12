@@ -1,3 +1,4 @@
+import json
 import os
 
 import sentry_sdk
@@ -14,6 +15,8 @@ from .config import ENV_DEVELOPMENT, ENV_PRODUCTION, ENV_STAGING, ENV_TESTING
 # Import extensions from the extensions module
 from .extensions import cors, db, migrate
 
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 
 def create_app(config_class=None):
     """
@@ -82,6 +85,16 @@ def create_app(config_class=None):
     # --- Initialize Flask Extensions (after app config) ---
     db.init_app(app)
     migrate.init_app(app, db)
+
+    # --- Google Sheets Integration ---
+    credentials = app.config.get("GOOGLE_APPLICATION_CREDENTIALS")
+    if credentials:
+        info = json.loads(credentials)
+        creds = service_account.Credentials.from_service_account_info(
+            info, scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
+        )
+
+        app.google_sheets_service = build("sheets", "v4", credentials=creds).spreadsheets()
 
     # --- CORS Configuration ---
     # For production, use the configured origins, credentials, and headers
