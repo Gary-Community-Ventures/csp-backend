@@ -3,8 +3,6 @@ services:
     build: .
     # For development, use run.py for Flask's built-in server with hot reloading
     command: python run.py
-    env_file:
-      - .env
     ports:
       - "5000:5000"
     depends_on:
