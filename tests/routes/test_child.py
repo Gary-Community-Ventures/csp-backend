@@ -1,5 +1,5 @@
 from datetime import date, datetime, time, timedelta
-from decimal import Decimal
+
 
 import pytest
 
@@ -158,9 +158,9 @@ def test_submit_care_days_success(client, seed_db, mock_send_submission_notifica
     (
         allocation,
         care_day_new,
-        care_day_submitted,
+        _,
         care_day_needs_resubmission,
-        care_day_locked,
+        _,
         care_day_deleted,
     ) = seed_db
 

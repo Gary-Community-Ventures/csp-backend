@@ -97,7 +97,7 @@ def setup_payment_request_data(app):
 
 
 def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
-    allocation, care_day_1, care_day_2, care_day_3, care_day_4, care_day_5 = setup_payment_request_data
+    _, care_day_1, care_day_2, care_day_3, care_day_4, care_day_5 = setup_payment_request_data
 
     # Mock external dependencies
     mocker.patch.dict("os.environ", {"GOOGLE_SHEETS_CREDENTIALS": '{"type": "service_account"}'})

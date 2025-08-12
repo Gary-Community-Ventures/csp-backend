@@ -1,5 +1,5 @@
 from datetime import date, datetime, timedelta
-from decimal import Decimal
+
 
 import pytest
 
@@ -60,7 +60,7 @@ def seed_db(app):
         db.session.add(care_day_other_provider)
 
         db.session.commit()
-        yield allocation1, allocation2, care_day1_1, care_day1_2, care_day2_1, care_day_other_provider
+        yield allocation1, allocation2, care_day1_1, care_day1_2, care_day2_1
 
 
 # Mock the authentication for all tests in this file
@@ -74,7 +74,7 @@ def mock_authentication(mocker):
 
 # --- GET /provider/{provider_id}/allocated_care_days ---
 def test_get_allocated_care_days_success_no_filters(client, seed_db):
-    allocation1, allocation2, care_day1_1, care_day1_2, care_day2_1, _ = seed_db
+    allocation1, allocation2, care_day1_1, care_day1_2, care_day2_1 = seed_db
     response = client.get(f"/provider/{care_day1_1.provider_google_sheets_id}/allocated_care_days")
     assert response.status_code == 200
     assert str(allocation1.google_sheets_child_id) in response.json  # Grouped by child_id 1
@@ -89,7 +89,7 @@ def test_get_allocated_care_days_success_no_filters(client, seed_db):
 
 
 def test_get_allocated_care_days_filter_by_child_id(client, seed_db):
-    allocation1, _, care_day1_1, _, _, _ = seed_db
+    allocation1, _, care_day1_1, _, _ = seed_db
     response = client.get(
         f"/provider/{care_day1_1.provider_google_sheets_id}/allocated_care_days?childId={allocation1.google_sheets_child_id}"
     )
@@ -100,7 +100,7 @@ def test_get_allocated_care_days_filter_by_child_id(client, seed_db):
 
 
 def test_get_allocated_care_days_filter_by_start_date(client, seed_db):
-    allocation1, allocation2, care_day1_1, care_day1_2, care_day2_1, _ = seed_db
+    allocation1, allocation2, care_day1_1, care_day1_2, _ = seed_db
     response = client.get(f"/provider/{care_day1_1.provider_google_sheets_id}/allocated_care_days?startDate=2024-01-16")
     assert response.status_code == 200
     assert str(allocation1.google_sheets_child_id) in response.json
@@ -115,7 +115,7 @@ def test_get_allocated_care_days_filter_by_start_date(client, seed_db):
 
 
 def test_get_allocated_care_days_filter_by_end_date(client, seed_db):
-    allocation1, allocation2, care_day1_1, care_day1_2, care_day2_1, _ = seed_db
+    allocation1, allocation2, care_day1_1, _, _ = seed_db
     response = client.get(f"/provider/{care_day1_1.provider_google_sheets_id}/allocated_care_days?endDate=2024-01-18")
     assert response.status_code == 200
     assert str(allocation1.google_sheets_child_id) in response.json
@@ -127,7 +127,7 @@ def test_get_allocated_care_days_filter_by_end_date(client, seed_db):
 
 
 def test_get_allocated_care_days_filter_by_start_and_end_date(client, seed_db):
-    allocation1, _, _, care_day1_2, _, _ = seed_db
+    allocation1, _, _, care_day1_2, _ = seed_db
     response = client.get(
         f"/provider/{care_day1_2.provider_google_sheets_id}/allocated_care_days?startDate=2024-01-16&endDate=2024-01-22"
     )
@@ -139,7 +139,7 @@ def test_get_allocated_care_days_filter_by_start_and_end_date(client, seed_db):
 
 
 def test_get_allocated_care_days_filter_all_params(client, seed_db):
-    allocation1, _, _, care_day1_2, _, _ = seed_db
+    allocation1, _, _, care_day1_2, _ = seed_db
     response = client.get(
         f"/provider/{care_day1_2.provider_google_sheets_id}/allocated_care_days?childId={allocation1.google_sheets_child_id}&startDate=2024-01-16&endDate=2024-01-22"
     )
@@ -151,7 +151,7 @@ def test_get_allocated_care_days_filter_all_params(client, seed_db):
 
 
 def test_get_allocated_care_days_no_results(client, seed_db):
-    allocation1, _, care_day1_1, _, _, _ = seed_db
+    _, _, care_day1_1, _, _ = seed_db
     response = client.get(
         f"/provider/{care_day1_1.provider_google_sheets_id}/allocated_care_days?startDate=2025-01-01"
     )  # Future date
@@ -160,7 +160,7 @@ def test_get_allocated_care_days_no_results(client, seed_db):
 
 
 def test_get_allocated_care_days_invalid_start_date(client, seed_db):
-    allocation1, _, care_day1_1, _, _, _ = seed_db
+    _, _, care_day1_1, _, _ = seed_db
     response = client.get(
         f"/provider/{care_day1_1.provider_google_sheets_id}/allocated_care_days?startDate=invalid-date"
     )
@@ -169,7 +169,7 @@ def test_get_allocated_care_days_invalid_start_date(client, seed_db):
 
 
 def test_get_allocated_care_days_invalid_end_date(client, seed_db):
-    allocation1, _, care_day1_1, _, _, _ = seed_db
+    _, _, care_day1_1, _, _ = seed_db
     response = client.get(f"/provider/{care_day1_1.provider_google_sheets_id}/allocated_care_days?endDate=invalid-date")
     assert response.status_code == 400
     assert "Invalid endDate format" in response.json["error"]

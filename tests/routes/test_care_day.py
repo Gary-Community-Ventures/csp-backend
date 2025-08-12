@@ -1,12 +1,15 @@
+
+
+
 from datetime import date, datetime, timedelta
-from decimal import Decimal
+
 
 import pytest
 
 from app.enums.care_day_type import CareDayType
 from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation, PaymentRate
-from app.models.utils import get_care_day_cost
+
 
 
 @pytest.fixture
@@ -100,7 +103,7 @@ def mock_authentication(mocker):
 
 # --- POST /care-days ---
 def test_create_care_day_success(client, seed_db):
-    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
+    allocation, _, _, _, _, payment_rate = seed_db
     response = client.post(
         "/care-days",
         json={
@@ -117,7 +120,7 @@ def test_create_care_day_success(client, seed_db):
 
 
 def test_create_care_day_missing_fields(client, seed_db):
-    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
+    _, _, _, _, _, _ = seed_db
     response = client.post(
         "/care-days",
         json={
@@ -131,7 +134,7 @@ def test_create_care_day_missing_fields(client, seed_db):
 
 
 def test_create_care_day_invalid_date_format(client, seed_db):
-    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
+    allocation, _, _, _, _, _ = seed_db
     response = client.post(
         "/care-days",
         json={
@@ -146,7 +149,7 @@ def test_create_care_day_invalid_date_format(client, seed_db):
 
 
 def test_create_care_day_allocation_not_found(client, seed_db):
-    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
+    _, _, _, _, _, _ = seed_db
     response = client.post(
         "/care-days",
         json={
@@ -161,7 +164,7 @@ def test_create_care_day_allocation_not_found(client, seed_db):
 
 
 def test_create_care_day_exceeds_allocation(client, seed_db):
-    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
+    allocation, _, _, _, _, payment_rate = seed_db
     # Create many care days to exceed allocation
     with client.application.app_context():
         # Fill up allocation
@@ -193,7 +196,7 @@ def test_create_care_day_exceeds_allocation(client, seed_db):
 
 
 def test_create_care_day_restore_soft_deleted(client, seed_db):
-    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
+    allocation, _, _, _, care_day_soft_deleted, _ = seed_db
     # Attempt to create a care day on the same date as the soft-deleted one
     response = client.post(
         "/care-days",
@@ -206,16 +209,16 @@ def test_create_care_day_restore_soft_deleted(client, seed_db):
     )
     assert response.status_code == 201
     assert response.json["id"] == care_day_soft_deleted.id
-    assert response.json["is_deleted"] == False
+    assert response.json["is_deleted"] is False
 
     with client.application.app_context():
         restored_day = db.session.get(AllocatedCareDay, care_day_soft_deleted.id)
-        assert restored_day.is_deleted == False
+        assert restored_day.is_deleted is False
         assert restored_day.type == CareDayType.FULL_DAY
 
 
 def test_create_care_day_past_date_fails(client, seed_db):
-    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
+    allocation, _, _, _, _, _ = seed_db
     past_date = date.today() - timedelta(days=1)
     response = client.post(
         "/care-days",
@@ -227,7 +230,7 @@ def test_create_care_day_past_date_fails(client, seed_db):
 
 # --- PUT /care-days/<care_day_id> ---
 def test_update_care_day_success(client, seed_db):
-    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
+    _, _, care_day_updatable, _, _, _ = seed_db
     response = client.put(f"/care-days/{care_day_updatable.id}", json={"type": CareDayType.HALF_DAY.value})
     assert response.status_code == 200
     assert response.json["type"] == CareDayType.HALF_DAY.value
@@ -239,14 +242,14 @@ def test_update_care_day_success(client, seed_db):
 
 
 def test_update_care_day_not_found(client, seed_db):
-    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
+    _, _, _, _, _, _ = seed_db
     response = client.put("/care-days/999", json={"type": CareDayType.HALF_DAY.value})
     assert response.status_code == 404
     assert "Care day not found" in response.json["error"]
 
 
 def test_update_care_day_locked(client, seed_db):
-    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
+    _, _, _, care_day_locked, _, _ = seed_db
     # Care day with ID 2 is locked
     response = client.put(f"/care-days/{care_day_locked.id}", json={"type": CareDayType.HALF_DAY.value})
     assert response.status_code == 403
@@ -254,14 +257,14 @@ def test_update_care_day_locked(client, seed_db):
 
 
 def test_update_care_day_missing_type(client, seed_db):
-    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
+    _, _, care_day_updatable, _, _, _ = seed_db
     response = client.put(f"/care-days/{care_day_updatable.id}", json={})
     assert response.status_code == 400
     assert "Missing type field" in response.json["error"]
 
 
 def test_update_care_day_over_allocation_soft_deletes(client, seed_db):
-    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
+    allocation, _, _, _, _, payment_rate = seed_db
     # Set allocation to be less than a full day
     allocation.allocation_cents = payment_rate.half_day_rate_cents
     db.session.commit()
@@ -290,7 +293,7 @@ def test_update_care_day_over_allocation_soft_deletes(client, seed_db):
 
 # --- DELETE /care-days/<care_day_id> ---
 def test_delete_care_day_success(client, seed_db):
-    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
+    _, _, care_day_updatable, _, _, _ = seed_db
     response = client.delete(f"/care-days/{care_day_updatable.id}")
     assert response.status_code == 204
     with client.application.app_context():
@@ -299,14 +302,14 @@ def test_delete_care_day_success(client, seed_db):
 
 
 def test_delete_care_day_not_found(client, seed_db):
-    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
+    _, _, _, _, _, _ = seed_db
     response = client.delete("/care-days/999")
     assert response.status_code == 404
     assert "Care day not found" in response.json["error"]
 
 
 def test_delete_care_day_locked(client, seed_db):
-    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
+    _, _, _, care_day_locked, _, _ = seed_db
     # Care day with ID 2 is locked
     response = client.delete(f"/care-days/{care_day_locked.id}")
     assert response.status_code == 403
@@ -314,7 +317,7 @@ def test_delete_care_day_locked(client, seed_db):
 
 
 def test_update_soft_deleted_care_day_restores_and_updates(client, seed_db):
-    allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate = seed_db
+    _, _, _, _, care_day_soft_deleted, payment_rate = seed_db
 
     # Ensure the care_day_soft_deleted is indeed soft-deleted initially
     with client.application.app_context():

@@ -27,7 +27,7 @@ def run_payment_requests():
         AllocatedCareDay.query.join(MonthAllocation)
         .filter(
             AllocatedCareDay.last_submitted_at.isnot(None),
-            AllocatedCareDay.payment_distribution_requested == False,
+                        AllocatedCareDay.payment_distribution_requested.is_(False),
             AllocatedCareDay.deleted_at.is_(None),
             AllocatedCareDay.locked_date <= datetime.utcnow(),
         )

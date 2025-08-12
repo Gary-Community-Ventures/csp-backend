@@ -1,9 +1,6 @@
-from datetime import date
-
 from ..extensions import db
 from .allocated_care_day import AllocatedCareDay
 from .mixins import TimestampMixin
-from .month_allocation import MonthAllocation
 
 
 class PaymentRequest(db.Model, TimestampMixin):
