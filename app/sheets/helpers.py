@@ -1,15 +1,31 @@
+from datetime import datetime
 from typing import Callable, Optional, TypeVar, Generic
+from flask import current_app
 
 T = TypeVar("T")
 
 
+_NOT_ENTERED = object()
+
+
 class Key(Generic[T]):
-    def __init__(self, key: str, converter: Callable[[str], T] = str):
+    def __init__(self, key: str, converter: Callable[[str], T] = str, default: T = _NOT_ENTERED):
         self.key = key
         self._converter = converter
 
+        if default is _NOT_ENTERED and self._converter is str:
+            self.default = "[MISSING]"
+        elif default is _NOT_ENTERED:
+            self.default = self._converter()
+        else:
+            self.default = default
+
     def convert(self, value: str) -> T:
-        return self._converter(value)
+        try:
+            return self._converter(value)
+        except ValueError:
+            current_app.logger.error(f"Failed to convert value {value} to type {self._converter}")
+            return self.default
 
     def __str__(self):
         return self.key
@@ -20,6 +36,9 @@ class Key(Generic[T]):
 
 class KeyMap(dict):
     def get(self, key: Key[T]) -> T:
+        if key.key not in self or self[key.key] is None:
+            return key.default
+
         return key.convert(self[key.key])
 
 
@@ -43,7 +62,16 @@ def get_rows(data: list[KeyMap], ids: list[str], id_key: Key[str] = ID_COLUMN_KE
     return items
 
 
-def money_to_float(money: str) -> float:
+def filter_rows_by_value(data: list[KeyMap], value: T, Key: Key[T]) -> list[KeyMap]:
+    items = []
+    for item in data:
+        if item.get(Key) == value:
+            items.append(item)
+
+    return items
+
+
+def money_to_float(money: str = "0") -> float:
     return float(money.replace("$", "").replace(",", ""))
 
 

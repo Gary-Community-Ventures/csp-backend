@@ -102,9 +102,6 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
     )
 
     # Mock external dependencies
-    mocker.patch.dict(
-        "os.environ", {"GOOGLE_SHEETS_CREDENTIALS": '{"type": "service_account"}'}
-    )
     mocker.patch(
         "run_payment_requests.get_children",
         return_value=[
@@ -145,6 +142,9 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
         side_effect=lambda provider_id, providers: next(
             (p for p in providers if p.get(ProviderColumnNames.ID) == provider_id), None
         ),
+    )
+    mock_send_email = mocker.patch(
+        "run_payment_requests.send_payment_request_email", return_value=True
     )
 
     # Run the script
@@ -188,3 +188,24 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
         assert processed_care_day_3.payment_distribution_requested is True
         assert already_processed_care_day_4.payment_distribution_requested is True
         assert not_yet_locked_care_day_5.payment_distribution_requested is False
+
+    # Verify that the email sending function was called
+    assert mock_send_email.call_count == 2
+    mock_send_email.assert_any_call(
+        provider_name="Test Provider",
+        google_sheets_provider_id="201",
+        child_first_name="Test",
+        child_last_name="Child",
+        google_sheets_child_id="101",
+        amount_in_cents=care_day_1.amount_cents + care_day_2.amount_cents,
+        care_days=[care_day_1, care_day_2],
+    )
+    mock_send_email.assert_any_call(
+        provider_name="Another Provider",
+        google_sheets_provider_id="202",
+        child_first_name="Test",
+        child_last_name="Child",
+        google_sheets_child_id="101",
+        amount_in_cents=care_day_3.amount_cents,
+        care_days=[care_day_3],
+    )

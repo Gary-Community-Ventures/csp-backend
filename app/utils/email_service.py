@@ -15,6 +15,8 @@ from app.sheets.mappings import (
     ProviderColumnNames,
 )
 
+from app.models import AllocatedCareDay
+
 
 def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, html_content: str) -> bool:
     """
@@ -136,7 +138,7 @@ def send_payment_request_email(
     child_last_name: str,
     google_sheets_child_id: str,
     amount_in_cents: int,
-    hours: float,
+    care_days: List[AllocatedCareDay],
 ) -> bool:
     amount_dollars = amount_in_cents / 100
 
@@ -147,7 +149,17 @@ def send_payment_request_email(
     )
 
     subject = "New Payment Request Notification"
-    description = f"A new payment request has been submitted through your payment system:"
+    description = f"A new payment request has been created:"
+
+    care_day_info = "<br>".join(
+        [f"{day.date} - {day.type.value} (${day.amount_cents / 100:.2f})" for day in care_days]
+    )
+
+    if not care_day_info:
+        current_app.logger.error("No care days provided for payment request email.")
+        return False
+    
+
     rows = [
         SystemMessageRow(
             title="Provider Name",
@@ -162,8 +174,8 @@ def send_payment_request_email(
             value=f"${amount_dollars:.2f}",
         ),
         SystemMessageRow(
-            title="Hours",
-            value=str(hours),
+            title="Care Days Info",
+            value=care_day_info,
         ),
     ]
 
@@ -226,16 +238,12 @@ def send_add_licensed_provider_email(
 
 
 def send_provider_invite_accept_email(
-    provider_name: str,
-    provider_id: str,
-    parent_name: str,
-    parent_id: str,
-    children: list[KeyMap],
+    provider_name: str, provider_id: str, parent_name: str, parent_id: str, child_name: str, child_id: str
 ):
     from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(
-        f"Sending accept invite request email to {to_emails} for family ID: {parent_id} for provider ID: {provider_id} for children: {[format_name(child) for child in children]}"
+        f"Sending accept invite request email to {to_emails} for family ID: {parent_id} for provider ID: {provider_id} for child ID: {child_id}"
     )
 
     rows = [
@@ -247,15 +255,11 @@ def send_provider_invite_accept_email(
             title=f"Parent Name",
             value=f"{parent_name} (ID: {parent_id})",
         ),
+        SystemMessageRow(
+            title="Child Name",
+            value=f"{child_name} (ID: {child_id})",
+        ),
     ]
-
-    for child in children:
-        rows.append(
-            SystemMessageRow(
-                title="Child Name",
-                value=f"{format_name(child)} (ID: {child.get(ChildColumnNames.ID)})",
-            )
-        )
 
     subject = "New Add Provider Invite Accepted Notification"
     description = f"A new provider invite request has been submitted:"
@@ -343,12 +347,13 @@ def send_family_invite_accept_email(
     provider_id: str,
     parent_name: str,
     parent_id: str,
-    children: list[KeyMap],
+    child_name: str,
+    child_id: str,
 ):
     from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(
-        f"Sending accept invite request email to {to_emails} for provider ID: {provider_id} for family ID: {parent_id} for children: {[format_name(child) for child in children]}"
+        f"Sending accept invite request email to {to_emails} for provider ID: {provider_id} for family ID: {parent_id} for child ID: {child_id}"
     )
 
     rows = [
@@ -360,15 +365,11 @@ def send_family_invite_accept_email(
             title=f"Parent Name",
             value=f"{parent_name} (ID: {parent_id})",
         ),
+        SystemMessageRow(
+            title="Child Name",
+            value=f"{child_name} (ID: {child_id})",
+        ),
     ]
-
-    for child in children:
-        rows.append(
-            SystemMessageRow(
-                title="Child Name",
-                value=f"{format_name(child)} (ID: {child.get(ChildColumnNames.ID)})",
-            )
-        )
 
     subject = "New Add Family Invite Accepted Notification"
     description = f"A new family invite request has been submitted:"
