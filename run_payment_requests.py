@@ -1,9 +1,7 @@
-import os
 from datetime import datetime
 from collections import defaultdict
 
 from app import create_app
-from datetime import datetime
 from app.models import AllocatedCareDay, PaymentRequest, MonthAllocation
 from app.extensions import db
 from app.sheets.mappings import (
@@ -15,6 +13,8 @@ from app.sheets.mappings import (
     ChildColumnNames,
 )
 
+from app.utils.email_service import send_payment_request_email
+
 
 # Create Flask app context
 app = create_app()
@@ -22,7 +22,7 @@ app.app_context().push()
 
 
 def run_payment_requests():
-    print("Starting payment request processing...")
+    app.logger.info("run_payment_requests: Starting payment request processing...")
 
     # Query for submitted and unprocessed care days
     care_days_to_process = (
@@ -37,7 +37,7 @@ def run_payment_requests():
     )
 
     if not care_days_to_process:
-        print("No submitted and unprocessed care days found.")
+        app.logger.warning("run_payment_requests: No submitted and unprocessed care days found.")
         return
 
     # Group care days by provider and child
@@ -55,19 +55,18 @@ def run_payment_requests():
 
     for (provider_id, child_id), days in grouped_care_days.items():
         total_amount_cents = sum(day.amount_cents for day in days)
-        total_hours = sum(day.day_count for day in days)
 
         provider_data = get_provider(provider_id, all_providers_data)
         child_data = get_child(child_id, all_children_data)
 
         if not provider_data:
-            print(
-                f"Skipping payment request for provider ID {provider_id}: Provider not found in Google Sheets."
+            app.logger.warning(
+                f"run_payment_requests: Skipping payment request for provider ID {provider_id}: Provider not found in Google Sheets."
             )
             continue
         if not child_data:
-            print(
-                f"Skipping payment request for child ID {child_id}: Child not found in Google Sheets."
+            app.logger.warning(
+                f"run_payment_requests: Skipping payment request for child ID {child_id}: Child not found in Google Sheets."
             )
             continue
 
@@ -89,13 +88,28 @@ def run_payment_requests():
         db.session.add(payment_request)
 
         # TODO Write payment request information to a spreadsheet for James
+        sent_email = send_payment_request_email(
+            provider_name=provider_name,
+            google_sheets_provider_id=provider_id,
+            child_first_name=child_first_name,
+            child_last_name=child_last_name,
+            google_sheets_child_id=child_id,
+            amount_in_cents=total_amount_cents,
+            care_days=days,
+        )
+        if not sent_email:
+            app.logger.error(
+                f"run_payment_requests: Failed to send payment request email for provider {provider_name} (ID: {provider_id}) and child {child_first_name} {child_last_name} (ID: {child_id})."
+            )
+            payment_request.is_email_sent = False
+            continue
 
         # Mark care days as payment_distribution_requested
         for day in days:
             day.payment_distribution_requested = True
 
     db.session.commit()
-    print("Payment request processing finished.")
+    app.logger.info("run_payment_requests: Payment request processing finished.")
 
 
 if __name__ == "__main__":
