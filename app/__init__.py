@@ -89,13 +89,13 @@ def create_app(config_class=None):
 
     # --- Google Sheets Integration ---
     credentials = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    if credentials:
+        info = json.loads(credentials)
+        creds = service_account.Credentials.from_service_account_info(
+            info, scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
+        )
 
-    info = json.loads(credentials)
-    creds = service_account.Credentials.from_service_account_info(
-        info, scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
-    )
-
-    app.google_sheets_service = build("sheets", "v4", credentials=creds).spreadsheets()
+        app.google_sheets_service = build("sheets", "v4", credentials=creds).spreadsheets()
 
     # --- CORS Configuration ---
     # For production, use the configured origins, credentials, and headers

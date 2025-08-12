@@ -17,6 +17,10 @@ def get_sheet_data(sheet_name: str = "Sheet1") -> list[KeyMap]:
     """
     spreadsheet_id = current_app.config.get("GOOGLE_SPREADSHEET_ID")
 
+    if not spreadsheet_id or not current_app.google_sheets_service:
+        current_app.logger.warning("Google Sheets service is not available.")
+        raise ValueError("Google Sheets service is not configured.")
+
     result = current_app.google_sheets_service.values().get(spreadsheetId=spreadsheet_id, range=sheet_name).execute()
 
     values = result.get("values", [])
