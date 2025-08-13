@@ -75,7 +75,7 @@ def sentry_db_test():
 
 @bp.route("/jobs/<job_id>/status", methods=["GET"])
 def job_status(job_id):
-    status = current_app.extensions['job_manager'].get_job_status(job_id)
+    status = current_app.extensions["job_manager"].get_job_status(job_id)
     if status is None:
         return jsonify({"error": "Job not found"}), 404
     return jsonify(asdict(status))
@@ -83,13 +83,13 @@ def job_status(job_id):
 
 @bp.route("/jobs/<job_id>/retry", methods=["POST"])
 def retry_job(job_id):
-    result = current_app.extensions['job_manager'].retry_failed_job(job_id)
+    result = current_app.extensions["job_manager"].retry_failed_job(job_id)
     return jsonify(asdict(result))
 
 
 @bp.route("/jobs/queue-info", methods=["GET"])
 def queue_info():
-    info = current_app.extensions['job_manager'].get_queue_info()
+    info = current_app.extensions["job_manager"].get_queue_info()
     if info is None:
         return jsonify({"error": "Queue not found"}), 404
     return jsonify(asdict(info))

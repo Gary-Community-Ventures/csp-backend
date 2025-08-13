@@ -32,16 +32,16 @@ def example_call_job_from_function(user_id, delay_seconds=0, sleep_time=0, **kwa
         return example_job.delay_in(
             timedelta(seconds=delay_seconds),
             user_id=user_id,
-            from_info=kwargs.get('from_info', 'unknown'),
+            from_info=kwargs.get("from_info", "unknown"),
             sleep_time=sleep_time,
-            **{k: v for k, v in kwargs.items() if k != 'from_info'}
+            **{k: v for k, v in kwargs.items() if k != "from_info"},
         )
     else:
         return example_job.delay(
             user_id=user_id,
-            from_info=kwargs.get('from_info', 'unknown'),
+            from_info=kwargs.get("from_info", "unknown"),
             sleep_time=sleep_time,
-            **{k: v for k, v in kwargs.items() if k != 'from_info'}
+            **{k: v for k, v in kwargs.items() if k != "from_info"},
         )
 
 
@@ -51,9 +51,4 @@ def example_schedule_job():
     # TODO remove this once we have tested the scheduler in production
     from_info = "daily_scheduler"
     current_app.logger.info(f"Scheduling daily job from {from_info}...")
-    return example_job.schedule_cron(
-        '*/5 * * * *',  # Every 5 minutes
-        user_id=None,
-        from_info=from_info,
-        sleep_time=10
-    )
+    return example_job.schedule_cron("*/5 * * * *", user_id=None, from_info=from_info, sleep_time=10)  # Every 5 minutes
