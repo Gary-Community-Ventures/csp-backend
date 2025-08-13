@@ -79,7 +79,7 @@ services:
     ports:
       - "9181:9181"
     environment:
-      - RQ_DASHBOARD_REDIS_URL=${REDIS_URL}
+      - RQ_DASHBOARD_REDIS_URL=redis://redis:6379/0
     depends_on:
       - redis
 

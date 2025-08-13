@@ -9,8 +9,9 @@ import functools
 from flask import Flask, has_app_context, current_app
 from datetime import timedelta
 import sentry_sdk
+import dataclasses
 
-@dataclass
+@dataclasses.dataclass
 class JobStatus:
     id: str
     status: str
@@ -21,7 +22,7 @@ class JobStatus:
     exc_info: Optional[str] = None
 
 
-@dataclass
+@dataclasses.dataclass
 class JobInfo:
     id: str
     func_name: str
@@ -29,14 +30,14 @@ class JobInfo:
     status: str
 
 
-@dataclass
+@dataclasses.dataclass
 class QueueInfo:
     name: str
     length: int
     jobs: List[JobInfo]
 
 
-@dataclass
+@dataclasses.dataclass
 class JobActionResult:
     status: str
     job_id: Optional[str] = None
