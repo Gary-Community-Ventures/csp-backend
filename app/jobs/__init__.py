@@ -11,6 +11,7 @@ from datetime import timedelta
 import sentry_sdk
 import dataclasses
 
+
 @dataclasses.dataclass
 class JobStatus:
     id: str
@@ -58,9 +59,9 @@ class JobManager:
         self.job_queue = Queue(connection=self.redis_conn)
         self.job_scheduler = Scheduler(connection=self.redis_conn)
 
-        if not hasattr(app, 'extensions'):
+        if not hasattr(app, "extensions"):
             app.extensions = {}
-        app.extensions['job_manager'] = self
+        app.extensions["job_manager"] = self
 
     def get_queue(self):
         return self.job_queue
@@ -78,27 +79,28 @@ class JobManager:
                 return func(*args, **kwargs)
             else:
                 from app import create_app
+
                 app = create_app()
                 with app.app_context():
                     return func(*args, **kwargs)
-        
+
         wrapper.__name__ = func.__name__
         wrapper.__module__ = func.__module__
         wrapper.__qualname__ = func.__qualname__
-        
+
         def delay(*args, **kwargs):
             return self.get_queue().enqueue(wrapper, *args, **kwargs)
-        
+
         def delay_in(delay: timedelta, *args, **kwargs):
             return self.get_queue().enqueue_in(delay, wrapper, *args, **kwargs)
-        
+
         def schedule_cron(cron_string: str, *args, **kwargs):
             return self.get_scheduler().cron(cron_string, wrapper, args=args, kwargs=kwargs)
-        
+
         wrapper.delay = delay
         wrapper.delay_in = delay_in
         wrapper.schedule_cron = schedule_cron
-        
+
         return wrapper
 
     def get_job_status(self, job_id: str) -> Optional[JobStatus]:
@@ -158,5 +160,6 @@ class JobManager:
             sentry_sdk.capture_exception(e)
             current_app.logger.error(f"Error cancelling job {job_id}: {e}")
             return JobActionResult(status="error", error=str(e), job_id=job_id)
+
 
 job_manager = JobManager()
