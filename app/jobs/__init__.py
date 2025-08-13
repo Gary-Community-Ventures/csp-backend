@@ -50,7 +50,7 @@ def job(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         # Only create app context if we don't already have one
-        if current_app:
+        if has_app_context():
             # We already have app context (probably in a request)
             return func(*args, **kwargs)
         else:
