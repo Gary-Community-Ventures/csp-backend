@@ -1,4 +1,4 @@
-from app.sheets.helpers import Key, KeyMap, get_row, get_rows, money_to_float
+from app.sheets.helpers import Key, KeyMap, filter_rows_by_value, get_row, get_rows, money_to_float
 from app.sheets.integration import get_sheet_data
 from datetime import datetime
 from typing import Optional
@@ -95,6 +95,14 @@ def get_provider(provider_id: str, providers: list[KeyMap]) -> Optional[KeyMap]:
 
 def get_provider_child_mappings() -> list[KeyMap]:
     return get_sheet_data(ProviderChildMappingColumnNames.SHEET_NAME)
+
+
+def get_provider_child_mappings_by_provider_id(provider_id: str, provider_child_mappings: list[KeyMap]) -> list[KeyMap]:
+    return filter_rows_by_value(provider_child_mappings, provider_id, ProviderChildMappingColumnNames.PROVIDER_ID)
+
+
+def get_provider_child_mappings_by_child_id(child_id: str, provider_child_mappings: list[KeyMap]) -> list[KeyMap]:
+    return filter_rows_by_value(provider_child_mappings, child_id, ProviderChildMappingColumnNames.CHILD_ID)
 
 
 def get_provider_child_mapping_child(

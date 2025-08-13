@@ -238,16 +238,12 @@ def send_add_licensed_provider_email(
 
 
 def send_provider_invite_accept_email(
-    provider_name: str,
-    provider_id: str,
-    parent_name: str,
-    parent_id: str,
-    children: list[KeyMap],
+    provider_name: str, provider_id: str, parent_name: str, parent_id: str, child_name: str, child_id: str
 ):
     from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(
-        f"Sending accept invite request email to {to_emails} for family ID: {parent_id} for provider ID: {provider_id} for children: {[format_name(child) for child in children]}"
+        f"Sending accept invite request email to {to_emails} for family ID: {parent_id} for provider ID: {provider_id} for child ID: {child_id}"
     )
 
     rows = [
@@ -259,15 +255,11 @@ def send_provider_invite_accept_email(
             title=f"Parent Name",
             value=f"{parent_name} (ID: {parent_id})",
         ),
+        SystemMessageRow(
+            title="Child Name",
+            value=f"{child_name} (ID: {child_id})",
+        ),
     ]
-
-    for child in children:
-        rows.append(
-            SystemMessageRow(
-                title="Child Name",
-                value=f"{format_name(child)} (ID: {child.get(ChildColumnNames.ID)})",
-            )
-        )
 
     subject = "New Add Provider Invite Accepted Notification"
     description = f"A new provider invite request has been submitted:"
@@ -355,12 +347,13 @@ def send_family_invite_accept_email(
     provider_id: str,
     parent_name: str,
     parent_id: str,
-    children: list[KeyMap],
+    child_name: str,
+    child_id: str,
 ):
     from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(
-        f"Sending accept invite request email to {to_emails} for provider ID: {provider_id} for family ID: {parent_id} for children: {[format_name(child) for child in children]}"
+        f"Sending accept invite request email to {to_emails} for provider ID: {provider_id} for family ID: {parent_id} for child ID: {child_id}"
     )
 
     rows = [
@@ -372,15 +365,11 @@ def send_family_invite_accept_email(
             title=f"Parent Name",
             value=f"{parent_name} (ID: {parent_id})",
         ),
+        SystemMessageRow(
+            title="Child Name",
+            value=f"{child_name} (ID: {child_id})",
+        ),
     ]
-
-    for child in children:
-        rows.append(
-            SystemMessageRow(
-                title="Child Name",
-                value=f"{format_name(child)} (ID: {child.get(ChildColumnNames.ID)})",
-            )
-        )
 
     subject = "New Add Family Invite Accepted Notification"
     description = f"A new family invite request has been submitted:"

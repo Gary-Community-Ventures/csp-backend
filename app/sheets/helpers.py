@@ -62,6 +62,15 @@ def get_rows(data: list[KeyMap], ids: list[str], id_key: Key[str] = ID_COLUMN_KE
     return items
 
 
+def filter_rows_by_value(data: list[KeyMap], value: T, Key: Key[T]) -> list[KeyMap]:
+    items = []
+    for item in data:
+        if item.get(Key) == value:
+            items.append(item)
+
+    return items
+
+
 def money_to_float(money: str = "0") -> float:
     return float(money.replace("$", "").replace(",", ""))
 
