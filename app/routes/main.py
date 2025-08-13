@@ -1,6 +1,6 @@
+from dataclasses import asdict
 from app.auth.helpers import get_current_user
 from flask import Blueprint, jsonify, current_app, request
-from app.jobs import get_job_status, retry_failed_job, get_queue_info
 from app.jobs.example_job import example_call_job_from_function
 
 bp = Blueprint("main", __name__)
@@ -75,20 +75,24 @@ def sentry_db_test():
 
 @bp.route("/jobs/<job_id>/status", methods=["GET"])
 def job_status(job_id):
-    status = get_job_status(job_id)
-    return jsonify(status)
+    status = current_app.extensions['job_manager'].get_job_status(job_id)
+    if status is None:
+        return jsonify({"error": "Job not found"}), 404
+    return jsonify(asdict(status))
 
 
 @bp.route("/jobs/<job_id>/retry", methods=["POST"])
 def retry_job(job_id):
-    result = retry_failed_job(job_id)
-    return jsonify(result)
+    result = current_app.extensions['job_manager'].retry_failed_job(job_id)
+    return jsonify(asdict(result))
 
 
 @bp.route("/jobs/queue-info", methods=["GET"])
 def queue_info():
-    info = get_queue_info()
-    return jsonify(info)
+    info = current_app.extensions['job_manager'].get_queue_info()
+    if info is None:
+        return jsonify({"error": "Queue not found"}), 404
+    return jsonify(asdict(info))
 
 
 @bp.route("/example-job", methods=["POST"])

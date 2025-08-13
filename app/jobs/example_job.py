@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta
 import time
-from . import job
+from . import job_manager
 from flask import current_app
 
 
-@job
+@job_manager.job
 def example_job(user_id, from_info, **kwargs):
     """Example task of something that runs in the background"""
     try:
@@ -57,4 +57,3 @@ def example_schedule_job():
         from_info=from_info,
         sleep_time=10
     )
-
