@@ -1,3 +1,4 @@
+import json
 import os
 from flask import Flask
 from dotenv import load_dotenv
@@ -15,6 +16,8 @@ from .extensions import db, migrate, cors
 # Import models to ensure they are registered with SQLAlchemy
 from . import models
 
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 
 def create_app(config_class=None):
     """
@@ -70,9 +73,7 @@ def create_app(config_class=None):
     clerk_secret_key = app.config.get("CLERK_SECRET_KEY")
 
     if not clerk_secret_key:
-        print(
-            "WARNING: CLERK_SECRET_KEY not found. Clerk authentication will be disabled."
-        )
+        print("WARNING: CLERK_SECRET_KEY not found. Clerk authentication will be disabled.")
         app.clerk_client = None
     else:
         app.clerk_client = Clerk(bearer_auth=clerk_secret_key)
@@ -86,19 +87,22 @@ def create_app(config_class=None):
     db.init_app(app)
     migrate.init_app(app, db)
 
+    # --- Google Sheets Integration ---
+    credentials = app.config.get("GOOGLE_APPLICATION_CREDENTIALS")
+    if credentials:
+        info = json.loads(credentials)
+        creds = service_account.Credentials.from_service_account_info(
+            info, scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
+        )
+
+        app.google_sheets_service = build("sheets", "v4", credentials=creds).spreadsheets()
+
     # --- CORS Configuration ---
     # For production, use the configured origins, credentials, and headers
-    if (
-        app.config["FLASK_ENV"] == ENV_PRODUCTION
-        or app.config["FLASK_ENV"] == ENV_STAGING
-    ):
+    if app.config["FLASK_ENV"] == ENV_PRODUCTION or app.config["FLASK_ENV"] == ENV_STAGING:
         configured_origins = app.config.get("CORS_ORIGINS", [])
-        configured_supports_credentials = app.config.get(
-            "CORS_SUPPORTS_CREDENTIALS", False
-        )
-        configured_allow_headers = app.config.get(
-            "CORS_ALLOW_HEADERS", ["Content-Type"]
-        )
+        configured_supports_credentials = app.config.get("CORS_SUPPORTS_CREDENTIALS", False)
+        configured_allow_headers = app.config.get("CORS_ALLOW_HEADERS", ["Content-Type"])
         cors.init_app(
             app,
             resources={
