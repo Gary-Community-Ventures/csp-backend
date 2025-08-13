@@ -43,10 +43,10 @@ sendgrid==6.11.0
 twilio==9.7.0
 
 # Job Queue
-redis==5.0.1
-rq==1.15.1
-rq-scheduler==0.13.1
+redis==6.4.0
+rq==2.4.1
+rq-scheduler==0.14.0
 
-#RQ Dashboard for monitoring
-rq-dashboard==0.6.1
+# RQ Dashboard for monitoring
+rq-dashboard==0.8.5
 
