@@ -3,7 +3,7 @@ from rq import Queue
 from rq.job import Job
 from rq_scheduler import Scheduler
 import functools
-from flask import current_app
+from flask import has_app_context
 
 # Redis connection
 redis_conn = None
