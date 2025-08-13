@@ -110,4 +110,15 @@ def example_job():
         from_info="example_job_endpoint",
     )
     current_app.logger.info("Example job enqueued")
-    return jsonify({"message": "Example job enqueued"}), 202
+    try:
+        example_call_job_from_function(
+            user_id=user.id if user else None,
+            delay_seconds=data.get("delay_seconds", 0),
+            sleep_time=data.get("sleep_time", 0),
+            from_info="example_job_endpoint",
+        )
+        current_app.logger.info("Example job enqueued")
+        return jsonify({"message": "Example job enqueued"}), 202
+    except Exception as e:
+        current_app.logger.error(f"Failed to enqueue example job: {e}")
+        return jsonify({"error": f"Failed to enqueue example job: {str(e)}"}), 500
