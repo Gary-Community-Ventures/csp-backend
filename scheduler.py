@@ -18,9 +18,7 @@ if __name__ == "__main__":
         try:
             current_app.logger.info("Starting rqscheduler...")
             subprocess.run(
-                ["rqscheduler", "--url", redis_url],
-                check=True,
-                timeout=60*5  # 5 minutes timeout, adjust as needed
+                ["rqscheduler", "--url", redis_url], check=True, timeout=60 * 5  # 5 minutes timeout, adjust as needed
             )
             current_app.logger.info("rqscheduler started successfully.")
         except subprocess.TimeoutExpired as e:
