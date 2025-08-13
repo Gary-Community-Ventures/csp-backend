@@ -105,13 +105,6 @@ def example_job():
     if data is None or not isinstance(data, dict):
         return jsonify({"error": "Missing or invalid JSON body"}), 400
 
-    example_call_job_from_function(
-        user_id=user.id if user else None,
-        delay_seconds=data.get("delay_seconds", 0),
-        sleep_time=data.get("sleep_time", 0),
-        from_info="example_job_endpoint",
-    )
-    current_app.logger.info("Example job enqueued")
     try:
         example_call_job_from_function(
             user_id=user.id if user else None,
