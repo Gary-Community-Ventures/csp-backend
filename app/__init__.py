@@ -128,10 +128,6 @@ def create_app(config_class=None):
     from .jobs import init_job_queue
     init_job_queue(app)
 
-    # --- Initialize Example Scheduled Job ---
-    from .jobs.example_job import example_schedule_job
-    example_schedule_job()
-
     # --- Register Blueprints ---
     from .routes.main import bp as main_bp
     from .routes.auth import bp as auth_bp

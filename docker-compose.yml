@@ -50,7 +50,7 @@ services:
   # RQ Scheduler for scheduled jobs
   scheduler:
     build: .
-    command: rqscheduler --url redis://redis:6379/0
+    command: python scheduler.py
     depends_on:
       - redis
     environment:
