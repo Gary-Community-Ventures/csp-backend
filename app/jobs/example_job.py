@@ -52,7 +52,7 @@ def example_schedule_job():
     from_info = "daily_scheduler"
     current_app.logger.info(f"Scheduling daily job from {from_info}...")
     return example_job.schedule_cron(
-        '*/1 * * * *',  # Every 5 minutes
+        '*/5 * * * *',  # Every 5 minutes
         user_id=None,
         from_info=from_info,
         sleep_time=10
