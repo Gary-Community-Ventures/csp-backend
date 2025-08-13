@@ -91,31 +91,6 @@ services:
     ports:
       - "${POSTGRES_PORT_HOST}:5432"
 
-  # pgadmin:
-  #   image: dpage/pgadmin4
-  #   environment:
-  #     - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL}
-  #     - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD}
-  #     - PG_HOST=postgres
-  #     - PG_PORT=${POSTGRES_PORT}
-  #     - PG_DB=${POSTGRES_DB}
-  #     - PG_USER=${POSTGRES_USER}
-  #     - PG_PASSWORD=${POSTGRES_PASSWORD}
-  #     - PGADMIN_SETUP_PASSFILE=/pgadmin4/pgpass
-  #   # Run as root to have permission to create files and change ownership
-  #   user: root
-  #   ports:
-  #     - "5051:80"
-  #   volumes:
-  #     - ./pgadmin-entrypoint.sh:/pgladmin-entrypoint.sh
-  #     - pgadmin_data:/var/lib/pgadmin
-  #   # Use entrypoint to override the image's default entrypoint
-  #   entrypoint: sh -c "chmod +x /pgadmin-entrypoint.sh && /pgadmin-entrypoint.sh"
-  #   depends_on:
-  #     - postgres
-  #   restart: on-failure
-
 volumes:
   postgres_data:
-  pgadmin_data:
   redis_data:
