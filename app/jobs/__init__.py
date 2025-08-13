@@ -11,18 +11,6 @@ from datetime import timedelta
 import sentry_sdk
 
 
-def _sanitize_exc_info(exc_info: Optional[str]) -> Optional[str]:
-    """Sanitizes exception information to prevent sensitive data leakage."""
-    if exc_info:
-        # Add a check for empty string
-        if not exc_info.strip():
-            return None
-        # Extract only the first line of the traceback, which usually contains the error message
-        first_line = exc_info.split("\n")[0]
-        return f"Error: {first_line}"
-    return None
-
-
 @dataclass
 class JobStatus:
     id: str
@@ -31,7 +19,6 @@ class JobStatus:
     created_at: Optional[datetime] = None
     started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
-    exc_info: Optional[str] = None
 
 
 @dataclass
@@ -117,7 +104,6 @@ class JobManager:
     def get_job_status(self, job_id: str) -> Optional[JobStatus]:
         try:
             job = Job.fetch(job_id, connection=self.get_redis())
-            sanitized_exc_info = _sanitize_exc_info(job.exc_info)
             return JobStatus(
                 id=job.id,
                 status=job.status,
@@ -125,7 +111,6 @@ class JobManager:
                 created_at=job.created_at,
                 started_at=job.started_at,
                 ended_at=job.ended_at,
-                exc_info=sanitized_exc_info,
             )
         except Exception as e:
             sentry_sdk.capture_exception(e)

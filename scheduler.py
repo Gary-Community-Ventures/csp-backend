@@ -25,7 +25,6 @@ if __name__ == "__main__":
                 ["rqscheduler", "--url", redis_url],
                 check=True,
             )
-            current_app.logger.info("rqscheduler started successfully.")
         except subprocess.TimeoutExpired as e:
             current_app.logger.error(f"Timeout expired when starting rqscheduler: {e}")
             sentry_sdk.capture_exception(e)
