@@ -1,3 +1,3 @@
 web: gunicorn wsgi:app
-worker: rq worker --url $REDIS_URL
+worker: python worker_entrypoint.py
 scheduler: python scheduler.py

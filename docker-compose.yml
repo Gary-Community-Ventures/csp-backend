@@ -28,7 +28,7 @@ services:
   # RQ Worker for processing jobs
   worker:
     build: .
-    command: rq worker --url redis://redis:6379/0
+    command: python worker_entrypoint.py
     init: true
     depends_on:
       - postgres
@@ -60,6 +60,8 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - FLASK_ENV=development
       - TZ=America/Denver
+      - EXAMPLE_JOB_CRON=${EXAMPLE_JOB_CRON}
+      - EXAMPLE_JOB_SLEEP_TIME=${EXAMPLE_JOB_SLEEP_TIME}
     restart: on-failure
     volumes:
       - .:/app

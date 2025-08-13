@@ -76,11 +76,7 @@ class JobManager:
             if has_app_context():
                 return func(*args, **kwargs)
             else:
-                from app import create_app
-
-                app = create_app()
-                with app.app_context():
-                    return func(*args, **kwargs)
+                raise RuntimeError("Job executed outside of Flask application context.")
 
         wrapper.__name__ = func.__name__
         wrapper.__module__ = func.__module__
