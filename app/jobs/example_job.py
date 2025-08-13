@@ -50,8 +50,8 @@ def example_schedule_job():
     # Schedule job to run at a configurable interval
     cron_schedule = current_app.config.get("EXAMPLE_JOB_CRON", "*/5 * * * *")  # Default: every 5 minutes
     sleep_time = current_app.config.get("EXAMPLE_JOB_SLEEP_TIME", 10)  # Default: 10 seconds
-    from_info = "daily_scheduler"
+    from_info = "recurring_scheduler"
     current_app.logger.info(
-        f"Scheduling daily job from {from_info} with cron '{cron_schedule}' and sleep_time {sleep_time}..."
+        f"Scheduling recurring job from {from_info} with cron '{cron_schedule}' and sleep_time {sleep_time}..."
     )
     return example_job.schedule_cron(cron_schedule, user_id=None, from_info=from_info, sleep_time=sleep_time)

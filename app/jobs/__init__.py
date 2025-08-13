@@ -1,6 +1,6 @@
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 from redis import Redis
 from rq import Queue
 from rq.job import Job
@@ -9,7 +9,6 @@ import functools
 from flask import Flask, has_app_context, current_app
 from datetime import timedelta
 import sentry_sdk
-import dataclasses
 
 
 def _sanitize_exc_info(exc_info: Optional[str]) -> Optional[str]:
@@ -21,7 +20,7 @@ def _sanitize_exc_info(exc_info: Optional[str]) -> Optional[str]:
     return None
 
 
-@dataclasses.dataclass
+@dataclass
 class JobStatus:
     id: str
     status: str
@@ -32,7 +31,7 @@ class JobStatus:
     exc_info: Optional[str] = None
 
 
-@dataclasses.dataclass
+@dataclass
 class JobInfo:
     id: str
     func_name: str
@@ -40,14 +39,14 @@ class JobInfo:
     status: str
 
 
-@dataclasses.dataclass
+@dataclass
 class QueueInfo:
     name: str
     length: int
     jobs: List[JobInfo]
 
 
-@dataclasses.dataclass
+@dataclass
 class JobActionResult:
     status: str
     job_id: Optional[str] = None
