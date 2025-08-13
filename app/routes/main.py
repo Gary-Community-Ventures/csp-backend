@@ -101,6 +101,8 @@ def example_job():
 
     user = get_current_user()
 
+    if not request.is_json:
+        return jsonify({"error": "Content-Type must be application/json"}), 400
     data = request.json
     if data is None or not isinstance(data, dict):
         return jsonify({"error": "Missing or invalid JSON body"}), 400
