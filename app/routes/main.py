@@ -102,6 +102,11 @@ def example_job():
     user = get_current_user()
 
     data = request.json
+    if data is None or not isinstance(data, dict):
+        return jsonify({"error": "Missing or invalid JSON body"}), 400
+    # Optionally, check for required fields and types
+    # if "delay_seconds" not in data or "sleep_time" not in data:
+    #     return jsonify({"error": "Missing required fields"}), 400
 
     example_call_job_from_function(
         user_id=user.id if user else None,
