@@ -47,10 +47,14 @@ def example_call_job_from_function(user_id, delay_seconds=0, sleep_time=0, **kwa
 
 def example_schedule_job():
     """Schedule job"""
+    # Schedule job to run every 5 minutes
+    # TODO remove this once we have tested the scheduler in production
+    from_info = "daily_scheduler"
+    current_app.logger.info(f"Scheduling daily job from {from_info}...")
     return example_job.schedule_cron(
-        '0 2 * * *',
+        '*/1 * * * *',  # Every 5 minutes
         user_id=None,
-        from_info='daily_scheduler',
+        from_info=from_info,
         sleep_time=10
     )
 
