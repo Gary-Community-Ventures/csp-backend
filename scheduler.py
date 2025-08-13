@@ -15,6 +15,10 @@ if __name__ == "__main__":
         if not redis_url:
             raise ValueError("REDIS_URL environment variable must be set")
 
+        # Validate redis_url format
+        if not redis_url.startswith("redis://"):
+            raise ValueError("REDIS_URL must start with 'redis://'")
+
         try:
             current_app.logger.info("Starting rqscheduler...")
             subprocess.run(

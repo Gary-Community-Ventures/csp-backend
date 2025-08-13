@@ -48,7 +48,7 @@ def example_call_job_from_function(user_id, delay_seconds=0, sleep_time=0, **kwa
 def example_schedule_job():
     """Schedule job"""
     # Schedule job to run at a configurable interval
-    cron_schedule = current_app.config.get("EXAMPLE_JOB_CRON", "*/5 * * * *")  # Default: every 5 minutes
+    cron_schedule = current_app.config.get("EXAMPLE_JOB_CRON", "0 * * * *")  # Default: every hour
     sleep_time = current_app.config.get("EXAMPLE_JOB_SLEEP_TIME", 10)  # Default: 10 seconds
     from_info = "recurring_scheduler"
     current_app.logger.info(

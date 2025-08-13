@@ -14,6 +14,9 @@ import sentry_sdk
 def _sanitize_exc_info(exc_info: Optional[str]) -> Optional[str]:
     """Sanitizes exception information to prevent sensitive data leakage."""
     if exc_info:
+        # Add a check for empty string
+        if not exc_info.strip():
+            return None
         # Extract only the first line of the traceback, which usually contains the error message
         first_line = exc_info.split("\n")[0]
         return f"Error: {first_line}"
