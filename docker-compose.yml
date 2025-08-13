@@ -70,7 +70,7 @@ services:
     volumes:
       - redis_data:/data
 
-  # RQ Dashboard for monitoring (optional)
+  # RQ Dashboard for monitoring
   rq-dashboard:
     image: eoranged/rq-dashboard
     ports:
