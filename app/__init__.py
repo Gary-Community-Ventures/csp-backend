@@ -129,6 +129,7 @@ def create_app(config_class=None):
 
     # --- Initialize Job Queue ---
     from .jobs import job_manager
+
     job_manager.init_app(app)
 
     # --- Register Blueprints ---

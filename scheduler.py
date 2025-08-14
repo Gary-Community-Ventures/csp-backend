@@ -39,5 +39,3 @@ if __name__ == "__main__":
             current_app.logger.error(f"Unexpected error when starting rqscheduler: {e}")
             sentry_sdk.capture_exception(e)
             raise
-
-        
