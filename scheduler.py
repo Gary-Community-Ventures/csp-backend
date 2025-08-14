@@ -1,5 +1,4 @@
 import os
-import time
 
 import sentry_sdk
 from flask import current_app
