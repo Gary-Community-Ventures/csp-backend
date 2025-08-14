@@ -1,3 +1,3 @@
 web: gunicorn wsgi:app
-worker: python worker_entrypoint.py
+worker: python worker.py
 scheduler: python scheduler.py
