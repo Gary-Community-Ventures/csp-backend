@@ -41,6 +41,7 @@ class DevelopmentConfig(Config):
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "postgresql://dev:dev@localhost/myapp")  # Fallback for local
     CORS_HEADERS = "Content-Type"  # Example CORS setting
 
+
 class TestingConfig(Config):
     """Testing configuration."""
 

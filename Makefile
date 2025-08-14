@@ -1,10 +1,12 @@
 GOALS := $(MAKECMDGOALS)
 TARGET := $(firstword $(GOALS))
 ARGS := $(wordlist 2,$(words $(GOALS)),$(GOALS))
-.PHONY: format build logs run down exec db db-shell db-upgrade db-downgrade
+.PHONY: format lint build logs run down exec db db-shell db-upgrade db-downgrade
 
 format:
-	black --line-length 120 . $(ARGS)
+	isort --profile black . && black --line-length 120 .
+lint:
+	pylint . $(ARGS)
 build:
 	docker compose up --build -d $(ARGS)
 logs:

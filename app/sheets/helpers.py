@@ -1,5 +1,5 @@
-from datetime import datetime
-from typing import Callable, Optional, TypeVar, Generic
+from typing import Callable, Generic, Optional, TypeVar
+
 from flask import current_app
 
 T = TypeVar("T")
@@ -62,10 +62,10 @@ def get_rows(data: list[KeyMap], ids: list[str], id_key: Key[str] = ID_COLUMN_KE
     return items
 
 
-def filter_rows_by_value(data: list[KeyMap], value: T, Key: Key[T]) -> list[KeyMap]:
+def filter_rows_by_value(data: list[KeyMap], value: T, key: Key[T]) -> list[KeyMap]:
     items = []
     for item in data:
-        if item.get(Key) == value:
+        if item.get(key) == value:
             items.append(item)
 
     return items

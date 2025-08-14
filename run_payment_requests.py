@@ -1,20 +1,18 @@
-from datetime import datetime
 from collections import defaultdict
+from datetime import datetime
 
 from app import create_app
-from app.models import AllocatedCareDay, PaymentRequest, MonthAllocation
 from app.extensions import db
+from app.models import AllocatedCareDay, MonthAllocation, PaymentRequest
 from app.sheets.mappings import (
-    get_provider,
+    ChildColumnNames,
+    ProviderColumnNames,
     get_child,
     get_children,
+    get_provider,
     get_providers,
-    ProviderColumnNames,
-    ChildColumnNames,
 )
-
 from app.utils.email_service import send_payment_request_email
-
 
 # Create Flask app context
 app = create_app()
@@ -29,7 +27,7 @@ def run_payment_requests():
         AllocatedCareDay.query.join(MonthAllocation)
         .filter(
             AllocatedCareDay.last_submitted_at.isnot(None),
-            AllocatedCareDay.payment_distribution_requested == False,
+            AllocatedCareDay.payment_distribution_requested.is_(False),
             AllocatedCareDay.deleted_at.is_(None),
             AllocatedCareDay.locked_date <= datetime.utcnow(),
         )

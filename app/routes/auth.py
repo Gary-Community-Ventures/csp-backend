@@ -1,6 +1,6 @@
-from flask import Blueprint, jsonify, g
+from flask import Blueprint, g, jsonify
 
-from ..auth.decorators import ClerkUserType, auth_required, auth_optional
+from ..auth.decorators import ClerkUserType, auth_optional, auth_required
 from ..auth.helpers import get_current_user, is_authenticated
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")

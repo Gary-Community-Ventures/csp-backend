@@ -1,5 +1,5 @@
-from twilio.rest import Client
 from flask import current_app
+from twilio.rest import Client
 
 
 def send_sms(phone_number: str, message: str, lang: str):
