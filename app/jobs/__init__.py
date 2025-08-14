@@ -5,10 +5,11 @@ from typing import Any, List, Optional
 
 import sentry_sdk
 from flask import Flask, current_app, has_app_context
-from redis import Redis
 from rq import Queue
 from rq.job import Job
 from rq_scheduler import Scheduler
+
+from app.utils.redis import create_redis_connection
 
 
 @dataclass
@@ -53,7 +54,8 @@ class JobManager:
 
     def init_app(self, app: Flask):
         redis_url = app.config.get("REDIS_URL", "redis://localhost:6379/0")
-        self.redis_conn = Redis.from_url(redis_url)
+
+        self.redis_conn = create_redis_connection(redis_url)
         self.job_queue = Queue(connection=self.redis_conn)
         self.job_scheduler = Scheduler(connection=self.redis_conn)
 
