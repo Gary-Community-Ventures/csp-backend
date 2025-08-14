@@ -97,13 +97,6 @@ docker system prune -a --volumes
 
 ## Database
 
-### pgAdmin
-
-For local database addministration and troubleshooting we have pgAdmin automatically configured 
-as a part of the local dev envirnment. Just be sure to properly set the `PGADMIN_DEFAULT_EMAIL`
-and `PGADMIN_DEFAULT_PASSWORD` in your `.env` which you will use to login to the instance
-of pgAdmin. Then simply visit `http://localhost:5051/browser/`
-
 ### Database shell
 
 To get into a shell for the database itself locally, run:
@@ -111,3 +104,76 @@ To get into a shell for the database itself locally, run:
 ```
 docker-compose exec postgres psql -U dev -d myapp
 ```
+
+## Job Queue System
+
+This application uses a job queue system to handle background tasks. The system is built on top of Redis, RQ (Redis Queue), and RQ Scheduler. It consists of three main components:
+
+*   **`web`**: The main Flask application. It can enqueue jobs to be processed in the background.
+*   **`worker`**: This component listens for jobs on the Redis queue and executes them.
+*   **`scheduler`**: This component is responsible for scheduling jobs to be run at a specific time or on a recurring basis.
+
+### The `JobManager`
+
+All job-related functionality is encapsulated in the `JobManager` class, which can be found in `app/jobs/__init__.py`. This class provides a decorator and methods for defining, enqueuing, and scheduling jobs.
+
+### Defining a Job
+
+To define a new job, create a function and decorate it with `@job_manager.job`. This decorator will turn your function into a background job that can be enqueued.
+
+**Example:**
+
+```python
+from app.jobs import job_manager
+
+@job_manager.job
+def my_background_job(arg1, arg2):
+    # Your job logic here
+    print(f"Job executed with args: {arg1}, {arg2}")
+```
+
+### Enqueuing a Job
+
+To enqueue a job for immediate execution, use the `.delay()` method on the decorated function.
+
+**Example:**
+
+```python
+from .jobs.my_job import my_background_job
+
+# This will enqueue the job to be run by a worker as soon as possible
+my_background_job.delay("hello", "world")
+```
+
+### Scheduling a Job
+
+To schedule a job to be run at a later time, use the `.delay_in()` method. This method takes a `timedelta` object as the first argument.
+
+**Example:**
+
+```python
+from datetime import timedelta
+from .jobs.my_job import my_background_job
+
+# This will enqueue the job to be run in 1 hour
+my_background_job.delay_in(timedelta(hours=1), "hello", "world")
+```
+
+To schedule a recurring job, use the `.schedule_cron()` method. This method takes a cron string as the first argument.
+
+**Example:**
+
+```python
+from .jobs.my_job import my_background_job
+
+# This will schedule the job to run every day at midnight
+my_background_job.schedule_cron("0 0 * * *", "hello", "world")
+```
+
+### Job Management API
+
+The application provides a set of API endpoints for managing jobs:
+
+*   **`GET /jobs/<job_id>/status`**: Get the status of a specific job.
+*   **`POST /jobs/<job_id>/retry`**: Retry a failed job.
+*   **`GET /jobs/queue-info`**: Get information about the job queue, including the number of jobs and their details.

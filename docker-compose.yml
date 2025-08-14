@@ -7,8 +7,10 @@ services:
       - "5000:5000"
     depends_on:
       - postgres
+      - redis
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379/0
       - FLASK_ENV=development
       - DEBUG=True
       # Pass Sentry DSN from host .env
@@ -23,6 +25,66 @@ services:
     volumes:
       - .:/app # Bind mount for hot reloading
 
+  # RQ Worker for processing jobs
+  worker:
+    build: .
+    command: python worker_entrypoint.py
+    init: true
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379/0
+      - FLASK_ENV=development
+      - DEBUG=True
+      - SENTRY_DSN=${SENTRY_DSN}
+      - SENTRY_TRACES_SAMPLE_RATE=${SENTRY_TRACES_SAMPLE_RATE}
+      - SENTRY_PROFILES_SAMPLE_RATE=${SENTRY_PROFILES_SAMPLE_RATE}
+      - APP_VERSION=${APP_VERSION}
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+      - TZ=America/Denver
+    restart: on-failure
+    volumes:
+      - .:/app
+
+  # RQ Scheduler for scheduled jobs
+  scheduler:
+    build: .
+    command: python scheduler.py
+    init: true
+    depends_on:
+      - redis
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379/0
+      - FLASK_ENV=development
+      - TZ=America/Denver
+      - EXAMPLE_JOB_CRON=${EXAMPLE_JOB_CRON}
+      - EXAMPLE_JOB_SLEEP_TIME=${EXAMPLE_JOB_SLEEP_TIME}
+    restart: on-failure
+    volumes:
+      - .:/app
+
+  # Redis for job queue
+  redis:
+    image: redis:8.2-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # RQ Dashboard for monitoring
+  rq-dashboard:
+    image: eoranged/rq-dashboard
+    init: true
+    ports:
+      - "9181:9181"
+    environment:
+      - RQ_DASHBOARD_REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+
   postgres:
     image: postgres:15
     environment:
@@ -34,30 +96,6 @@ services:
     ports:
       - "${POSTGRES_PORT_HOST}:5432"
 
-  pgadmin:
-    image: dpage/pgadmin4
-    environment:
-      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL}
-      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD}
-      - PG_HOST=postgres
-      - PG_PORT=${POSTGRES_PORT}
-      - PG_DB=${POSTGRES_DB}
-      - PG_USER=${POSTGRES_USER}
-      - PG_PASSWORD=${POSTGRES_PASSWORD}
-      - PGADMIN_SETUP_PASSFILE=/pgadmin4/pgpass
-    # Run as root to have permission to create files and change ownership
-    user: root
-    ports:
-      - "5051:80"
-    volumes:
-      - ./pgadmin-entrypoint.sh:/pgadmin-entrypoint.sh
-      - pgadmin_data:/var/lib/pgadmin
-    # Use entrypoint to override the image's default entrypoint
-    entrypoint: sh -c "chmod +x /pgadmin-entrypoint.sh && /pgadmin-entrypoint.sh"
-    depends_on:
-      - postgres
-    restart: on-failure
-
 volumes:
   postgres_data:
-  pgadmin_data:
+  redis_data:
