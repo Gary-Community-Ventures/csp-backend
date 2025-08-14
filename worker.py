@@ -1,9 +1,9 @@
 import os
 
-from redis import Redis
 from rq import Queue, Worker
 
 from app import create_app
+from app.utils.redis import create_redis_connection
 
 # Create the Flask app once
 app = create_app()
@@ -11,7 +11,7 @@ app = create_app()
 # Run the worker within the app context
 with app.app_context():
     redis_url = app.config.get("REDIS_URL", "redis://localhost:6379/0")
-    redis_conn = Redis.from_url(redis_url)
+    redis_conn = create_redis_connection(redis_url)
 
     # Get queue names from environment variable, default to 'default'
     queue_names = os.getenv("RQ_QUEUES", "default").split(",")
