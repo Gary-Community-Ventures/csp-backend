@@ -1,11 +1,11 @@
-from datetime import date, datetime, timedelta
-from unittest.mock import patch, MagicMock
+from datetime import date, timedelta
+from unittest.mock import patch
 
 import pytest
 
 from app.models.month_allocation import MonthAllocation, get_allocation_amount
-from app.sheets.mappings import ChildColumnNames
 from app.sheets.helpers import KeyMap
+from app.sheets.mappings import ChildColumnNames
 
 
 @pytest.fixture
@@ -27,9 +27,7 @@ def test_get_allocation_amount_prorated(mock_get_child, db_session, mock_get_chi
     assert amount == 50000
 
 
-def test_get_allocation_amount_normal(
-    mock_get_child, month_allocation, mock_get_children
-):
+def test_get_allocation_amount_normal(mock_get_child, month_allocation, mock_get_children):
     """Test that the normal allocation is returned when a month allocation exists"""
     mock_get_child.return_value = KeyMap(
         {
@@ -75,6 +73,4 @@ def test_get_or_create_for_month_past(db_session, mock_get_child, mock_get_child
 def test_get_or_create_for_month_future(db_session, mock_get_child, mock_get_children):
     """Test that an error is raised when creating an allocation for a future month"""
     with pytest.raises(ValueError):
-        MonthAllocation.get_or_create_for_month(
-            child_id=1, month_date=date.today() + timedelta(days=32)
-        )
+        MonthAllocation.get_or_create_for_month(child_id=1, month_date=date.today() + timedelta(days=32))

@@ -1,23 +1,22 @@
 import json
 import os
-from flask import Flask
-from dotenv import load_dotenv
 
 import sentry_sdk
+from clerk_backend_api import Clerk
+from dotenv import load_dotenv
+from flask import Flask
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
-from clerk_backend_api import Clerk
-from .config import ENV_DEVELOPMENT, ENV_STAGING, ENV_PRODUCTION, ENV_TESTING
-
-# Import extensions from the extensions module
-from .extensions import db, migrate, cors
-
 # Import models to ensure they are registered with SQLAlchemy
 from . import models
+from .config import ENV_DEVELOPMENT, ENV_PRODUCTION, ENV_STAGING, ENV_TESTING
 
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
+# Import extensions from the extensions module
+from .extensions import cors, db, migrate
+
 
 def create_app(config_class=None):
     """
@@ -133,13 +132,13 @@ def create_app(config_class=None):
     job_manager.init_app(app)
 
     # --- Register Blueprints ---
-    from .routes.main import bp as main_bp
     from .routes.auth import bp as auth_bp
-    from .routes.family import bp as family_bp
-    from .routes.provider import bp as provider_bp
     from .routes.care_day import bp as care_day_bp
     from .routes.child import bp as child_bp
+    from .routes.family import bp as family_bp
+    from .routes.main import bp as main_bp
     from .routes.payment_rate import payment_rate_bp
+    from .routes.provider import bp as provider_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)

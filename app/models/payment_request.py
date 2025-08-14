@@ -1,9 +1,6 @@
 from ..extensions import db
-from .mixins import TimestampMixin
-from datetime import date
-
 from .allocated_care_day import AllocatedCareDay
-from .month_allocation import MonthAllocation
+from .mixins import TimestampMixin
 
 
 class PaymentRequest(db.Model, TimestampMixin):
@@ -27,11 +24,7 @@ class PaymentRequest(db.Model, TimestampMixin):
         """Get the actual AllocatedCareDay objects"""
         if not self.care_day_ids:
             return []
-        return AllocatedCareDay.query.filter(
-            AllocatedCareDay.id.in_(self.care_day_ids)
-        ).all()
-
-    
+        return AllocatedCareDay.query.filter(AllocatedCareDay.id.in_(self.care_day_ids)).all()
 
     def __repr__(self):
         return f"<PaymentRequest ${self.amount_in_cents / 100:.2f} - Provider {self.google_sheets_provider_id}>"
