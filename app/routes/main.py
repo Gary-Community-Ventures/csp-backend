@@ -1,6 +1,8 @@
 from dataclasses import asdict
+
+from flask import Blueprint, current_app, jsonify, request
+
 from app.auth.helpers import get_current_user
-from flask import Blueprint, jsonify, current_app, request
 from app.jobs.example_job import example_call_job_from_function
 
 bp = Blueprint("main", __name__)

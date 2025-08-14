@@ -1,8 +1,9 @@
-from app import create_app
-from rq import Worker, Queue
+import os
 
 from redis import Redis
-import os
+from rq import Queue, Worker
+
+from app import create_app
 
 # Create the Flask app once
 app = create_app()

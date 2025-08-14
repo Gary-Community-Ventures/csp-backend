@@ -1,7 +1,9 @@
-from datetime import datetime, timedelta
 import time
-from . import job_manager
+from datetime import datetime, timedelta
+
 from flask import current_app
+
+from . import job_manager
 
 
 @job_manager.job

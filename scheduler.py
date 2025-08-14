@@ -1,9 +1,11 @@
 import os
 import subprocess
+
+import sentry_sdk
+from flask import current_app
+
 from app import create_app
 from app.jobs.example_job import example_schedule_job
-from flask import current_app
-import sentry_sdk
 
 if __name__ == "__main__":
     app = create_app()
