@@ -9,7 +9,6 @@ from app import create_app
 from app.jobs.example_job import example_schedule_job
 from app.utils.redis import create_redis_connection
 
-
 if __name__ == "__main__":
     app = create_app()
     with app.app_context():
