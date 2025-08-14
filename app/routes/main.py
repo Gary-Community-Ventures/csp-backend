@@ -2,6 +2,9 @@ from dataclasses import asdict
 
 from flask import Blueprint, current_app, jsonify, request
 
+from app.auth.decorators import (
+    api_key_required,
+)
 from app.auth.helpers import get_current_user
 from app.jobs.example_job import example_call_job_from_function
 
@@ -52,6 +55,7 @@ def index():
 
 # Sentry Test Route (for demonstration purposes, remove in production)
 @bp.route("/sentry-test")
+@api_key_required
 def sentry_test():
     _ = 1 / 0
     return "This should not be reached if Sentry captures the error."
@@ -59,6 +63,7 @@ def sentry_test():
 
 # Database Sentry Test Route (for demonstration purposes, remove in production)
 @bp.route("/sentry-db-test")
+@api_key_required
 def sentry_db_test():
     try:
         # Access db from current_app context
@@ -76,6 +81,7 @@ def sentry_db_test():
 
 
 @bp.route("/jobs/<job_id>/status", methods=["GET"])
+@api_key_required
 def job_status(job_id):
     status = current_app.extensions["job_manager"].get_job_status(job_id)
     if status is None:
@@ -84,12 +90,14 @@ def job_status(job_id):
 
 
 @bp.route("/jobs/<job_id>/retry", methods=["POST"])
+@api_key_required
 def retry_job(job_id):
     result = current_app.extensions["job_manager"].retry_failed_job(job_id)
     return jsonify(asdict(result))
 
 
 @bp.route("/jobs/queue-info", methods=["GET"])
+@api_key_required
 def queue_info():
     info = current_app.extensions["job_manager"].get_queue_info()
     if info is None:
@@ -98,6 +106,7 @@ def queue_info():
 
 
 @bp.route("/example-job", methods=["POST"])
+@api_key_required
 def example_job():
     current_app.logger.info("Enqueuing example job...")
 
