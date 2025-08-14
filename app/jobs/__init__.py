@@ -55,7 +55,6 @@ class JobManager:
     def init_app(self, app: Flask):
         redis_url = app.config.get("REDIS_URL", "redis://localhost:6379/0")
 
-        # Use our shared Redis connection utility
         self.redis_conn = create_redis_connection(redis_url)
         self.job_queue = Queue(connection=self.redis_conn)
         self.job_scheduler = Scheduler(connection=self.redis_conn)
