@@ -1,13 +1,8 @@
-from datetime import date, datetime
-from datetime import time as dt_time
-from datetime import timedelta
-from decimal import Decimal
+from datetime import datetime
 
-from ..enums.care_day_type import CareDayType
 from ..extensions import db
 from .mixins import TimestampMixin
 from .month_allocation import MonthAllocation
-from .utils import get_care_day_cost
 
 
 class AllocatedLumpSum(db.Model, TimestampMixin):
@@ -78,10 +73,10 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
             "care_month_allocation_id": self.care_month_allocation_id,
             "provider_google_sheets_id": self.provider_google_sheets_id,
             "amount_cents": self.amount_cents,
-            "paid_at": self.paid_at.isoformat() if self.paid_at else None,
-            "submitted_at": self.submitted_at.isoformat() if self.submitted_at else None,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
+            "paid_at": self.paid_at,
+            "submitted_at": self.submitted_at,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
         }
 
     def __repr__(self):

@@ -8,6 +8,7 @@ from app.auth.helpers import get_current_user
 from app.extensions import db
 from app.models.allocated_lump_sum import AllocatedLumpSum
 from app.models.month_allocation import MonthAllocation
+from app.schemas.lump_sum import AllocatedLumpSumResponse
 from app.sheets.mappings import (
     ChildColumnNames,
     ProviderColumnNames,
@@ -87,6 +88,10 @@ def create_lump_sum():
             amount_in_cents=amount_cents,
             month=allocation.date.strftime("%B %Y"),
         )
-        return jsonify(lump_sum.to_dict()), 201
+        return (
+            AllocatedLumpSumResponse.model_validate(lump_sum).model_dump_json(),
+            201,
+            {"Content-Type": "application/json"},
+        )
     except ValueError as e:
         return jsonify({"error": str(e)}), 400

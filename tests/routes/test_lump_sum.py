@@ -1,13 +1,11 @@
-from datetime import date, datetime, timedelta
-from unittest.mock import patch
+from datetime import date
 
 import pytest
-from flask import g
 
 from app.extensions import db
 from app.models import AllocatedLumpSum, MonthAllocation
+from app.schemas.lump_sum import AllocatedLumpSumResponse
 from app.sheets.mappings import ChildColumnNames, ProviderColumnNames
-from app.utils.email_service import send_lump_sum_payment_request_email
 
 
 # Fixture to set up test data
@@ -99,10 +97,11 @@ def test_create_lump_sum_success(client, seed_lump_sum_db, mock_sheets_data, moc
         },
     )
     assert response.status_code == 201
-    assert response.json["amount_cents"] == 50000
-    assert response.json["provider_google_sheets_id"] == "providerABC"
-    assert response.json["care_month_allocation_id"] == allocation.id
-    assert response.json["submitted_at"] is not None
+    validated_response = AllocatedLumpSumResponse.model_validate(response.json)
+    assert validated_response.amount_cents == 50000
+    assert validated_response.provider_google_sheets_id == "providerABC"
+    assert validated_response.care_month_allocation_id == allocation.id
+    assert validated_response.submitted_at is not None
 
     mock_send_email.assert_called_once_with(
         provider_name="Provider A",
