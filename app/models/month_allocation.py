@@ -59,6 +59,8 @@ class MonthAllocation(db.Model, TimestampMixin):
         "AllocatedCareDay", back_populates="month_allocation_with_deleted", overlaps="care_days,care_month_allocation"
     )
 
+    lump_sums = db.relationship("AllocatedLumpSum", back_populates="care_month_allocation")
+
     __table_args__ = (db.UniqueConstraint("google_sheets_child_id", "date", name="unique_child_month"),)
 
     @property
@@ -74,7 +76,9 @@ class MonthAllocation(db.Model, TimestampMixin):
     @property
     def used_cents(self):
         """Calculate total cents used from active care days"""
-        return sum(day.amount_cents for day in self.care_days)
+        return sum(day.amount_cents for day in self.care_days) + sum(
+            lump_sum.amount_cents for lump_sum in self.lump_sums
+        )
 
     @property
     def remaining_cents(self):
@@ -84,9 +88,11 @@ class MonthAllocation(db.Model, TimestampMixin):
     def can_add_care_day(self, day_type: CareDayType, provider_id: str) -> bool:
         """Check if we can add a care day of given type without over-allocating"""
         cents_amount = get_care_day_cost(day_type, provider_id=provider_id, child_id=self.google_sheets_child_id)
-        print(f"Checking if can add care day of type '{day_type}' costing {cents_amount} cents")
-        print(f"Current used cents: {self.used_cents}, Allocation cents: {self.allocation_cents}")
         return self.used_cents + cents_amount <= self.allocation_cents
+
+    def can_add_lump_sum(self, amount_cents: int) -> bool:
+        """Check if we can add a lump sum without over-allocating"""
+        return self.used_cents + amount_cents <= self.allocation_cents
 
     @staticmethod
     def get_or_create_for_month(child_id: str, month_date: date):

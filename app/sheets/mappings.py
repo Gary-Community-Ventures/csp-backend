@@ -42,6 +42,7 @@ class ProviderColumnNames:
     LAST_NAME = Key("Last Name")
     STATUS = Key("Status", default="Pending")
     EMAIL = Key("Email")
+    TYPE = Key("Type")
 
 
 class ContentColumnNames:
