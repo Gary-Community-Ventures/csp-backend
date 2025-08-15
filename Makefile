@@ -19,6 +19,8 @@ test:
 	docker-compose -f docker-compose.yml -f docker-compose.test.yml run --rm backend pytest $(ARGS)
 exec:
 	docker compose exec backend $(ARGS)
+run:
+	docker compose run --rm backend python -m app.scripts.$(ARGS)
 db:
 	docker compose exec backend flask db $(ARGS)
 db-shell:

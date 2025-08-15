@@ -12,7 +12,7 @@ from app.auth.decorators import (
     auth_optional,
     auth_required,
 )
-from app.auth.helpers import get_current_user
+from app.auth.helpers import get_current_user, get_family_user, get_provider_user
 from app.constants import MAX_CHILDREN_PER_PROVIDER
 from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation
@@ -82,10 +82,7 @@ def new_provider():
 @bp.get("/provider")
 @auth_required(ClerkUserType.PROVIDER)
 def get_provider_data():
-    user = get_current_user()
-
-    if user is None or user.user_data.provider_id is None:
-        abort(401)
+    user = get_provider_user()
 
     provider_rows = get_providers()
     child_rows = get_children()
@@ -212,9 +209,7 @@ def invite_family():
     if "lang" not in data:
         data["lang"] = "en"
 
-    user = get_current_user()
-    if user is None or user.user_data.provider_id is None:
-        abort(401)
+    user = get_provider_user()
 
     provider_id = user.user_data.provider_id
 
@@ -354,10 +349,7 @@ def accept_family_invite(invite_id: str):
     if len(data["child_ids"]) == 0:
         abort(400, description="child_ids must not be empty")
 
-    user = get_current_user()
-
-    if user is None or user.user_data.family_id is None:
-        abort(401)
+    user = get_family_user()
 
     invitation_query = FamilyInvitation.invitation_by_id(invite_id)
 

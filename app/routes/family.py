@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from time import sleep
 from typing import Optional
 from uuid import uuid4
 
@@ -11,10 +12,11 @@ from app.auth.decorators import (
     auth_optional,
     auth_required,
 )
-from app.auth.helpers import get_current_user
+from app.auth.helpers import get_current_user, get_family_user, get_provider_user
 from app.constants import MAX_CHILDREN_PER_PROVIDER
 from app.data.providers.mappings import ProviderListColumnNames
 from app.extensions import db
+from app.models.attendance import Attendance
 from app.models.provider_invitation import ProviderInvitation
 from app.sheets.helpers import KeyMap, format_name, get_row
 from app.sheets.integration import get_csv_data
@@ -31,6 +33,7 @@ from app.sheets.mappings import (
     get_families,
     get_family,
     get_family_children,
+    get_provider,
     get_provider_child_mapping_provider,
     get_provider_child_mappings,
     get_provider_child_mappings_by_provider_id,
@@ -82,10 +85,7 @@ def new_family():
 @bp.get("/family/default_child_id")
 @auth_required(ClerkUserType.FAMILY)
 def default_child_id():
-    user = get_current_user()
-
-    if user is None or user.user_data.family_id is None:
-        abort(401)
+    user = get_family_user()
 
     child_rows = get_children()
 
@@ -104,10 +104,7 @@ def default_child_id():
 @bp.get("/family/<child_id>")
 @auth_required(ClerkUserType.FAMILY)
 def family_data(child_id: Optional[str] = None):
-    user = get_current_user()
-
-    if user is None or user.user_data.family_id is None:
-        abort(401)
+    user = get_family_user()
 
     child_rows = get_children()
     provider_child_mapping_rows = get_provider_child_mappings()
@@ -175,12 +172,25 @@ def family_data(child_id: Optional[str] = None):
         for c in family_children
     ]
 
+    notifications = []
+    child_status = child_data.get(ChildColumnNames.STATUS).lower()
+    if child_status == "pending":
+        notifications.append({"type": "application_pending"})
+    elif child_status == "denied":
+        notifications.append({"type": "application_denied"})
+
+    child_ids = [c.get(ChildColumnNames.ID) for c in family_children]
+    needs_attendance = Attendance.filter_by_child_ids(child_ids).count() > 0
+    if needs_attendance:
+        notifications.append({"type": "attendance"})
+
     return jsonify(
         {
             "selected_child_info": selected_child_info,
             "providers": providers,
             "transactions": transactions,
             "children": children,
+            "notifications": notifications,
             "is_also_provider": ClerkUserType.PROVIDER.value in user.user_data.types,
         }
     )
@@ -224,9 +234,7 @@ def add_licensed_provider():
     if type(data["child_ids"]) != list:
         abort(400, description="child_ids must be a list of child IDs")
 
-    user = get_current_user()
-    if user is None or user.user_data.family_id is None:
-        abort(401)
+    user = get_family_user()
 
     family_id = user.user_data.family_id
 
@@ -313,9 +321,7 @@ def invite_provider():
     if "lang" not in data:
         data["lang"] = "en"
 
-    user = get_current_user()
-    if user is None or user.user_data.family_id is None:
-        abort(401)
+    user = get_family_user()
 
     family_id = user.user_data.family_id
 
@@ -461,10 +467,7 @@ def provider_invite(invite_id: str):
 @bp.post("/family/provider-invite/<invite_id>/accept")
 @auth_required(ClerkUserType.PROVIDER)
 def accept_provider_invite(invite_id: str):
-    user = get_current_user()
-
-    if user is None or user.user_data.provider_id is None:
-        abort(401)
+    user = get_provider_user()
 
     invitation_query = ProviderInvitation.invitations_by_id(invite_id)
 
@@ -504,3 +507,91 @@ def accept_provider_invite(invite_id: str):
     db.session.commit()
 
     return jsonify({"message": "Success"}, 200)
+
+
+@bp.get("/family/attendance")
+@auth_required(ClerkUserType.FAMILY)
+def attendance():
+    user = get_family_user()
+
+    child_rows = get_children()
+
+    family_children = get_family_children(user.user_data.family_id, child_rows)
+
+    child_ids = [c.get(ChildColumnNames.ID) for c in family_children]
+
+    attendance_data: list[Attendance] = Attendance.filter_by_child_ids(child_ids).all()
+
+    if len(attendance_data) == 0:
+        return jsonify({"attendance": [], "children": [], "providers": []})
+
+    provider_rows = get_providers()
+    attendance: list[dict] = []
+    children: list[dict] = []
+    providers: list[dict] = []
+
+    for att_data in attendance_data:
+        att_data.record_opened()
+        db.session.add(att_data)
+
+        child = get_child(att_data.child_google_sheet_id, family_children)
+
+        if child is None:
+            # child is not in the family anymore, so mark them as 0 hours
+            att_data.family_entered(0)
+            continue
+
+        child_included = False
+        for response_child in children:
+            if response_child["id"] == child.get(ChildColumnNames.ID):
+                child_included = True
+                break
+
+        if not child_included:
+            children.append(
+                {
+                    "id": child.get(ChildColumnNames.ID),
+                    "first_name": child.get(ChildColumnNames.FIRST_NAME),
+                    "last_name": child.get(ChildColumnNames.LAST_NAME),
+                }
+            )
+
+        provider = get_provider(att_data.provider_google_sheet_id, provider_rows)
+
+        if provider is None:
+            # The provider has been deleted
+            db.session.delete(att_data)
+            continue
+
+        provider_included = False
+        for response_provider in providers:
+            if response_provider["id"] == provider.get(ProviderColumnNames.ID):
+                provider_included = True
+                break
+
+        if not provider_included:
+            providers.append(
+                {
+                    "id": provider.get(ProviderColumnNames.ID),
+                    "name": provider.get(ProviderColumnNames.NAME),
+                }
+            )
+
+        attendance.append(
+            {
+                "id": att_data.id,
+                "date": att_data.week.isoformat(),
+                "child_id": child.get(ChildColumnNames.ID),
+                "provider_id": provider.get(ProviderColumnNames.ID),
+            }
+        )
+
+    db.session.commit()
+
+    return jsonify(
+        {
+            "attendance": attendance,
+            "children": children,
+            "providers": providers,
+        }
+    )

@@ -1,4 +1,5 @@
 from .allocated_care_day import AllocatedCareDay
+from .attendance import Attendance
 from .month_allocation import MonthAllocation
 from .payment_rate import PaymentRate
 from .payment_request import PaymentRequest
@@ -10,4 +11,5 @@ __all__ = [
     "MonthAllocation",
     "PaymentRate",
     "ProviderInvitation",
+    "Attendance",
 ]

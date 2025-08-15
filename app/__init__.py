@@ -10,6 +10,8 @@ from googleapiclient.discovery import build
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
+from app.sheets.integration import SheetsManager
+
 # Import models to ensure they are registered with SQLAlchemy
 from . import models
 from .config import ENV_DEVELOPMENT, ENV_PRODUCTION, ENV_STAGING, ENV_TESTING
@@ -95,6 +97,8 @@ def create_app(config_class=None):
         )
 
         app.google_sheets_service = build("sheets", "v4", credentials=creds).spreadsheets()
+
+        app.sheets_manager = SheetsManager(app)
 
     # --- CORS Configuration ---
     # For production, use the configured origins, credentials, and headers
