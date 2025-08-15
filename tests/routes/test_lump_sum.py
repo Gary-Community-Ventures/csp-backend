@@ -1,12 +1,14 @@
-import pytest
 from datetime import date, datetime, timedelta
 from unittest.mock import patch
+
+import pytest
 from flask import g
 
 from app.extensions import db
 from app.models import AllocatedLumpSum, MonthAllocation
 from app.sheets.mappings import ChildColumnNames, ProviderColumnNames
 from app.utils.email_service import send_lump_sum_payment_request_email
+
 
 # Fixture to set up test data
 @pytest.fixture
@@ -15,12 +17,13 @@ def seed_lump_sum_db(app):
         # Create a MonthAllocation for testing
         allocation = MonthAllocation(
             date=date.today().replace(day=1),
-            allocation_cents=100000, # 1000.00
+            allocation_cents=100000,  # 1000.00
             google_sheets_child_id="child123",
         )
         db.session.add(allocation)
         db.session.commit()
         yield allocation
+
 
 # Mock Google Sheets data functions
 @pytest.fixture
@@ -29,8 +32,18 @@ def mock_sheets_data(mocker):
     mocker.patch(
         "app.routes.lump_sum.get_children",
         return_value=[
-            {ChildColumnNames.ID: "child123", ChildColumnNames.FAMILY_ID: "family123", ChildColumnNames.FIRST_NAME: "Test", ChildColumnNames.LAST_NAME: "Child"},
-            {ChildColumnNames.ID: "child456", ChildColumnNames.FAMILY_ID: "family456", ChildColumnNames.FIRST_NAME: "Another", ChildColumnNames.LAST_NAME: "Child"},
+            {
+                ChildColumnNames.ID: "child123",
+                ChildColumnNames.FAMILY_ID: "family123",
+                ChildColumnNames.FIRST_NAME: "Test",
+                ChildColumnNames.LAST_NAME: "Child",
+            },
+            {
+                ChildColumnNames.ID: "child456",
+                ChildColumnNames.FAMILY_ID: "family456",
+                ChildColumnNames.FIRST_NAME: "Another",
+                ChildColumnNames.LAST_NAME: "Child",
+            },
         ],
     )
     # Mock get_family_children
@@ -62,14 +75,16 @@ def mock_sheets_data(mocker):
     mocker.patch(
         "app.routes.lump_sum.get_child_providers",
         side_effect=lambda child_id, mappings, providers: [
-            p for p in providers if p.get(ProviderColumnNames.ID) in [
-                m.get("provider_id") for m in mappings if m.get("child_id") == child_id
-            ]
+            p
+            for p in providers
+            if p.get(ProviderColumnNames.ID)
+            in [m.get("provider_id") for m in mappings if m.get("child_id") == child_id]
         ],
     )
 
 
 # --- POST /lump-sums ---
+
 
 def test_create_lump_sum_success(client, seed_lump_sum_db, mock_sheets_data, mocker):
     allocation = seed_lump_sum_db
@@ -80,7 +95,7 @@ def test_create_lump_sum_success(client, seed_lump_sum_db, mock_sheets_data, moc
         json={
             "allocation_id": allocation.id,
             "provider_id": "providerABC",
-            "amount_cents": 50000, # 500.00
+            "amount_cents": 50000,  # 500.00
         },
     )
     assert response.status_code == 201
@@ -111,7 +126,7 @@ def test_create_lump_sum_success(client, seed_lump_sum_db, mock_sheets_data, moc
 
 def test_create_lump_sum_missing_fields(client, seed_lump_sum_db, mock_sheets_data):
     allocation = seed_lump_sum_db
-    
+
     response = client.post(
         "/lump-sums",
         json={
@@ -125,7 +140,7 @@ def test_create_lump_sum_missing_fields(client, seed_lump_sum_db, mock_sheets_da
 
 
 def test_create_lump_sum_allocation_not_found(client, mock_sheets_data):
-    
+
     response = client.post(
         "/lump-sums",
         json={
@@ -147,7 +162,7 @@ def test_create_lump_sum_child_not_associated_with_family(client, seed_lump_sum_
             {ChildColumnNames.ID: "child999", ChildColumnNames.FAMILY_ID: "family999"},
         ],
     )
-    
+
     response = client.post(
         "/lump-sums",
         json={
@@ -166,15 +181,15 @@ def test_create_lump_sum_provider_not_associated_with_child(client, seed_lump_su
     mocker.patch(
         "app.routes.lump_sum.get_provider_child_mappings",
         return_value=[
-            {"child_id": "child123", "provider_id": "providerXYZ"}, # Only XYZ for child123
+            {"child_id": "child123", "provider_id": "providerXYZ"},  # Only XYZ for child123
         ],
     )
-    
+
     response = client.post(
         "/lump-sums",
         json={
             "allocation_id": allocation.id,
-            "provider_id": "providerABC", # This provider is not associated with child123 in the mock
+            "provider_id": "providerABC",  # This provider is not associated with child123 in the mock
             "amount_cents": 10000,
         },
     )
@@ -184,13 +199,13 @@ def test_create_lump_sum_provider_not_associated_with_child(client, seed_lump_su
 
 def test_create_lump_sum_exceeds_allocation(client, seed_lump_sum_db, mock_sheets_data):
     allocation = seed_lump_sum_db
-    
+
     response = client.post(
         "/lump-sums",
         json={
             "allocation_id": allocation.id,
             "provider_id": "providerABC",
-            "amount_cents": 150000, # Exceeds 100000 allocation
+            "amount_cents": 150000,  # Exceeds 100000 allocation
         },
     )
     assert response.status_code == 400

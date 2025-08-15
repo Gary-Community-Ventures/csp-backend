@@ -137,10 +137,10 @@ def create_app(config_class=None):
     from .routes.care_day import bp as care_day_bp
     from .routes.child import bp as child_bp
     from .routes.family import bp as family_bp
+    from .routes.lump_sum import bp as lump_sum_bp
     from .routes.main import bp as main_bp
     from .routes.payment_rate import payment_rate_bp
     from .routes.provider import bp as provider_bp
-    from .routes.lump_sum import bp as lump_sum_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
