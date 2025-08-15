@@ -6,6 +6,7 @@ from flask import g
 from app.extensions import db
 from app.models import AllocatedLumpSum, MonthAllocation
 from app.sheets.mappings import ChildColumnNames, ProviderColumnNames
+from app.utils.email_service import send_lump_sum_payment_request_email
 
 # Fixture to set up test data
 @pytest.fixture
@@ -28,8 +29,8 @@ def mock_sheets_data(mocker):
     mocker.patch(
         "app.routes.lump_sum.get_children",
         return_value=[
-            {ChildColumnNames.ID: "child123", ChildColumnNames.FAMILY_ID: "family123"},
-            {ChildColumnNames.ID: "child456", ChildColumnNames.FAMILY_ID: "family456"},
+            {ChildColumnNames.ID: "child123", ChildColumnNames.FAMILY_ID: "family123", ChildColumnNames.FIRST_NAME: "Test", ChildColumnNames.LAST_NAME: "Child"},
+            {ChildColumnNames.ID: "child456", ChildColumnNames.FAMILY_ID: "family456", ChildColumnNames.FIRST_NAME: "Another", ChildColumnNames.LAST_NAME: "Child"},
         ],
     )
     # Mock get_family_children
@@ -70,9 +71,10 @@ def mock_sheets_data(mocker):
 
 # --- POST /lump-sums ---
 
-def test_create_lump_sum_success(client, seed_lump_sum_db, mock_sheets_data):
+def test_create_lump_sum_success(client, seed_lump_sum_db, mock_sheets_data, mocker):
     allocation = seed_lump_sum_db
-    
+    mock_send_email = mocker.patch("app.routes.lump_sum.send_lump_sum_payment_request_email")
+
     response = client.post(
         "/lump-sums",
         json={
@@ -86,6 +88,16 @@ def test_create_lump_sum_success(client, seed_lump_sum_db, mock_sheets_data):
     assert response.json["provider_google_sheets_id"] == "providerABC"
     assert response.json["care_month_allocation_id"] == allocation.id
     assert response.json["submitted_at"] is not None
+
+    mock_send_email.assert_called_once_with(
+        provider_name="Provider A",
+        google_sheets_provider_id="providerABC",
+        child_first_name="Test",
+        child_last_name="Child",
+        google_sheets_child_id="child123",
+        amount_in_cents=50000,
+        month=allocation.date.strftime("%B %Y"),
+    )
 
     with client.application.app_context():
         lump_sum = AllocatedLumpSum.query.filter_by(

@@ -142,7 +142,7 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
             (p for p in providers if p.get(ProviderColumnNames.ID) == provider_id), None
         ),
     )
-    mock_send_email = mocker.patch("run_payment_requests.send_payment_request_email", return_value=True)
+    mock_send_email = mocker.patch("run_payment_requests.send_care_days_payment_request_email", return_value=True)
 
     # Run the script
     run_payment_requests()

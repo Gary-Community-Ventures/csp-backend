@@ -18,6 +18,9 @@ from app.sheets.mappings import (
     get_providers,
 )
 
+from app.utils.email_service import send_lump_sum_payment_request_email
+
+
 bp = Blueprint("lump_sum", __name__, url_prefix="/lump-sums")
 
 
@@ -48,13 +51,13 @@ def create_lump_sum():
     child_rows = get_children()
     family_children = get_family_children(family_id, child_rows)
 
-    child_found = False
+    associated_child = None
     for child in family_children:
         if child.get(ChildColumnNames.ID) == allocation_child_id:
-            child_found = True
+            associated_child = child
             break
 
-    if not child_found:
+    if not associated_child:
         return jsonify({"error": "Child not associated with the authenticated family."}), 403
 
     # Check if the provider is associated with the child
@@ -76,6 +79,15 @@ def create_lump_sum():
             allocation=allocation,
             provider_id=provider_id,
             amount_cents=amount_cents,
+        )
+        send_lump_sum_payment_request_email(
+            provider_name=provider.get(ProviderColumnNames.NAME),
+            google_sheets_provider_id=provider_id,
+            child_first_name=associated_child.get(ChildColumnNames.FIRST_NAME),
+            child_last_name=associated_child.get(ChildColumnNames.LAST_NAME),
+            google_sheets_child_id=allocation_child_id,
+            amount_in_cents=amount_cents,
+            month=allocation.date.strftime("%B %Y"),
         )
         return jsonify(lump_sum.to_dict()), 201
     except ValueError as e:
