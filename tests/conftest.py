@@ -2,6 +2,7 @@ from datetime import date
 from unittest.mock import patch
 
 import pytest
+from clerk_backend_api import Clerk  # Import Clerk class
 from pytest_mock import MockerFixture
 
 from app import create_app
@@ -19,6 +20,19 @@ def db_session(app):
 def mock_send_submission_notification(mocker: MockerFixture):
     mock = mocker.patch("app.routes.child.send_submission_notification")
     return mock
+
+
+@pytest.fixture(autouse=True)
+def mock_clerk_authentication(mocker: MockerFixture):
+    mock_request_state = mocker.Mock()
+    mock_request_state.is_signed_in = True
+    mock_request_state.payload = {
+        "sub": "user_id_123",
+        "sid": "session_id_123",
+        "data": {"types": ["family"], "family_id": "family123", "provider_id": None},
+    }
+    # Patch the authenticate_request method of the Clerk class
+    mocker.patch.object(Clerk, "authenticate_request", return_value=mock_request_state)
 
 
 @pytest.fixture

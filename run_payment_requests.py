@@ -12,7 +12,7 @@ from app.sheets.mappings import (
     get_provider,
     get_providers,
 )
-from app.utils.email_service import send_payment_request_email
+from app.utils.email_service import send_care_days_payment_request_email
 
 # Create Flask app context
 app = create_app()
@@ -86,7 +86,7 @@ def run_payment_requests():
         db.session.add(payment_request)
 
         # TODO Write payment request information to a spreadsheet for James
-        sent_email = send_payment_request_email(
+        sent_email = send_care_days_payment_request_email(
             provider_name=provider_name,
             google_sheets_provider_id=provider_id,
             child_first_name=child_first_name,
