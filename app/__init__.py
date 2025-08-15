@@ -139,6 +139,7 @@ def create_app(config_class=None):
     from .routes.main import bp as main_bp
     from .routes.payment_rate import payment_rate_bp
     from .routes.provider import bp as provider_bp
+    from .routes.attendance import bp as attendance_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
@@ -147,5 +148,6 @@ def create_app(config_class=None):
     app.register_blueprint(care_day_bp)
     app.register_blueprint(child_bp)
     app.register_blueprint(payment_rate_bp)
+    app.register_blueprint(attendance_bp)
 
     return app

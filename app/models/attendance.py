@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ..extensions import db
 from .mixins import TimestampMixin
@@ -22,23 +22,23 @@ class Attendance(db.Model, TimestampMixin):
     @staticmethod
     def new(child_id: str, provider_id: str):
         return Attendance(
-            week=datetime.utcnow().date(), child_google_sheet_id=child_id, provider_google_sheet_id=provider_id
+            week=datetime.now(timezone.utc).date(), child_google_sheet_id=child_id, provider_google_sheet_id=provider_id
         )
 
     def family_entered(self, hours: int):
         self.family_entered_hours = hours
-        self.family_entered_at = datetime.utcnow()
+        self.family_entered_at = datetime.now(timezone.utc)
 
         return self
 
     def provider_entered(self, hours: int):
         self.provider_entered_hours = hours
-        self.provider_entered_at = datetime.utcnow()
+        self.provider_entered_at = datetime.now(timezone.utc)
 
         return self
 
     def record_opened(self):
-        self.opened_at = datetime.utcnow()
+        self.opened_at = datetime.now(timezone.utc)
 
         return self
 
