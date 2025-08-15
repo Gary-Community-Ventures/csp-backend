@@ -28,7 +28,7 @@ services:
   # RQ Worker for processing jobs
   worker:
     build: .
-    command: python worker_entrypoint.py
+    command: python worker.py
     init: true
     depends_on:
       - postgres
