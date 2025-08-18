@@ -45,10 +45,11 @@ class KeyMap(dict):
 ID_COLUMN_KEY = Key("ID")
 
 
-def get_row(rows: list[KeyMap], id: str) -> Optional[KeyMap]:
-    for row in rows:
-        if row.get(ChildColumnNames.ID) == id:
-            return row
+def get_row(data: list[KeyMap], id: str, id_key: Key[str] = ID_COLUMN_KEY) -> Optional[KeyMap]:
+    for item in data:
+        if item.get(id_key) == id:
+            return item
+
     return None
 
 
