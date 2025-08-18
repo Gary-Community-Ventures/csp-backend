@@ -14,10 +14,13 @@ class Attendance(db.Model, TimestampMixin):
     family_entered_at = db.Column(db.DateTime, nullable=True)
     provider_entered_hours = db.Column(db.Integer, nullable=True)
     provider_entered_at = db.Column(db.DateTime, nullable=True)
-    opened_at = db.Column(db.DateTime, nullable=True)
+    family_opened_at = db.Column(db.DateTime, nullable=True)
+    provider_opened_at = db.Column(db.DateTime, nullable=True)
 
     def __repr__(self):
-        return f"<Attendance {self.id} - Child: {self.child_google_sheet_id} - Provider: {self.provider_google_sheet_id}>"
+        return (
+            f"<Attendance {self.id} - Child: {self.child_google_sheet_id} - Provider: {self.provider_google_sheet_id}>"
+        )
 
     @staticmethod
     def new(child_id: str, provider_id: str):
@@ -37,11 +40,20 @@ class Attendance(db.Model, TimestampMixin):
 
         return self
 
-    def record_opened(self):
-        self.opened_at = datetime.now(timezone.utc)
+    def record_family_opened(self):
+        self.family_opened_at = datetime.now(timezone.utc)
+
+        return self
+
+    def record_provider_opened(self):
+        self.provider_opened_at = datetime.now(timezone.utc)
 
         return self
 
     @classmethod
     def filter_by_child_ids(cls, child_ids: list[str]):
         return cls.query.filter(cls.child_google_sheet_id.in_(child_ids), cls.family_entered_hours.is_(None))
+
+    @classmethod
+    def filter_by_provider_id(cls, provider_id: str):
+        return cls.query.filter(cls.provider_google_sheet_id == provider_id, cls.family_entered_hours.is_(None))

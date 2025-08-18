@@ -5,7 +5,7 @@ from app.auth.decorators import (
     ClerkUserType,
     auth_required,
 )
-from app.auth.helpers import get_family_user
+from app.auth.helpers import get_family_user, get_provider_user
 from app.extensions import db
 from app.models.attendance import Attendance
 from app.schemas.attendance import SetAttendanceRequest
@@ -24,7 +24,7 @@ bp = Blueprint("attendance", __name__)
 
 @bp.get("/family/attendance")
 @auth_required(ClerkUserType.FAMILY)
-def attendance():
+def family_attendance():
     user = get_family_user()
 
     child_rows = get_children()
@@ -44,7 +44,7 @@ def attendance():
     providers: list[dict] = []
 
     for att_data in attendance_data:
-        att_data.record_opened()
+        att_data.record_family_opened()
         db.session.add(att_data)
 
         child = get_child(att_data.child_google_sheet_id, family_children)
@@ -120,7 +120,7 @@ def find_attendance(attendance_id: str, attendance_data: list[Attendance]):
 
 @bp.post("/family/attendance")
 @auth_required(ClerkUserType.FAMILY)
-def enter_attendance():
+def enter_family_attendance():
     try:
         data = SetAttendanceRequest(**request.json)
     except ValidationError as e:
@@ -144,3 +144,62 @@ def enter_attendance():
     db.session.commit()
 
     return jsonify({"message": "Success"}, 200)
+
+
+@bp.get("/provider/attendance")
+@auth_required(ClerkUserType.PROVIDER)
+def provider_attendance():
+    user = get_provider_user()
+
+    attendance_data: list[Attendance] = Attendance.filter_by_provider_id(user.user_data.provider_id).all()
+
+    if len(attendance_data) == 0:
+        return jsonify({"attendance": [], "children": []})
+
+    child_rows = get_children()
+
+    attendance: list[dict] = []
+    children: list[dict] = []
+
+    for att_data in attendance_data:
+        att_data.record_provider_opened()
+        db.session.add(att_data)
+
+        child = get_child(att_data.child_google_sheet_id, child_rows)
+
+        if child is None:
+            # the child has been deleted
+            db.session.delete(att_data)
+            continue
+
+        child_included = False
+        for response_child in children:
+            if response_child["id"] == child.get(ChildColumnNames.ID):
+                child_included = True
+                break
+
+        if not child_included:
+            children.append(
+                {
+                    "id": child.get(ChildColumnNames.ID),
+                    "first_name": child.get(ChildColumnNames.FIRST_NAME),
+                    "last_name": child.get(ChildColumnNames.LAST_NAME),
+                }
+            )
+
+        attendance.append(
+            {
+                "id": att_data.id,
+                "date": att_data.week.isoformat(),
+                "child_id": child.get(ChildColumnNames.ID),
+            }
+        )
+
+    db.session.commit()
+
+    return jsonify(
+        {
+            "attendance": attendance,
+            "children": children,
+        }
+    )
