@@ -2,7 +2,6 @@ from datetime import date
 from unittest.mock import patch
 
 import pytest
-from clerk_backend_api import Clerk  # Import Clerk class
 from pytest_mock import MockerFixture
 
 from app import create_app
@@ -32,7 +31,7 @@ def mock_clerk_authentication(mocker: MockerFixture):
         "data": {"types": ["family"], "family_id": "family123", "provider_id": None},
     }
     # Patch the authenticate_request method of the Clerk class
-    mocker.patch.object(Clerk, "authenticate_request", return_value=mock_request_state)
+    mocker.patch("clerk_backend_api.Clerk.authenticate_request", return_value=mock_request_state)
 
 
 @pytest.fixture

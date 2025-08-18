@@ -1,4 +1,5 @@
 from datetime import date, datetime, time, timedelta
+from unittest.mock import patch
 
 import pytest
 
@@ -6,6 +7,43 @@ from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation
 from app.sheets.helpers import KeyMap
 from app.sheets.mappings import ChildColumnNames
+
+
+@pytest.fixture(autouse=True)
+def mock_google_sheets(mocker, app):
+    mocker.patch("app.sheets.mappings.get_sheet_data", return_value=[])
+    mocker.patch(
+        "app.models.month_allocation.get_child",
+        return_value=KeyMap(
+            {
+                ChildColumnNames.MONTHLY_ALLOCATION.key: "1000",
+                ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION.key: "500",
+                ChildColumnNames.ID.key: "1",
+            }
+        ),
+    )
+    mocker.patch(
+        "app.models.month_allocation.get_children",
+        return_value=[
+            KeyMap(
+                {
+                    ChildColumnNames.MONTHLY_ALLOCATION.key: "1000",
+                    ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION.key: "500",
+                    ChildColumnNames.ID.key: "1",
+                }
+            )
+        ],
+    )
+    # Mock the app.google_sheets_service directly on the app instance
+    app.google_sheets_service = mocker.Mock()
+    # Mock app.config.get to ensure GOOGLE_APPLICATION_CREDENTIALS is seen as present
+    mocker.patch.object(
+        app.config,
+        "get",
+        side_effect=lambda key, default=None: (
+            "test_credentials" if key == "GOOGLE_APPLICATION_CREDENTIALS" else default
+        ),
+    )
 
 
 @pytest.fixture
@@ -266,10 +304,10 @@ def test_get_month_allocation_past_month_creation_fails(client):
 
 def test_get_month_allocation_future_month_creation_fails(client):
     # Attempt to get an allocation for a future month that is too far in advance
-    future_month = date.today().replace(day=1) + timedelta(days=32)
+    future_month = date.today().replace(day=1) + timedelta(days=65)
     response = client.get(f"/child/1/allocation/{future_month.month}/{future_month.year}?provider_id=1")
     assert response.status_code == 400
-    assert "Cannot create allocation for a month that is more than 14 days away." in response.json["error"]
+    assert "Cannot create allocation for a month more than one month in the future." in response.json["error"]
 
 
 def test_month_allocation_locked_until_date(client, seed_db):
