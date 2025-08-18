@@ -2,7 +2,7 @@ from datetime import date
 from unittest.mock import patch
 
 import pytest
-from clerk_backend_api import Clerk  # Import Clerk class
+from clerk_backend_api import Clerk
 from pytest_mock import MockerFixture
 
 from app import create_app
