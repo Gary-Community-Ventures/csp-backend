@@ -60,5 +60,3 @@ class Cache:
             self._updating = False
 
         return self._cache
-
-

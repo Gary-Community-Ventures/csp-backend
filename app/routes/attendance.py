@@ -203,3 +203,29 @@ def provider_attendance():
             "children": children,
         }
     )
+
+
+@bp.post("/provider/attendance")
+@auth_required(ClerkUserType.PROVIDER)
+def attendance_provider():
+    try:
+        data = SetAttendanceRequest(**request.json)
+    except ValidationError as e:
+        return jsonify({"error": e.errors()}), 400
+
+    user = get_provider_user()
+
+    ids = [att.id for att in data.attendance]
+
+    attendance_data: list[Attendance] = (
+        Attendance.filter_by_provider_id(user.user_data.provider_id).filter(Attendance.id.in_(ids)).all()
+    )
+
+    for provider_entered in data.attendance:
+        attendance = find_attendance(provider_entered.id, attendance_data)
+        attendance.provider_entered(provider_entered.hours)
+        db.session.add(attendance)
+
+    db.session.commit()
+
+    return jsonify({"message": "Success"}, 200)

@@ -32,7 +32,6 @@ from app.sheets.mappings import (
     get_families,
     get_family,
     get_family_children,
-    get_provider,
     get_provider_child_mapping_provider,
     get_provider_child_mappings,
     get_provider_child_mappings_by_provider_id,

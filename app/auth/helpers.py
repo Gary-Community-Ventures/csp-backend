@@ -47,6 +47,7 @@ def get_family_user() -> User:
 
     return user
 
+
 def get_provider_user() -> User:
     user = get_current_user()
 

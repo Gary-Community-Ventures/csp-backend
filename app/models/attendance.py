@@ -56,4 +56,4 @@ class Attendance(db.Model, TimestampMixin):
 
     @classmethod
     def filter_by_provider_id(cls, provider_id: str):
-        return cls.query.filter(cls.provider_google_sheet_id == provider_id, cls.family_entered_hours.is_(None))
+        return cls.query.filter(cls.provider_google_sheet_id == provider_id, cls.provider_entered_hours.is_(None))

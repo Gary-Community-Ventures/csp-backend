@@ -16,6 +16,7 @@ from app.auth.helpers import get_current_user, get_family_user, get_provider_use
 from app.constants import MAX_CHILDREN_PER_PROVIDER
 from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation
+from app.models.attendance import Attendance
 from app.models.family_invitation import FamilyInvitation
 from app.sheets.helpers import KeyMap, format_name, get_row
 from app.sheets.mappings import (
@@ -126,12 +127,24 @@ def get_provider_data():
             }
         )
 
+    notifications = []
+    child_status = provider_data.get(ChildColumnNames.STATUS).lower()
+    if child_status == "pending":
+        notifications.append({"type": "application_pending"})
+    elif child_status == "denied":
+        notifications.append({"type": "application_denied"})
+
+    needs_attendance = Attendance.filter_by_provider_id(provider_id).count() > 0
+    if needs_attendance:
+        notifications.append({"type": "attendance"})
+
     return jsonify(
         {
             "provider_info": provider_info,
             "children": children,
             "transactions": transactions,
             "curriculum": None,
+            "notifications": notifications,
             "max_child_count": MAX_CHILDREN_PER_PROVIDER,
             "is_also_family": ClerkUserType.FAMILY.value in user.user_data.types,
         }

@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from flask import current_app
+
 from app.sheets.helpers import (
     Key,
     KeyMap,
