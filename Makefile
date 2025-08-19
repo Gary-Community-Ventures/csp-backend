@@ -16,8 +16,8 @@ run:
 down:
 	docker compose down $(ARGS)
 test:
-	docker-compose -f docker-compose.yml -f docker-compose.test.yml run --rm backend pytest $(ARGS)
-	docker-compose -f docker-compose.yml -f docker-compose.test.yml down
+	docker compose -f docker-compose.yml -f docker-compose.test.yml run --rm backend pytest $(ARGS)
+	docker compose -f docker-compose.yml -f docker-compose.test.yml down
 exec:
 	docker compose exec backend $(ARGS)
 run:
@@ -27,8 +27,8 @@ db:
 db-shell:
 	docker compose exec postgres psql -U dev -d myapp $(ARGS)
 db-upgrade:
-	docker-compose exec backend flask db upgrade
+	docker compose exec backend flask db upgrade
 db-downgrade:
-	docker-compose exec backend flask db downgrade
+	docker compose exec backend flask db downgrade
 %:
 	@# Do nothing
