@@ -1,5 +1,9 @@
+import os
+
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+
+from app.config import ENV_TESTING
 
 
 @dataclass
@@ -43,7 +47,12 @@ class Cache:
     _NOT_SET = object()
 
     def __init__(self, func: callable, expiration_time=60):
+        self._dont_run = os.environ.get("FLASK_ENV") == ENV_TESTING
+
         self._func = func
+        if self._dont_run:
+            return
+
         self._cache = func()
         self._expiration_time = expiration_time
         self._expires_at = datetime.now() + timedelta(seconds=self._expiration_time)
@@ -54,6 +63,9 @@ class Cache:
             return self._cache
 
         if self._expires_at < datetime.now():
+            if self._dont_run:
+                return
+
             self._updating = True
             self._cache = self._func()
             self._expires_at = datetime.now() + timedelta(seconds=self._expiration_time)
