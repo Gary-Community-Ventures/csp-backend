@@ -56,7 +56,9 @@ def create_attendance():
 
     attendances: list[Attendance] = []
     for provider_child_mapping in provider_child_mapping_rows:
-        attendance_obj = create_child_provider_attendance(provider_child_mapping, child_rows, provider_rows, last_week_date)
+        attendance_obj = create_child_provider_attendance(
+            provider_child_mapping, child_rows, provider_rows, last_week_date
+        )
 
         if attendance_obj is not None:
             attendances.append(attendance_obj)

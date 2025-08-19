@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone, date
+from datetime import date, datetime, timedelta, timezone
 
 from ..extensions import db
 from .mixins import TimestampMixin
