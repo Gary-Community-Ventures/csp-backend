@@ -51,7 +51,7 @@ def family_attendance():
 
         if child is None:
             # child is not in the family anymore, so mark them as 0 hours
-            att_data.family_entered(0)
+            att_data.set_family_entered(0)
             continue
 
         child_included = False
@@ -73,7 +73,7 @@ def family_attendance():
 
         if provider is None:
             # The provider has been deleted
-            db.session.delete(att_data)
+            att_data.set_family_entered(0)
             continue
 
         provider_included = False
@@ -138,7 +138,7 @@ def enter_family_attendance():
 
     for family_entered in data.attendance:
         attendance = find_attendance(family_entered.id, attendance_data)
-        attendance.family_entered(family_entered.hours)
+        attendance.set_family_entered(family_entered.hours)
         db.session.add(attendance)
 
     db.session.commit()
@@ -169,7 +169,7 @@ def provider_attendance():
 
         if child is None:
             # the child has been deleted
-            db.session.delete(att_data)
+            att_data.set_provider_entered(0)
             continue
 
         child_included = False
@@ -223,7 +223,7 @@ def attendance_provider():
 
     for provider_entered in data.attendance:
         attendance = find_attendance(provider_entered.id, attendance_data)
-        attendance.provider_entered(provider_entered.hours)
+        attendance.set_provider_entered(provider_entered.hours)
         db.session.add(attendance)
 
     db.session.commit()

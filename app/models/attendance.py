@@ -34,24 +34,30 @@ class Attendance(db.Model, TimestampMixin):
     def new(child_id: str, provider_id: str, date: date):
         return Attendance(week=date, child_google_sheet_id=child_id, provider_google_sheet_id=provider_id)
 
-    def family_entered(self, hours: int):
+    def set_family_entered(self, hours: int):
         self.family_entered_hours = hours
         self.family_entered_at = datetime.now(timezone.utc)
 
         return self
 
-    def provider_entered(self, hours: int):
+    def set_provider_entered(self, hours: int):
         self.provider_entered_hours = hours
         self.provider_entered_at = datetime.now(timezone.utc)
 
         return self
 
     def record_family_opened(self):
+        if self.family_opened_at is not None:
+            return self
+
         self.family_opened_at = datetime.now(timezone.utc)
 
         return self
 
     def record_provider_opened(self):
+        if self.provider_opened_at is not None:
+            return self
+
         self.provider_opened_at = datetime.now(timezone.utc)
 
         return self

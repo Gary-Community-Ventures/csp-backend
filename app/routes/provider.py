@@ -128,10 +128,10 @@ def get_provider_data():
         )
 
     notifications = []
-    child_status = provider_data.get(ChildColumnNames.STATUS).lower()
-    if child_status == "pending":
+    provider_status = provider_data.get(ProviderColumnNames.STATUS).lower()
+    if provider_status == "pending":
         notifications.append({"type": "application_pending"})
-    elif child_status == "denied":
+    elif provider_status == "denied":
         notifications.append({"type": "application_denied"})
 
     needs_attendance = Attendance.filter_by_provider_id(provider_id).count() > 0
