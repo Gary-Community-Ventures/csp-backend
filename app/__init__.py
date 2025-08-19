@@ -131,6 +131,11 @@ def create_app(config_class=None):
             },
         )
 
+    # --- Initialize Job Queue ---
+    from .jobs import job_manager
+
+    job_manager.init_app(app)
+
     # --- Register Blueprints ---
     from .routes.attendance import bp as attendance_bp
     from .routes.auth import bp as auth_bp

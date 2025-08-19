@@ -42,3 +42,12 @@ sendgrid==6.11.0
 
 # SMS
 twilio==9.7.0
+
+# Job Queue
+redis==6.4.0
+rq==2.4.1
+rq-scheduler==0.14.0
+
+# RQ Dashboard for monitoring
+rq-dashboard==0.8.5
+
