@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone, date
 
 from ..extensions import db
 from .mixins import TimestampMixin
@@ -23,10 +23,16 @@ class Attendance(db.Model, TimestampMixin):
         )
 
     @staticmethod
-    def new(child_id: str, provider_id: str):
-        return Attendance(
-            week=datetime.now(timezone.utc).date(), child_google_sheet_id=child_id, provider_google_sheet_id=provider_id
-        )
+    def last_week_date():
+        today = datetime.now(timezone.utc).date()
+
+        days_to_subtract = today.weekday() + 7
+
+        return today - timedelta(days=days_to_subtract)
+
+    @staticmethod
+    def new(child_id: str, provider_id: str, date: date):
+        return Attendance(week=date, child_google_sheet_id=child_id, provider_google_sheet_id=provider_id)
 
     def family_entered(self, hours: int):
         self.family_entered_hours = hours
