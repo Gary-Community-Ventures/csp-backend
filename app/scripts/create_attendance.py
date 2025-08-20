@@ -114,7 +114,6 @@ def create_attendance():
         if attendance_obj is not None:
             attendances.append(attendance_obj)
 
-
     db.session.add_all(attendances)
     db.session.commit()
     app.logger.info("create_attendance: Finished attendance creation.")
