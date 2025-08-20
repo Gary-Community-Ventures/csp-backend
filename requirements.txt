@@ -1,6 +1,8 @@
 # Flask Core
 Flask==3.1.1
 Flask-CORS==6.0.1
+Flask-Admin==2.0.0a4
+#Flask-Admin==1.5.8
 
 # Database
 Flask-SQLAlchemy==3.1.1

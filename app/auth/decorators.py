@@ -9,6 +9,7 @@ from flask import abort, current_app, g, request
 
 
 class ClerkUserType(Enum):
+    ADMIN = "admin"
     FAMILY = "family"
     PROVIDER = "provider"
     NONE = None
@@ -53,6 +54,8 @@ def _authenticate_request(user_type: ClerkUserType):
             httpx_request,
             AuthenticateRequestOptions(authorized_parties=_get_authorized_parties(), clock_skew_in_ms=1000 * 30),
         )
+
+        print(f"Request state: {request_state}")
 
         if not request_state.is_signed_in:
             current_app.logger.warning(f"User is not signed in: {request_state.message}")

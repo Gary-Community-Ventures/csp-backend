@@ -132,6 +132,10 @@ def create_app(config_class=None):
 
     job_manager.init_app(app)
 
+    # --- Initialize Admin Interface ---
+    from .admin import init_app as init_admin
+    init_admin(app)
+
     # --- Register Blueprints ---
     from .routes.auth import bp as auth_bp
     from .routes.care_day import bp as care_day_bp
