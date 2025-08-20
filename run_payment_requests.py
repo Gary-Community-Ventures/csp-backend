@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app import create_app
 from app.extensions import db
@@ -29,7 +29,7 @@ def run_payment_requests():
             AllocatedCareDay.last_submitted_at.isnot(None),
             AllocatedCareDay.payment_distribution_requested.is_(False),
             AllocatedCareDay.deleted_at.is_(None),
-            AllocatedCareDay.locked_date <= datetime.utcnow(),
+            AllocatedCareDay.locked_date <= datetime.now(timezone.utc),
         )
         .all()
     )

@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from datetime import time as dt_time
-from datetime import timedelta
+from datetime import timedelta, timezone
 from decimal import Decimal
 
 from ..enums.care_day_type import CareDayType
@@ -87,7 +87,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
 
     def soft_delete(self):
         """Soft delete this care day"""
-        self.deleted_at = datetime.utcnow()
+        self.deleted_at = datetime.now(timezone.utc)
         db.session.commit()
 
     def restore(self):
@@ -97,7 +97,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
 
     def mark_as_submitted(self):
         """Mark this day as submitted to provider"""
-        self.last_submitted_at = db.func.current_timestamp()
+        self.last_submitted_at = datetime.now(timezone.utc)
 
     @staticmethod
     def create_care_day(

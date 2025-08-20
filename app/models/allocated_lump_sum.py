@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ..extensions import db
 from .mixins import TimestampMixin
@@ -34,7 +34,7 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
 
     def mark_as_paid(self):
         """Mark this lump sum as paid."""
-        self.paid_at = db.func.current_timestamp()
+        self.paid_at = datetime.now(timezone.utc)
 
     @staticmethod
     def create_lump_sum(
@@ -59,7 +59,7 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=provider_id,
             amount_cents=amount_cents,
-            submitted_at=datetime.utcnow(),
+            submitted_at=datetime.now(timezone.utc),
         )
 
         db.session.add(lump_sum)
