@@ -42,11 +42,6 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
         provider_id: str,
         amount_cents: int,
     ):
-        # Validate inputs
-        if not isinstance(allocation, MonthAllocation):
-            raise ValueError("Invalid allocation provided")
-        if not isinstance(provider_id, str) or not provider_id:
-            raise ValueError("Invalid provider ID")
         if not isinstance(amount_cents, int) or amount_cents <= 0:
             raise ValueError("Amount must be a positive integer in cents")
 
