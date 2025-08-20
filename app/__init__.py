@@ -134,6 +134,7 @@ def create_app(config_class=None):
 
     # --- Initialize Admin Interface ---
     from .admin import init_app as init_admin
+
     init_admin(app)
 
     # --- Register Blueprints ---

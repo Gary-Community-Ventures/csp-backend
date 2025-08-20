@@ -137,6 +137,3 @@ class MonthAllocation(db.Model, TimestampMixin):
 
     def __repr__(self):
         return f"<MonthAllocation Child:{self.google_sheets_child_id} {self.date.strftime('%Y-%m')}"
-
-    def __str__(self):
-        return f"Child {self.google_sheets_child_id} - {self.date.strftime('%B %Y')}"

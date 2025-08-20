@@ -2,7 +2,8 @@
 # Nuclear option: Complete bypass of Select2 widget with form widget override
 
 from collections import defaultdict
-from flask import current_app, request, redirect
+
+from flask import current_app, redirect, request
 from flask_admin import Admin, AdminIndexView, expose
 from flask_admin.contrib.sqla import ModelView
 
@@ -14,7 +15,7 @@ class ClerkAuthMixin:
         """Check if current user can access this view"""
         try:
             # Import here to avoid circular imports
-            from app.auth.decorators import _authenticate_request, ClerkUserType
+            from app.auth.decorators import ClerkUserType, _authenticate_request
 
             # Try to authenticate the request
             _authenticate_request(ClerkUserType.ADMIN)
@@ -45,7 +46,7 @@ class SecureAdminIndexView(ClerkAuthMixin, AdminIndexView):
     def index(self):
         """Custom admin index page with user info"""
         try:
-            from app.auth.decorators import _authenticate_request, ClerkUserType
+            from app.auth.decorators import ClerkUserType, _authenticate_request
 
             request_state = _authenticate_request(ClerkUserType.ADMIN)
 
@@ -102,7 +103,7 @@ class SecureModelView(ClerkAuthMixin, ModelView):
     def on_model_change(self, form, model, is_created):
         """Called when model is changed - add audit logging"""
         try:
-            from app.auth.decorators import _authenticate_request, ClerkUserType
+            from app.auth.decorators import ClerkUserType, _authenticate_request
 
             request_state = _authenticate_request(ClerkUserType.ADMIN)
             user_id = request_state.payload.get("sub")
@@ -131,24 +132,20 @@ def init_admin_views(app):
 
     try:
         # Import your models here to avoid circular imports
+        from app.extensions import db
         from app.models import (
-            PaymentRate,
             AllocatedCareDay,
+            FamilyInvitation,
             MonthAllocation,
+            PaymentRate,
             PaymentRequest,
             ProviderInvitation,
-            FamilyInvitation,
         )
-        from app.extensions import db
-
-
 
         # Add model views with appropriate configurations
         admin.add_view(SecureModelView(PaymentRate, db.session, name="Payment Rates", category="Financial"))
 
-        admin.add_view(
-            SecureModelView(AllocatedCareDay, db.session, name="Allocated Care Days", category="Financial")
-        )
+        admin.add_view(SecureModelView(AllocatedCareDay, db.session, name="Allocated Care Days", category="Financial"))
 
         admin.add_view(SecureModelView(MonthAllocation, db.session, name="Month Allocations", category="Financial"))
 
@@ -185,7 +182,7 @@ def setup_admin_context_processors(app):
         """Make current admin user available in all admin templates"""
         if request.endpoint and request.endpoint.startswith("admin"):
             try:
-                from app.auth.decorators import _authenticate_request, ClerkUserType
+                from app.auth.decorators import ClerkUserType, _authenticate_request
 
                 request_state = _authenticate_request(ClerkUserType.ADMIN)
 
