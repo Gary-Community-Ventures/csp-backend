@@ -1,14 +1,13 @@
-from flask import current_app, request
 from flask_admin import Admin
 
 from app.admin.models import ADMIN_MODELS
-from app.admin.views import SecureAdminIndexView, SecureModelView
-
-# Create the admin instance
-admin = Admin(
-    name="CAP Colorado Admin",
-    index_view=SecureAdminIndexView(name="Dashboard", url="/admin"),
+from app.admin.views import (
+    SecureAdminIndexView,
+    SecureModelView,
+    inject_environment_banner,
 )
+
+admin = Admin()
 
 
 def init_admin_views(app):
@@ -38,5 +37,9 @@ def init_admin_views(app):
 
 def init_app(app):
     """Initialize Flask-Admin with the app"""
+    env = app.config.get("FLASK_ENV", "production").capitalize()
+    admin.name = f"CAP Colorado Admin - {env}"
+    admin.index_view = SecureAdminIndexView(name="Dashboard", url="/admin")
     admin.init_app(app)
     init_admin_views(app)
+    app.context_processor(inject_environment_banner)

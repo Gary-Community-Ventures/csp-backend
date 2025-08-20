@@ -5,6 +5,26 @@ from flask_admin import AdminIndexView, expose
 from flask_admin.contrib.sqla import ModelView
 
 
+def inject_environment_banner():
+    """Inject environment banner variables into the template context"""
+    env = current_app.config.get("FLASK_ENV", "production")
+
+    if env == "staging":
+        return {
+            "env": env,
+            "env_name": "Staging",
+            "env_class": "bg-yellow-500",
+        }
+    elif env == "development":
+        return {
+            "env": env,
+            "env_name": "Development",
+            "env_class": "bg-blue-500",
+        }
+    else:
+        return {"env": None}
+
+
 class ClerkAuthMixin:
     """Mixin to add Clerk authentication to Flask-Admin views"""
 
