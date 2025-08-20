@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import List, Union
 
 from flask import current_app
-from sendgrid import SendGridAPIClient
+from sendgrid import Personalization, SendGridAPIClient, Substitution, To
 from sendgrid.helpers.mail import Mail
 
 from app.models import AllocatedCareDay
@@ -19,6 +19,16 @@ from app.sheets.mappings import (
 )
 
 
+def add_subject_prefix(subject: str):
+    environment = current_app.config.get("FLASK_ENV", "development")
+    prefix = ""
+
+    if environment != "production":
+        prefix = f"[{environment.upper()}]"
+
+    return f"{prefix} {subject}"
+
+
 def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, html_content: str) -> bool:
     """
     Send an email using SendGrid.
@@ -30,17 +40,10 @@ def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, 
     :return: True if the email was sent successfully, False otherwise.
     """
     try:
-        environment = current_app.config.get("FLASK_ENV", "development")
-
-        # Add environment prefix to subject for non-production environments
-        subject_prefix = ""
-        if environment != "production":
-            subject_prefix = f"[{environment.upper()}] "
-
         message = Mail(
             from_email=from_email,
             to_emails=to_emails,
-            subject=f"{subject_prefix}{subject}",
+            subject=add_subject_prefix(subject),
             html_content=html_content,
         )
 
@@ -58,11 +61,51 @@ def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, 
                 "exc_traceback": exc_traceback,
                 "exc_type": exc_type,
                 "exc_value": exc_value,
-                "environment": environment,
                 "from_email": from_email,
                 "to_emails": to_emails,
                 "subject": subject,
                 "html_content": html_content,
+                "e.body": getattr(e, "body", None),
+            },
+        )
+        current_app.logger.error(exc_traceback)
+        return False
+
+
+@dataclass
+class BulkEmailData:
+    email: str
+    subject: str
+    html_content: str
+
+
+def bulk_send_emails(from_email: str, data: list[BulkEmailData]):
+    try:
+        message = Mail(from_email=from_email, to_emails=[], subject="[PLACEHOLDER]", html_content="{body}")
+
+        for message_data in data:
+            personalization = Personalization()
+            personalization.add_to(To(message_data.email))
+            personalization.subject = message_data.subject
+            personalization.add_substitution(Substitution("{body}", message_data.html_content))
+
+            message.add_personalization(personalization)
+
+        sendgrid_client = SendGridAPIClient(current_app.config.get("SENDGRID_API_KEY"))
+        response = sendgrid_client.send(message)
+        current_app.logger.info(f"SendGrid emails sent with status code: {response.status_code}")
+        return True
+    except Exception as e:
+        exc_type, exc_value, _ = sys.exc_info()
+        exc_traceback = traceback.format_exc()
+        current_app.logger.error(
+            f"Error sending email: {e}",
+            extra={
+                "exc_traceback": exc_traceback,
+                "exc_type": exc_type,
+                "exc_value": exc_value,
+                "from_email": from_email,
+                "data": data,
                 "e.body": getattr(e, "body", None),
             },
         )
@@ -121,9 +164,7 @@ def system_message(subject: str, description: str, rows: list[SystemMessageRow])
                 {"".join(html_rows)}
             </table>
             <p>
-                <a href="https://www.espn.com/nfl/story/_/id/45711952/2025-nfl-roster-ranking-starting-lineups-projection-32-teams" style="color: #0066cc; text-decoration: underline;">
-                P.S. Check out the Saints (Lack of) Power Rankings
-                </a>
+                {html_link('https://www.espn.com/nfl/story/_/id/45711952/2025-nfl-roster-ranking-starting-lineups-projection-32-teams', 'P.S. Check out the Saints (Lack of) Power Rankings')}
             </p>
             <hr>
             <p style="font-size: 12px; color: #666;">This is an automated notification from the CAP portal system.</p>
@@ -379,3 +420,7 @@ def send_family_invite_accept_email(
         subject=subject,
         html_content=html_content,
     )
+
+
+def html_link(link: str, text: str):
+    return f"<a href='{link}' style='color: #0066cc; text-decoration: underline;'>{text}</a>"

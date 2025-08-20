@@ -19,6 +19,9 @@ class FamilyColumnNames:
     ID = Key("ID")
     FIRST_NAME = Key("First Name")
     LAST_NAME = Key("Last Name")
+    EMAIL = Key("Email")
+    LANGUAGE = Key("Language", default="en")
+    PHONE_NUMBER = Key("Phone Number")
 
 
 class ChildColumnNames:
@@ -44,6 +47,8 @@ class ProviderColumnNames:
     LAST_NAME = Key("Last Name")
     STATUS = Key("Status", default="Pending")
     EMAIL = Key("Email")
+    LANGUAGE = Key("Language", default="en")
+    PHONE_NUMBER = Key("Phone Number")
 
 
 class ContentColumnNames:
