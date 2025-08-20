@@ -86,7 +86,7 @@ def bulk_send_emails(from_email: str, data: list[BulkEmailData]):
         for message_data in data:
             personalization = Personalization()
             personalization.add_to(To(message_data.email))
-            personalization.subject = message_data.subject
+            personalization.subject = add_subject_prefix(message_data.subject)
             personalization.add_substitution(Substitution("{body}", message_data.html_content))
 
             message.add_personalization(personalization)
