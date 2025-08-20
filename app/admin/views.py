@@ -128,7 +128,8 @@ class SecureModelView(ClerkAuthMixin, ModelView):
             if hasattr(model, "created_by") and is_created:
                 model.created_by = user_id
 
-        except Exception:
+        except Exception as e:
+            current_app.logger.error(f"Audit logging error in on_model_change: {e}")
             pass  # Don't fail the operation if audit logging fails
 
         super().on_model_change(form, model, is_created)
