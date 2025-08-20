@@ -15,7 +15,7 @@ from . import models
 from .config import ENV_DEVELOPMENT, ENV_PRODUCTION, ENV_STAGING, ENV_TESTING
 
 # Import extensions from the extensions module
-from .extensions import cors, db, migrate
+from .extensions import cors, csrf, db, migrate
 
 
 def create_app(config_class=None):
@@ -85,6 +85,7 @@ def create_app(config_class=None):
     # --- Initialize Flask Extensions (after app config) ---
     db.init_app(app)
     migrate.init_app(app, db)
+    csrf.init_app(app)
 
     # --- Google Sheets Integration ---
     credentials = app.config.get("GOOGLE_APPLICATION_CREDENTIALS")

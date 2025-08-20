@@ -3,6 +3,7 @@ from collections import defaultdict
 from flask import current_app, redirect, request
 from flask_admin import AdminIndexView, expose
 from flask_admin.contrib.sqla import ModelView
+from markupsafe import escape
 
 
 def inject_environment_banner():
@@ -70,10 +71,10 @@ class SecureAdminIndexView(ClerkAuthMixin, AdminIndexView):
 
             if request_state.is_signed_in:
                 user_info = {
-                    "user_id": request_state.payload.get("sub"),
-                    "family_id": payload_data.get("family_id"),
-                    "provider_id": payload_data.get("provider_id"),
-                    "types": payload_data.get("types", []),
+                    "user_id": escape(request_state.payload.get("sub")),
+                    "family_id": escape(payload_data.get("family_id")),
+                    "provider_id": escape(payload_data.get("provider_id")),
+                    "types": [escape(t) for t in payload_data.get("types", [])],
                 }
             else:
                 user_info = None

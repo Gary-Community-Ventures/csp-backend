@@ -36,6 +36,9 @@ class Config:
     # Clerk Configuration
     CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
 
+    # For Flask-Admin
+    SECRET_KEY = os.getenv("SECRET_KEY", os.urandom(32))
+
 
 class DevelopmentConfig(Config):
     """Development configuration."""
