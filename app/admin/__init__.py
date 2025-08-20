@@ -7,7 +7,7 @@ from app.admin.views import (
     inject_environment_banner,
 )
 
-admin = Admin()
+admin = Admin(index_view=SecureAdminIndexView(name="Dashboard", url="/admin"))
 
 
 def init_admin_views(app):
@@ -39,7 +39,6 @@ def init_app(app):
     """Initialize Flask-Admin with the app"""
     env = app.config.get("FLASK_ENV", "production").capitalize()
     admin.name = f"CAP Colorado Admin - {env}"
-    admin.index_view = SecureAdminIndexView(name="Dashboard", url="/admin")
     admin.init_app(app)
     init_admin_views(app)
     app.context_processor(inject_environment_banner)
