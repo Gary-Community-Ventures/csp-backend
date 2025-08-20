@@ -21,6 +21,19 @@ def mock_send_submission_notification(mocker: MockerFixture):
     return mock
 
 
+@pytest.fixture(autouse=True)
+def mock_clerk_authentication(mocker: MockerFixture):
+    mock_request_state = mocker.Mock()
+    mock_request_state.is_signed_in = True
+    mock_request_state.payload = {
+        "sub": "user_id_123",
+        "sid": "session_id_123",
+        "data": {"types": ["family"], "family_id": "family123", "provider_id": None},
+    }
+    # Patch the authenticate_request method of the Clerk class
+    mocker.patch("clerk_backend_api.Clerk.authenticate_request", return_value=mock_request_state)
+
+
 @pytest.fixture
 def app():
     app = create_app()

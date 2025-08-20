@@ -1,4 +1,4 @@
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 
 import pytest
 
@@ -6,6 +6,43 @@ from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation
 from app.sheets.helpers import KeyMap
 from app.sheets.mappings import ChildColumnNames
+
+
+@pytest.fixture(autouse=True)
+def mock_google_sheets(mocker, app):
+    mocker.patch("app.sheets.mappings.get_sheet_data", return_value=[])
+    mocker.patch(
+        "app.models.month_allocation.get_child",
+        return_value=KeyMap(
+            {
+                ChildColumnNames.MONTHLY_ALLOCATION.key: "1000",
+                ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION.key: "500",
+                ChildColumnNames.ID.key: "1",
+            }
+        ),
+    )
+    mocker.patch(
+        "app.models.month_allocation.get_children",
+        return_value=[
+            KeyMap(
+                {
+                    ChildColumnNames.MONTHLY_ALLOCATION.key: "1000",
+                    ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION.key: "500",
+                    ChildColumnNames.ID.key: "1",
+                }
+            )
+        ],
+    )
+    # Mock the app.google_sheets_service directly on the app instance
+    app.google_sheets_service = mocker.Mock()
+    # Mock app.config.get to ensure GOOGLE_APPLICATION_CREDENTIALS is seen as present
+    mocker.patch.object(
+        app.config,
+        "get",
+        side_effect=lambda key, default=None: (
+            "test_credentials" if key == "GOOGLE_APPLICATION_CREDENTIALS" else default
+        ),
+    )
 
 
 @pytest.fixture
@@ -40,7 +77,7 @@ def seed_db(app):
             locked_date=datetime.now() + timedelta(days=20),
             type="Half Day",
             amount_cents=4000,
-            last_submitted_at=datetime.utcnow() - timedelta(days=5),  # Submitted 5 days ago
+            last_submitted_at=datetime.now(timezone.utc) - timedelta(days=5),  # Submitted 5 days ago
         )
         care_day_submitted.updated_at = care_day_submitted.last_submitted_at - timedelta(
             days=1
@@ -55,9 +92,9 @@ def seed_db(app):
             locked_date=datetime.now() + timedelta(days=20),
             type="Full Day",
             amount_cents=6000,
-            last_submitted_at=datetime.utcnow() - timedelta(days=10),  # Submitted 10 days ago
+            last_submitted_at=datetime.now(timezone.utc) - timedelta(days=10),  # Submitted 10 days ago
         )
-        care_day_needs_resubmission.updated_at = datetime.utcnow()  # Updated recently
+        care_day_needs_resubmission.updated_at = datetime.now(timezone.utc)  # Updated recently
         db.session.add(care_day_needs_resubmission)
 
         # Care day: locked (date is in the past, beyond locked_date)
@@ -69,7 +106,7 @@ def seed_db(app):
             locked_date=locked_date_past,
             type="Full Day",
             amount_cents=6000,
-            last_submitted_at=datetime.utcnow() - timedelta(days=10),  # Submitted 10 days ago
+            last_submitted_at=datetime.now(timezone.utc) - timedelta(days=10),  # Submitted 10 days ago
         )
         # Manually set created_at and updated_at to be before last_submitted_at for testing is_locked
         care_day_locked.created_at = locked_date_past - timedelta(days=11)
@@ -84,8 +121,8 @@ def seed_db(app):
             locked_date=datetime.now() + timedelta(days=20),
             type="Full Day",
             amount_cents=6000,
-            deleted_at=datetime.utcnow(),
-            last_submitted_at=datetime.utcnow() - timedelta(days=1),  # Submitted yesterday
+            deleted_at=datetime.now(timezone.utc),
+            last_submitted_at=datetime.now(timezone.utc) - timedelta(days=1),  # Submitted yesterday
         )
         db.session.add(care_day_deleted)
 
@@ -266,10 +303,10 @@ def test_get_month_allocation_past_month_creation_fails(client):
 
 def test_get_month_allocation_future_month_creation_fails(client):
     # Attempt to get an allocation for a future month that is too far in advance
-    future_month = date.today().replace(day=1) + timedelta(days=32)
+    future_month = date.today().replace(day=1) + timedelta(days=65)
     response = client.get(f"/child/1/allocation/{future_month.month}/{future_month.year}?provider_id=1")
     assert response.status_code == 400
-    assert "Cannot create allocation for a month that is more than 14 days away." in response.json["error"]
+    assert "Cannot create allocation for a month more than one month in the future." in response.json["error"]
 
 
 def test_month_allocation_locked_until_date(client, seed_db):
