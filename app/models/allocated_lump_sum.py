@@ -62,8 +62,6 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
             submitted_at=datetime.now(timezone.utc),
         )
 
-        db.session.add(lump_sum)
-        db.session.commit()
         return lump_sum
 
     def to_dict(self):

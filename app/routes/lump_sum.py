@@ -1,4 +1,5 @@
 from flask import Blueprint, abort, jsonify, request
+from pydantic import ValidationError
 
 from app.auth.decorators import (
     ClerkUserType,
@@ -8,7 +9,7 @@ from app.auth.helpers import get_current_user
 from app.extensions import db
 from app.models.allocated_lump_sum import AllocatedLumpSum
 from app.models.month_allocation import MonthAllocation
-from app.schemas.lump_sum import AllocatedLumpSumResponse
+from app.schemas.lump_sum import AllocatedLumpSumCreateRequest, AllocatedLumpSumResponse
 from app.sheets.mappings import (
     ChildColumnNames,
     ProviderColumnNames,
@@ -33,13 +34,14 @@ def create_lump_sum():
 
     family_id = user.user_data.family_id
 
-    data = request.get_json()
-    allocation_id = data.get("allocation_id")
-    provider_id = data.get("provider_id")
-    amount_cents = data.get("amount_cents")
+    try:
+        request_data = AllocatedLumpSumCreateRequest.model_validate(request.get_json())
+    except ValidationError as e:
+        return jsonify({"error": e.errors()}), 400
 
-    if not all([allocation_id, provider_id, amount_cents]):
-        return jsonify({"error": "Missing required fields"}), 400
+    allocation_id = request_data.allocation_id
+    provider_id = request_data.provider_id
+    amount_cents = request_data.amount_cents
 
     allocation = db.session.get(MonthAllocation, allocation_id)
     if not allocation:
@@ -79,6 +81,8 @@ def create_lump_sum():
             provider_id=provider_id,
             amount_cents=amount_cents,
         )
+        db.session.add(lump_sum)
+        db.session.commit()
         send_lump_sum_payment_request_email(
             provider_name=provider.get(ProviderColumnNames.NAME),
             google_sheets_provider_id=provider_id,

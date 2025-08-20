@@ -15,3 +15,9 @@ class AllocatedLumpSumResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class AllocatedLumpSumCreateRequest(BaseModel):
+    allocation_id: int
+    provider_id: str
+    amount_cents: int

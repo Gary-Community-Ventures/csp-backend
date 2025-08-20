@@ -135,7 +135,7 @@ def test_create_lump_sum_missing_fields(client, seed_lump_sum_db, mock_sheets_da
         },
     )
     assert response.status_code == 400
-    assert "Missing required fields" in response.json["error"]
+    assert any("amount_cents" in err["loc"] for err in response.json["error"])
 
 
 def test_create_lump_sum_allocation_not_found(client, mock_sheets_data):
