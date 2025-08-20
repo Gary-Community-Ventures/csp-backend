@@ -23,7 +23,7 @@ from app.utils.email_service import send_lump_sum_payment_request_email
 bp = Blueprint("lump_sum", __name__, url_prefix="/lump-sums")
 
 
-@bp.route("", methods=["POST"])
+@bp.post("")
 @auth_required(ClerkUserType.FAMILY)
 def create_lump_sum():
     user = get_current_user()
