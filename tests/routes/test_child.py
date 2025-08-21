@@ -10,7 +10,7 @@ from app.sheets.mappings import ChildColumnNames
 
 @pytest.fixture(autouse=True)
 def mock_google_sheets(mocker, app):
-    mocker.patch("app.sheets.mappings.get_sheet_data", return_value=[])
+    mocker.patch("app.sheets.integration.SheetsManager.get_sheet_data", return_value=[])
     mocker.patch(
         "app.models.month_allocation.get_child",
         return_value=KeyMap(
