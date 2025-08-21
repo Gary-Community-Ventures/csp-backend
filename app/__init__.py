@@ -10,6 +10,8 @@ from googleapiclient.discovery import build
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
+from app.sheets.integration import SheetsManager
+
 # Import models to ensure they are registered with SQLAlchemy
 from . import models
 from .config import ENV_DEVELOPMENT, ENV_PRODUCTION, ENV_STAGING, ENV_TESTING
@@ -100,6 +102,8 @@ def create_app(config_class=None):
 
         app.google_sheets_service = build("sheets", "v4", credentials=creds).spreadsheets()
 
+        app.sheets_manager = SheetsManager(app)
+
     # --- CORS Configuration ---
     # For production, use the configured origins, credentials, and headers
     if app.config["FLASK_ENV"] == ENV_PRODUCTION or app.config["FLASK_ENV"] == ENV_STAGING:
@@ -143,6 +147,7 @@ def create_app(config_class=None):
         init_admin(app)
 
     # --- Register Blueprints ---
+    from .routes.attendance import bp as attendance_bp
     from .routes.auth import bp as auth_bp
     from .routes.care_day import bp as care_day_bp
     from .routes.child import bp as child_bp
@@ -153,12 +158,22 @@ def create_app(config_class=None):
     from .routes.provider import bp as provider_bp
 
     app.register_blueprint(main_bp)
+    csrf.exempt(main_bp)
     app.register_blueprint(auth_bp)
+    csrf.exempt(auth_bp)
     app.register_blueprint(family_bp)
+    csrf.exempt(family_bp)
     app.register_blueprint(provider_bp)
+    csrf.exempt(provider_bp)
     app.register_blueprint(care_day_bp)
+    csrf.exempt(care_day_bp)
     app.register_blueprint(child_bp)
+    csrf.exempt(child_bp)
     app.register_blueprint(payment_rate_bp)
+    csrf.exempt(payment_rate_bp)
+    app.register_blueprint(attendance_bp)
+    csrf.exempt(attendance_bp)
     app.register_blueprint(lump_sum_bp)
+    csrf.exempt(lump_sum_bp)
 
     return app
