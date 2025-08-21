@@ -9,14 +9,14 @@ _NOT_ENTERED = object()
 
 
 class Key(Generic[T]):
-    def __init__(self, key: str, converter: Callable[[str], T] = str, default: T = _NOT_ENTERED):
+    def __init__(self, key: str, converter: Callable[[str], T] = str, default=_NOT_ENTERED):
         self.key = key
         self._converter = converter
 
         if default is _NOT_ENTERED and self._converter is str:
-            self.default = "[MISSING]"
+            self.default: T = "[MISSING]"
         elif default is _NOT_ENTERED:
-            self.default = self._converter()
+            self.default: T = self._converter()
         else:
             self.default = default
 
