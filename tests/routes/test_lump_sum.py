@@ -23,6 +23,14 @@ def seed_lump_sum_db(app):
         yield allocation
 
 
+@pytest.fixture(autouse=True)
+def mock_authentication(mocker):
+    mock_request_state = mocker.Mock()
+    mock_request_state.is_signed_in = True
+    mock_request_state.payload = {"sub": "1234", "data": {"types": ["family"], "family_id": "family123"}}
+    mocker.patch("app.auth.decorators._authenticate_request", return_value=mock_request_state)
+
+
 # Mock Google Sheets data functions
 @pytest.fixture
 def mock_sheets_data(mocker):

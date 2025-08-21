@@ -52,6 +52,7 @@ class TestingConfig(Config):
     """Testing configuration."""
 
     TESTING = True
+    DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
     WTF_CSRF_ENABLED = False
 

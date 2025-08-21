@@ -102,7 +102,7 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
     # Mock external dependencies
     mocker.patch.dict("os.environ", {"GOOGLE_SHEETS_CREDENTIALS": '{"type": "service_account"}'})
     mocker.patch(
-        "run_payment_requests.get_children",
+        "app.scripts.run_payment_requests.get_children",
         return_value=[
             KeyMap(
                 {
@@ -114,7 +114,7 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
         ],
     )
     mocker.patch(
-        "run_payment_requests.get_providers",
+        "app.scripts.run_payment_requests.get_providers",
         return_value=[
             KeyMap(
                 {
@@ -131,18 +131,20 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
         ],
     )
     mocker.patch(
-        "run_payment_requests.get_child",
+        "app.scripts.run_payment_requests.get_child",
         side_effect=lambda child_id, children: next(
             (c for c in children if c.get(ChildColumnNames.ID) == child_id), None
         ),
     )
     mocker.patch(
-        "run_payment_requests.get_provider",
+        "app.scripts.run_payment_requests.get_provider",
         side_effect=lambda provider_id, providers: next(
             (p for p in providers if p.get(ProviderColumnNames.ID) == provider_id), None
         ),
     )
-    mock_send_email = mocker.patch("run_payment_requests.send_care_days_payment_request_email", return_value=True)
+    mock_send_email = mocker.patch(
+        "app.scripts.run_payment_requests.send_care_days_payment_request_email", return_value=True
+    )
 
     # Run the script
     run_payment_requests()
