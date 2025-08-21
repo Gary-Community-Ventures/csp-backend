@@ -17,7 +17,7 @@ jobs:
 
     - name: Set up Docker Compose environment variables
       run: |
-	touch .env
+        touch .env
         # These are non-sensitive variables that might be needed by your Docker Compose setup
         echo "POSTGRES_DB=test_db" >> $GITHUB_ENV
         echo "POSTGRES_USER=test_user" >> $GITHUB_ENV
