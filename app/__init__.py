@@ -82,6 +82,9 @@ def create_app(config_class=None):
     if not app.config["API_KEY"]:
         raise ValueError("API_KEY environment variable must be set")
 
+    if not app.config["SECRET_KEY"]:
+        raise ValueError("SECRET_KEY environment variable must be set")
+
     # --- Initialize Flask Extensions (after app config) ---
     db.init_app(app)
     migrate.init_app(app, db)
