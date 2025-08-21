@@ -158,13 +158,22 @@ def create_app(config_class=None):
     from .routes.provider import bp as provider_bp
 
     app.register_blueprint(main_bp)
+    csrf.exempt(main_bp)
     app.register_blueprint(auth_bp)
+    csrf.exempt(auth_bp)
     app.register_blueprint(family_bp)
+    csrf.exempt(family_bp)
     app.register_blueprint(provider_bp)
+    csrf.exempt(provider_bp)
     app.register_blueprint(care_day_bp)
+    csrf.exempt(care_day_bp)
     app.register_blueprint(child_bp)
+    csrf.exempt(child_bp)
     app.register_blueprint(payment_rate_bp)
+    csrf.exempt(payment_rate_bp)
     app.register_blueprint(attendance_bp)
+    csrf.exempt(attendance_bp)
     app.register_blueprint(lump_sum_bp)
+    csrf.exempt(lump_sum_bp)
 
     return app
