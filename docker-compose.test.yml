@@ -6,6 +6,7 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_test:5432/${POSTGRES_DB}_test
       - PYTHONPATH=.
       - API_KEY=${API_KEY}
+      - SECRET_KEY=${SECRET_KEY}
     depends_on:
       - postgres_test
 
