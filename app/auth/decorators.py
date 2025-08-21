@@ -37,12 +37,17 @@ def _get_authorized_parties():
     )
 
 
-def _authenticate_request(user_type: ClerkUserType):
+def _authenticate_request(user_type: ClerkUserType, allow_cookies: bool = False):
     """
     Core authentication logic
     Returns: request_state object if authenticated
     Raises: AuthenticationError if not authenticated
     """
+    if not allow_cookies:
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            raise AuthenticationError("Bearer token required")
+
     clerk_client: Clerk = current_app.clerk_client
     if not clerk_client:
         raise AuthenticationError("Authentication service not initialized", 500)
@@ -87,7 +92,6 @@ def _authenticate_request(user_type: ClerkUserType):
             raise AuthenticationError("Authentication failed")
         else:
             raise AuthenticationError("Authentication service error", 500)
-
 
 def _authenticate_api_key():
     """
