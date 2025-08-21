@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -67,10 +67,34 @@ def test_get_or_create_for_month_new(db_session, mock_get_child, mock_get_childr
 def test_get_or_create_for_month_past(db_session, mock_get_child, mock_get_children):
     """Test that an error is raised when creating an allocation for a past month"""
     with pytest.raises(ValueError):
-        MonthAllocation.get_or_create_for_month(child_id=1, month_date=date(2020, 1, 1))
+        MonthAllocation.get_or_create_for_month(child_id="1", month_date=date(2020, 1, 1))
 
 
 def test_get_or_create_for_month_future(db_session, mock_get_child, mock_get_children):
-    """Test that an error is raised when creating an allocation for a future month"""
-    with pytest.raises(ValueError):
-        MonthAllocation.get_or_create_for_month(child_id=1, month_date=date.today() + timedelta(days=32))
+    """Test that an error is raised when creating an allocation for a future month that is more than one month away"""
+    with pytest.raises(ValueError, match="Cannot create allocation for a month more than one month in the future."):
+        MonthAllocation.get_or_create_for_month(child_id="1", month_date=date.today() + timedelta(days=65))
+
+
+def test_get_or_create_for_month_next_month_allowed(db_session, mock_get_child, mock_get_children):
+    """Test that a new allocation for the next month can be created"""
+    mock_get_child.return_value = KeyMap(
+        {
+            ChildColumnNames.MONTHLY_ALLOCATION.key: "$1,000.00",
+            ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION.key: "$500.00",
+        }
+    )
+    # Simulate being on the first day of the month
+    with patch("app.models.month_allocation.datetime") as mock_dt:
+        mock_dt.now.return_value = datetime(date.today().year, date.today().month, 1)
+        mock_dt.date.today.return_value = date(date.today().year, date.today().month, 1)
+        mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)  # Ensure other datetime calls work
+
+        today = date.today()
+        # Calculate the first day of the next month
+        next_month_date = (today.replace(day=1) + timedelta(days=32)).replace(day=1)
+
+        allocation = MonthAllocation.get_or_create_for_month(child_id="1", month_date=next_month_date)
+        assert allocation.google_sheets_child_id == "1"
+        assert allocation.date == next_month_date
+        assert allocation.allocation_cents == 50000

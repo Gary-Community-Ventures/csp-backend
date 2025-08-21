@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -44,9 +44,9 @@ def setup_payment_request_data(app):
             care_date=date.today() + timedelta(days=10),
             day_type=CareDayType.FULL_DAY,
         )
-        care_day_1.last_submitted_at = datetime.utcnow() - timedelta(days=5)
+        care_day_1.last_submitted_at = datetime.now(timezone.utc) - timedelta(days=5)
         care_day_1.payment_distribution_requested = False
-        care_day_1.locked_date = datetime.utcnow() - timedelta(days=1)
+        care_day_1.locked_date = datetime.now(timezone.utc) - timedelta(days=1)
 
         care_day_2 = AllocatedCareDay.create_care_day(
             allocation=allocation,
@@ -54,9 +54,9 @@ def setup_payment_request_data(app):
             care_date=date.today() + timedelta(days=11),
             day_type=CareDayType.HALF_DAY,
         )
-        care_day_2.last_submitted_at = datetime.utcnow() - timedelta(days=4)
+        care_day_2.last_submitted_at = datetime.now(timezone.utc) - timedelta(days=4)
         care_day_2.payment_distribution_requested = False
-        care_day_2.locked_date = datetime.utcnow() - timedelta(days=1)
+        care_day_2.locked_date = datetime.now(timezone.utc) - timedelta(days=1)
 
         # Care day for a different provider/child that should NOT be processed by this run
         care_day_3 = AllocatedCareDay.create_care_day(
@@ -65,9 +65,9 @@ def setup_payment_request_data(app):
             care_date=date.today() + timedelta(days=12),
             day_type=CareDayType.FULL_DAY,
         )
-        care_day_3.last_submitted_at = datetime.utcnow() - timedelta(days=3)
+        care_day_3.last_submitted_at = datetime.now(timezone.utc) - timedelta(days=3)
         care_day_3.payment_distribution_requested = False
-        care_day_3.locked_date = datetime.utcnow() - timedelta(days=1)
+        care_day_3.locked_date = datetime.now(timezone.utc) - timedelta(days=1)
 
         # Care day that is already processed
         care_day_4 = AllocatedCareDay.create_care_day(
@@ -76,7 +76,7 @@ def setup_payment_request_data(app):
             care_date=date.today() + timedelta(days=13),
             day_type=CareDayType.FULL_DAY,
         )
-        care_day_4.last_submitted_at = datetime.utcnow() - timedelta(days=2)
+        care_day_4.last_submitted_at = datetime.now(timezone.utc) - timedelta(days=2)
         care_day_4.payment_distribution_requested = True
 
         # Care day that is submitted but not yet locked (locked_date in future)
@@ -87,7 +87,7 @@ def setup_payment_request_data(app):
             care_date=future_date,
             day_type=CareDayType.FULL_DAY,
         )
-        care_day_5.last_submitted_at = datetime.utcnow() - timedelta(days=1)  # Submitted yesterday
+        care_day_5.last_submitted_at = datetime.now(timezone.utc) - timedelta(days=1)  # Submitted yesterday
         care_day_5.payment_distribution_requested = False
 
         db.session.add_all([care_day_1, care_day_2, care_day_3, care_day_4, care_day_5])
@@ -142,7 +142,7 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
             (p for p in providers if p.get(ProviderColumnNames.ID) == provider_id), None
         ),
     )
-    mock_send_email = mocker.patch("run_payment_requests.send_payment_request_email", return_value=True)
+    mock_send_email = mocker.patch("run_payment_requests.send_care_days_payment_request_email", return_value=True)
 
     # Run the script
     run_payment_requests()

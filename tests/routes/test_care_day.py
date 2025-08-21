@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -63,7 +63,7 @@ def seed_db(app):
             date=locked_date.date(),
             type=CareDayType.FULL_DAY,
             amount_cents=payment_rate.full_day_rate_cents,
-            last_submitted_at=datetime.utcnow(),  # Submitted
+            last_submitted_at=datetime.now(timezone.utc),  # Submitted
         )
         # Manually set created_at and updated_at to be before locked_date for testing is_locked
         care_day_locked.created_at = locked_date - timedelta(days=1)
@@ -79,7 +79,7 @@ def seed_db(app):
             locked_date=datetime.now() + timedelta(days=10),  # Set locked_date to future
             type=CareDayType.FULL_DAY,
             amount_cents=payment_rate.full_day_rate_cents,
-            deleted_at=datetime.utcnow(),
+            deleted_at=datetime.now(timezone.utc),
         )
         db.session.add(care_day_soft_deleted)
         db.session.commit()
