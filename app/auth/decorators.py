@@ -9,6 +9,7 @@ from flask import abort, current_app, g, request
 
 
 class ClerkUserType(Enum):
+    ADMIN = "admin"
     FAMILY = "family"
     PROVIDER = "provider"
     NONE = None

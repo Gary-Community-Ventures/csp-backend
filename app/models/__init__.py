@@ -1,5 +1,6 @@
 from .allocated_care_day import AllocatedCareDay
 from .allocated_lump_sum import AllocatedLumpSum
+from .family_invitation import FamilyInvitation
 from .month_allocation import MonthAllocation
 from .payment_rate import PaymentRate
 from .payment_request import PaymentRequest
@@ -12,4 +13,5 @@ __all__ = [
     "MonthAllocation",
     "PaymentRate",
     "ProviderInvitation",
+    "FamilyInvitation",
 ]

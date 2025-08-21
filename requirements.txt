@@ -1,6 +1,10 @@
 # Flask Core
 Flask==3.1.1
 Flask-CORS==6.0.1
+# This version of Flask-Admin has a bug fix we need but is not yet released in stable
+# TODO update to stable version when available
+Flask-Admin==2.0.0a4
+Flask-WTF==1.2.1
 
 # Database
 Flask-SQLAlchemy==3.1.1
@@ -50,4 +54,3 @@ rq-scheduler==0.14.0
 
 # RQ Dashboard for monitoring
 rq-dashboard==0.8.5
-

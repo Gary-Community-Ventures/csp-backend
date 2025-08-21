@@ -15,7 +15,7 @@ from . import models
 from .config import ENV_DEVELOPMENT, ENV_PRODUCTION, ENV_STAGING, ENV_TESTING
 
 # Import extensions from the extensions module
-from .extensions import cors, db, migrate
+from .extensions import cors, csrf, db, migrate
 
 
 def create_app(config_class=None):
@@ -82,9 +82,13 @@ def create_app(config_class=None):
     if not app.config["API_KEY"]:
         raise ValueError("API_KEY environment variable must be set")
 
+    if not app.config["SECRET_KEY"]:
+        raise ValueError("SECRET_KEY environment variable must be set")
+
     # --- Initialize Flask Extensions (after app config) ---
     db.init_app(app)
     migrate.init_app(app, db)
+    csrf.init_app(app)
 
     # --- Google Sheets Integration ---
     credentials = app.config.get("GOOGLE_APPLICATION_CREDENTIALS")
@@ -131,6 +135,12 @@ def create_app(config_class=None):
     from .jobs import job_manager
 
     job_manager.init_app(app)
+
+    # --- Initialize Admin Interface ---
+    from .admin import init_app as init_admin
+
+    if env != ENV_TESTING:
+        init_admin(app)
 
     # --- Register Blueprints ---
     from .routes.auth import bp as auth_bp
