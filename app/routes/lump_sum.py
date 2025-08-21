@@ -1,4 +1,4 @@
-from flask import Blueprint, abort, jsonify, request
+from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
 
 from app.auth.decorators import (
