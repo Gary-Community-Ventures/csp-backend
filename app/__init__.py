@@ -136,7 +136,8 @@ def create_app(config_class=None):
     # --- Initialize Admin Interface ---
     from .admin import init_app as init_admin
 
-    init_admin(app)
+    if env != ENV_TESTING:
+        init_admin(app)
 
     # --- Register Blueprints ---
     from .routes.auth import bp as auth_bp
