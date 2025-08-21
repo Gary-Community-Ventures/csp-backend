@@ -16,6 +16,15 @@ services:
       - FLASK_ENV=development
       - DEBUG=True
       - TZ=America/Denver
+      # Google Sheets variables
+      - GOOGLE_SPREADSHEET_ID=${GOOGLE_SPREADSHEET_ID}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      # messaging
+      - FROM_EMAIL_INTERNAL=${FROM_EMAIL_INTERNAL}
+      - FROM_EMAIL_EXTERNAL=${FROM_EMAIL_EXTERNAL}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
     restart: on-failure
     volumes:
       - .:/app # Bind mount for hot reloading

@@ -12,10 +12,11 @@ from app.auth.decorators import (
     auth_optional,
     auth_required,
 )
-from app.auth.helpers import get_current_user
+from app.auth.helpers import get_current_user, get_family_user, get_provider_user
 from app.constants import MAX_CHILDREN_PER_PROVIDER
 from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation
+from app.models.attendance import Attendance
 from app.models.family_invitation import FamilyInvitation
 from app.sheets.helpers import KeyMap, format_name, get_row
 from app.sheets.mappings import (
@@ -40,6 +41,7 @@ from app.sheets.mappings import (
 )
 from app.utils.email_service import (
     get_from_email_internal,
+    html_link,
     send_email,
     send_family_invite_accept_email,
 )
@@ -82,10 +84,7 @@ def new_provider():
 @bp.get("/provider")
 @auth_required(ClerkUserType.PROVIDER)
 def get_provider_data():
-    user = get_current_user()
-
-    if user is None or user.user_data.provider_id is None:
-        abort(401)
+    user = get_provider_user()
 
     provider_rows = get_providers()
     child_rows = get_children()
@@ -129,12 +128,24 @@ def get_provider_data():
             }
         )
 
+    notifications = []
+    provider_status = provider_data.get(ProviderColumnNames.STATUS).lower()
+    if provider_status == "pending":
+        notifications.append({"type": "application_pending"})
+    elif provider_status == "denied":
+        notifications.append({"type": "application_denied"})
+
+    needs_attendance = Attendance.filter_by_provider_id(provider_id).count() > 0
+    if needs_attendance:
+        notifications.append({"type": "attendance"})
+
     return jsonify(
         {
             "provider_info": provider_info,
             "children": children,
             "transactions": transactions,
             "curriculum": None,
+            "notifications": notifications,
             "max_child_count": MAX_CHILDREN_PER_PROVIDER,
             "is_also_family": ClerkUserType.FAMILY.value in user.user_data.types,
         }
@@ -188,13 +199,13 @@ def get_invite_family_message(lang: str, provider_name: str, link: str):
     if lang == "es":
         return InviteProviderMessage(
             subject=f"Invitación de {provider_name} - ¡Reciba ayuda con los costos de cuidado infantil!",
-            email=f'<html><body>{provider_name} lo ha invitado a unirse al Programa Piloto Childcare Affordability Pilot (CAP) como familia participante: ¡puede acceder hasta $1,400 por mes para pagar el cuidado infantil!<br><br>Si presenta su solicitud y su solicitud es aprobada, CAP le proporcionará fondos que puede usar para pagar a {provider_name} o otros cuidadores que participen en el programa piloto.<br><br>¡Haga clic <a href="{link}" style="color: #0066cc; text-decoration: underline;">aquí</a> para aceptar la invitación y aplique!<br><br>¿Tienes preguntas? Escríbenos a support@capcolorado.org.</body></html>',
+            email=f'<html><body>{provider_name} lo ha invitado a unirse al Programa Piloto Childcare Affordability Pilot (CAP) como familia participante: ¡puede acceder hasta $1,400 por mes para pagar el cuidado infantil!<br><br>Si presenta su solicitud y su solicitud es aprobada, CAP le proporcionará fondos que puede usar para pagar a {provider_name} o otros cuidadores que participen en el programa piloto.<br><br>¡Haga clic {html_link(link, "aquí")} para aceptar la invitación y aplique!<br><br>¿Tienes preguntas? Escríbenos a support@capcolorado.org.</body></html>',
             sms=f"{provider_name} te invitó a unirte al Programa Piloto Childcare Affordability Pilot (CAP). ¡Accede hasta $1,400 mensuales para pagar el cuidado infantil si es aprobado! Haz clic aquí para obtener más información y aplique. {link} ¿Tienes preguntas? Escríbenos a support@capcolorado.org.",
         )
 
     return InviteProviderMessage(
         subject=f"Invitation from {provider_name} - Receive help with childcare costs!",
-        email=f'<html><body>{provider_name} has invited you to join the Childcare Affordability Pilot (CAP) as a participating family — you can access up to $1,400 per month to pay for childcare!<br><br>If you apply and are approved, CAP provides funds you can use to pay {provider_name} or other caregivers that participate in the pilot.<br><br>Click <a href="{link}" style="color: #0066cc; text-decoration: underline;">here</a> to accept the invitation and apply! Questions? Email us at support@capcolorado.org.</body></html>',
+        email=f'<html><body>{provider_name} has invited you to join the Childcare Affordability Pilot (CAP) as a participating family — you can access up to $1,400 per month to pay for childcare!<br><br>If you apply and are approved, CAP provides funds you can use to pay {provider_name} or other caregivers that participate in the pilot.<br><br>Click {html_link(link, "here")} to accept the invitation and apply! Questions? Email us at support@capcolorado.org.</body></html>',
         sms=f"{provider_name} invited you to join the Childcare Affordability Pilot (CAP) - access up to $1,400 monthly to pay for childcare if approved!  Click here to learn more & apply! {link} Questions? support@capcolorado.org.",
     )
 
@@ -212,9 +223,7 @@ def invite_family():
     if "lang" not in data:
         data["lang"] = "en"
 
-    user = get_current_user()
-    if user is None or user.user_data.provider_id is None:
-        abort(401)
+    user = get_provider_user()
 
     provider_id = user.user_data.provider_id
 
@@ -354,10 +363,7 @@ def accept_family_invite(invite_id: str):
     if len(data["child_ids"]) == 0:
         abort(400, description="child_ids must not be empty")
 
-    user = get_current_user()
-
-    if user is None or user.user_data.family_id is None:
-        abort(401)
+    user = get_family_user()
 
     invitation_query = FamilyInvitation.invitation_by_id(invite_id)
 
