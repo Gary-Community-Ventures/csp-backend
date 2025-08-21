@@ -119,14 +119,9 @@ class SecureModelView(ClerkAuthMixin, ModelView):
         try:
             from app.auth.decorators import ClerkUserType, _authenticate_request
 
-            request_state = _authenticate_request(ClerkUserType.ADMIN)
-            user_id = request_state.payload.get("sub")
-
-            # Add audit fields if your models support them
-            if hasattr(model, "modified_by"):
-                model.modified_by = user_id
-            if hasattr(model, "created_by") and is_created:
-                model.created_by = user_id
+            _authenticate_request(ClerkUserType.ADMIN)
+            # TODO in the future if we want to add audit logging, we can do it here
+            # https://github.com/Gary-Community-Ventures/csp-backend/issues/66
 
         except Exception as e:
             current_app.logger.error(f"Audit logging error in on_model_change: {e}")
