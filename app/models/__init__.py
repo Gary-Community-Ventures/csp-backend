@@ -1,6 +1,6 @@
 from .allocated_care_day import AllocatedCareDay
-from .attendance import Attendance
 from .allocated_lump_sum import AllocatedLumpSum
+from .attendance import Attendance
 from .family_invitation import FamilyInvitation
 from .month_allocation import MonthAllocation
 from .payment_rate import PaymentRate
