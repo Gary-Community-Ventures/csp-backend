@@ -5,7 +5,7 @@ from app.auth.decorators import (
     ClerkUserType,
     auth_required,
 )
-from app.auth.helpers import get_current_user
+from app.auth.helpers import get_family_user
 from app.extensions import db
 from app.models.allocated_lump_sum import AllocatedLumpSum
 from app.models.month_allocation import MonthAllocation
@@ -27,10 +27,7 @@ bp = Blueprint("lump_sum", __name__, url_prefix="/lump-sums")
 @bp.post("")
 @auth_required(ClerkUserType.FAMILY)
 def create_lump_sum():
-    user = get_current_user()
-
-    if user is None or user.user_data.family_id is None:
-        abort(401)
+    user = get_family_user()
 
     family_id = user.user_data.family_id
 
