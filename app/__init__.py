@@ -17,7 +17,7 @@ from . import models
 from .config import ENV_DEVELOPMENT, ENV_PRODUCTION, ENV_STAGING, ENV_TESTING
 
 # Import extensions from the extensions module
-from .extensions import cors, db, migrate
+from .extensions import cors, csrf, db, migrate
 
 
 def create_app(config_class=None):
@@ -84,9 +84,13 @@ def create_app(config_class=None):
     if not app.config["API_KEY"]:
         raise ValueError("API_KEY environment variable must be set")
 
+    if not app.config["SECRET_KEY"]:
+        raise ValueError("SECRET_KEY environment variable must be set")
+
     # --- Initialize Flask Extensions (after app config) ---
     db.init_app(app)
     migrate.init_app(app, db)
+    csrf.init_app(app)
 
     # --- Google Sheets Integration ---
     credentials = app.config.get("GOOGLE_APPLICATION_CREDENTIALS")
@@ -136,12 +140,19 @@ def create_app(config_class=None):
 
     job_manager.init_app(app)
 
+    # --- Initialize Admin Interface ---
+    from .admin import init_app as init_admin
+
+    if env != ENV_TESTING:
+        init_admin(app)
+
     # --- Register Blueprints ---
     from .routes.attendance import bp as attendance_bp
     from .routes.auth import bp as auth_bp
     from .routes.care_day import bp as care_day_bp
     from .routes.child import bp as child_bp
     from .routes.family import bp as family_bp
+    from .routes.lump_sum import bp as lump_sum_bp
     from .routes.main import bp as main_bp
     from .routes.payment_rate import payment_rate_bp
     from .routes.provider import bp as provider_bp
@@ -154,5 +165,6 @@ def create_app(config_class=None):
     app.register_blueprint(child_bp)
     app.register_blueprint(payment_rate_bp)
     app.register_blueprint(attendance_bp)
+    app.register_blueprint(lump_sum_bp)
 
     return app

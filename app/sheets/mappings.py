@@ -49,6 +49,7 @@ class ProviderColumnNames:
     EMAIL = Key("Email")
     LANGUAGE = Key("Language", default="en")
     PHONE_NUMBER = Key("Phone Number")
+    TYPE = Key("Type")
 
 
 class ContentColumnNames:

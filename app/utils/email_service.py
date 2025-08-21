@@ -173,7 +173,7 @@ def system_message(subject: str, description: str, rows: list[SystemMessageRow])
     """
 
 
-def send_payment_request_email(
+def send_care_days_payment_request_email(
     provider_name: str,
     google_sheets_provider_id: str,
     child_first_name: str,
@@ -190,7 +190,7 @@ def send_payment_request_email(
         f"Sending payment request email to {to_emails} for provider ID: {google_sheets_provider_id} from child ID: {google_sheets_child_id}"
     )
 
-    subject = "New Payment Request Notification"
+    subject = "New Care Days Payment Request Notification"
     description = f"A new payment request has been created:"
 
     care_day_info = "<br>".join([f"{day.date} - {day.type.value} (${day.amount_cents / 100:.2f})" for day in care_days])
@@ -215,6 +215,55 @@ def send_payment_request_email(
         SystemMessageRow(
             title="Care Days Info",
             value=care_day_info,
+        ),
+    ]
+
+    html_content = system_message(subject, description, rows)
+
+    return send_email(
+        from_email=from_email,
+        to_emails=to_emails,
+        subject=subject,
+        html_content=html_content,
+    )
+
+
+def send_lump_sum_payment_request_email(
+    provider_name: str,
+    google_sheets_provider_id: str,
+    child_first_name: str,
+    child_last_name: str,
+    google_sheets_child_id: str,
+    amount_in_cents: int,
+    month: str,
+) -> bool:
+    amount_dollars = amount_in_cents / 100
+
+    from_email, to_emails = get_internal_emails()
+
+    current_app.logger.info(
+        f"Sending lump sum payment request email to {to_emails} for provider ID: {google_sheets_provider_id} from child ID: {google_sheets_child_id}"
+    )
+
+    subject = "New Lump Sum Payment Request Notification"
+    description = f"A new lump sum payment request has been created:"
+
+    rows = [
+        SystemMessageRow(
+            title="Provider Name",
+            value=f"{provider_name} (ID: {google_sheets_provider_id})",
+        ),
+        SystemMessageRow(
+            title="Child Name",
+            value=f"{child_first_name} {child_last_name} (ID: {google_sheets_child_id})",
+        ),
+        SystemMessageRow(
+            title="Amount",
+            value=f"${amount_dollars:.2f}",
+        ),
+        SystemMessageRow(
+            title="Month",
+            value=month,
         ),
     ]
 

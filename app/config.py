@@ -36,6 +36,9 @@ class Config:
     # Clerk Configuration
     CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
 
+    # For Flask-Admin
+    SECRET_KEY = os.getenv("SECRET_KEY")
+
 
 class DevelopmentConfig(Config):
     """Development configuration."""
@@ -50,6 +53,7 @@ class TestingConfig(Config):
 
     TESTING = True
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
+    WTF_CSRF_ENABLED = False
 
 
 class StagingConfig(Config):
