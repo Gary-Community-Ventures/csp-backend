@@ -44,8 +44,8 @@ def _authenticate_request(user_type: ClerkUserType, allow_cookies: bool = False)
     Raises: AuthenticationError if not authenticated
     """
     if not allow_cookies:
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
             raise AuthenticationError("Bearer token required")
 
     clerk_client: Clerk = current_app.clerk_client
@@ -92,6 +92,7 @@ def _authenticate_request(user_type: ClerkUserType, allow_cookies: bool = False)
             raise AuthenticationError("Authentication failed")
         else:
             raise AuthenticationError("Authentication service error", 500)
+
 
 def _authenticate_api_key():
     """
