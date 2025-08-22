@@ -18,7 +18,10 @@ class Config:
     SENTRY_PROFILES_SAMPLE_RATE = float(os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "1.0"))
     APP_VERSION = os.getenv("APP_VERSION", "1.0.0")  # Example for Sentry release tracking
     FRONTEND_DOMAIN = os.getenv("FRONTEND_DOMAIN", "http://localhost:5173")
-    AUTH_AUTHORIZED_PARTIES = [os.getenv("FRONTEND_DOMAIN", "http://localhost:5173")]
+    BACKEND_DOMAIN = os.getenv("BACKEND_DOMAIN", "http://localhost:5000")
+    AUTH_AUTHORIZED_PARTIES = [
+        [os.getenv("FRONTEND_DOMAIN", "http://localhost:5173"), os.getenv("BACKEND_DOMAIN", "http://localhost:5000")]
+    ]
     GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     GOOGLE_SPREADSHEET_ID = os.getenv("GOOGLE_SPREADSHEET_ID")
     SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
