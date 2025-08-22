@@ -20,7 +20,8 @@ class Config:
     FRONTEND_DOMAIN = os.getenv("FRONTEND_DOMAIN", "http://localhost:5173")
     BACKEND_DOMAIN = os.getenv("BACKEND_DOMAIN", "http://localhost:5000")
     AUTH_AUTHORIZED_PARTIES = [
-        [os.getenv("FRONTEND_DOMAIN", "http://localhost:5173"), os.getenv("BACKEND_DOMAIN", "http://localhost:5000")]
+        os.getenv("FRONTEND_DOMAIN", "http://localhost:5173"),
+        os.getenv("BACKEND_DOMAIN", "http://localhost:5000"),
     ]
     GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     GOOGLE_SPREADSHEET_ID = os.getenv("GOOGLE_SPREADSHEET_ID")
