@@ -235,6 +235,7 @@ def send_lump_sum_payment_request_email(
     child_last_name: str,
     google_sheets_child_id: str,
     amount_in_cents: int,
+    hours: float,
     month: str,
 ) -> bool:
     amount_dollars = amount_in_cents / 100
@@ -260,6 +261,10 @@ def send_lump_sum_payment_request_email(
         SystemMessageRow(
             title="Amount",
             value=f"${amount_dollars:.2f}",
+        ),
+        SystemMessageRow(
+            title="Hours",
+            value=f"{hours:.2f}",
         ),
         SystemMessageRow(
             title="Month",
