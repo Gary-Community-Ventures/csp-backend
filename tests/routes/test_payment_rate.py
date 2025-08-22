@@ -1,6 +1,7 @@
 import pytest
-from app.models import PaymentRate
+
 from app.extensions import db
+from app.models import PaymentRate
 
 
 @pytest.fixture
@@ -25,9 +26,7 @@ def mock_authentication(mocker):
     mock_request_state = mocker.Mock()
     mock_request_state.is_signed_in = True
     mock_request_state.payload = {"data": {"types": ["family"], "family_id": 1}}
-    mocker.patch(
-        "app.auth.decorators._authenticate_request", return_value=mock_request_state
-    )
+    mocker.patch("app.auth.decorators._authenticate_request", return_value=mock_request_state)
 
 
 # --- POST /payment-rates ---

@@ -1,48 +1,51 @@
 from dataclasses import dataclass
 from typing import Optional
+from uuid import uuid4
+
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
-from flask import Blueprint, abort, jsonify, request, current_app
-from app.data.providers.mappings import ProviderListColumnNames
-from app.extensions import db
+from flask import Blueprint, abort, current_app, jsonify, request
+
 from app.auth.decorators import (
     ClerkUserType,
+    api_key_required,
     auth_optional,
     auth_required,
-    api_key_required,
 )
-from app.auth.helpers import get_current_user
+from app.auth.helpers import get_current_user, get_family_user, get_provider_user
+from app.constants import MAX_CHILDREN_PER_PROVIDER
+from app.data.providers.mappings import ProviderListColumnNames
+from app.extensions import db
+from app.models.attendance import Attendance
 from app.models.provider_invitation import ProviderInvitation
 from app.sheets.helpers import KeyMap, format_name, get_row
 from app.sheets.integration import get_csv_data
 from app.sheets.mappings import (
+    ChildColumnNames,
     FamilyColumnNames,
     ProviderChildMappingColumnNames,
     ProviderColumnNames,
-    ChildColumnNames,
     TransactionColumnNames,
+    get_child,
+    get_child_providers,
+    get_child_transactions,
+    get_children,
     get_families,
     get_family,
+    get_family_children,
     get_provider_child_mapping_provider,
     get_provider_child_mappings,
     get_provider_child_mappings_by_provider_id,
     get_providers,
-    get_child,
-    get_child_providers,
-    get_children,
-    get_child_transactions,
-    get_family_children,
     get_transactions,
 )
 from app.utils.email_service import (
     get_from_email_internal,
+    html_link,
     send_add_licensed_provider_email,
     send_email,
     send_provider_invite_accept_email,
 )
-from uuid import uuid4
 from app.utils.sms_service import send_sms
-from app.constants import MAX_CHILDREN_PER_PROVIDER
-
 
 bp = Blueprint("family", __name__)
 
@@ -81,10 +84,7 @@ def new_family():
 @bp.get("/family/default_child_id")
 @auth_required(ClerkUserType.FAMILY)
 def default_child_id():
-    user = get_current_user()
-
-    if user is None or user.user_data.family_id is None:
-        abort(401)
+    user = get_family_user()
 
     child_rows = get_children()
 
@@ -103,10 +103,7 @@ def default_child_id():
 @bp.get("/family/<child_id>")
 @auth_required(ClerkUserType.FAMILY)
 def family_data(child_id: Optional[str] = None):
-    user = get_current_user()
-
-    if user is None or user.user_data.family_id is None:
-        abort(401)
+    user = get_family_user()
 
     child_rows = get_children()
     provider_child_mapping_rows = get_provider_child_mappings()
@@ -147,6 +144,7 @@ def family_data(child_id: Optional[str] = None):
             "id": c.get(ProviderColumnNames.ID),
             "name": c.get(ProviderColumnNames.NAME),
             "status": c.get(ProviderColumnNames.STATUS).lower(),
+            "type": c.get(ProviderColumnNames.TYPE).lower(),
         }
         for c in provider_data
     ]
@@ -174,12 +172,25 @@ def family_data(child_id: Optional[str] = None):
         for c in family_children
     ]
 
+    notifications = []
+    child_status = child_data.get(ChildColumnNames.STATUS).lower()
+    if child_status == "pending":
+        notifications.append({"type": "application_pending"})
+    elif child_status == "denied":
+        notifications.append({"type": "application_denied"})
+
+    child_ids = [c.get(ChildColumnNames.ID) for c in family_children]
+    needs_attendance = Attendance.filter_by_child_ids(child_ids).count() > 0
+    if needs_attendance:
+        notifications.append({"type": "attendance"})
+
     return jsonify(
         {
             "selected_child_info": selected_child_info,
             "providers": providers,
             "transactions": transactions,
             "children": children,
+            "notifications": notifications,
             "is_also_provider": ClerkUserType.PROVIDER.value in user.user_data.types,
         }
     )
@@ -223,9 +234,7 @@ def add_licensed_provider():
     if type(data["child_ids"]) != list:
         abort(400, description="child_ids must be a list of child IDs")
 
-    user = get_current_user()
-    if user is None or user.user_data.family_id is None:
-        abort(401)
+    user = get_family_user()
 
     family_id = user.user_data.family_id
 
@@ -282,13 +291,13 @@ def get_invite_provider_message(lang: str, family_name: str, child_name: str, li
     if lang == "es":
         return InviteProviderMessage(
             subject=f"¡{family_name} se complace en invitarte al programa CAP para cuidar a {child_name}!",
-            email=f'<html><body>¡{family_name} lo ha invitado a unirse al programa piloto Childcare Affordability Pilot (CAP) como proveedor de {child_name}, ¡Y nos encantaría tenerte a bordo!<br><br>CAP es un programa de 9 meses que ayuda a las familias a pagar el cuidado infantil y a proveedores como usted a recibir su pago. Recibirá pagos a través del portal de cuidado infantil de CAP, mantendrá sus rutinas de cuidado habituales y apoyará a las familias con las que ya trabaja, o a nuevas familias.<br><br>¡Haga clic <a href="{link}" style="color: #0066cc; text-decoration: underline;">aquí</a> para aceptar la invitación y comenzar!<br><br>¿Tienes preguntas? Escríbenos a <a href="mailto:support@capcolorado.org" style="color: #0066cc; text-decoration: underline;">support@capcolorado.org</a></body></html>',
+            email=f'<html><body>¡{family_name} lo ha invitado a unirse al programa piloto Childcare Affordability Pilot (CAP) como proveedor de {child_name}, ¡Y nos encantaría tenerte a bordo!<br><br>CAP es un programa de 9 meses que ayuda a las familias a pagar el cuidado infantil y a proveedores como usted a recibir su pago. Recibirá pagos de CAP, mantendrá sus rutinas de cuidado habituales y apoyará a las familias con las que ya trabaja, o a nuevas familias.<br><br>¡Haga clic {html_link(link, "aquí")} para aceptar la invitación y comenzar!<br><br>¿Tienes preguntas? Escríbenos a <a href="mailto:support@capcolorado.org" style="color: #0066cc; text-decoration: underline;">support@capcolorado.org</a></body></html>',
             sms=f"¡{family_name} te invitó a unirte al programa CAP para cuidar a {child_name}! CAP ayuda a las familias a pagar el cuidado infantil y a proveedores como tú a recibir su pago. Toque para aceptar: {link} ¿Preguntas? support@capcolorado.org.",
         )
 
     return InviteProviderMessage(
         subject=f"{family_name} is excited to invite you to the CAP program to care for {child_name}!",
-        email=f'<html><body>{family_name} has invited you to join the Childcare Affordability Pilot (CAP) as a provider for {child_name}—and we’d love to have you on board!<br><br>CAP is a 9-month program that helps families pay for childcare and helps providers like you get paid. You’ll receive payments through the CAP childcare portal, keep your usual care routines, and support families you already work with—or new ones.<br><br>Click <a href="{link}" style="color: #0066cc; text-decoration: underline;">here</a> to accept the invitation and get started!<br><br>Questions? Email us at <a href="mailto:support@capcolorado.org" style="color: #0066cc; text-decoration: underline;">support@capcolorado.org</a>.</body></html>',
+        email=f'<html><body>{family_name} has invited you to join the Childcare Affordability Pilot (CAP) as a provider for {child_name}—and we’d love to have you on board!<br><br>CAP is a 9-month program that helps families pay for childcare and helps providers like you get paid. You’ll receive payments through CAP, keep your usual care routines, and support families you already work with—or new ones.<br><br>Click {html_link(link, "here")} to accept the invitation and get started!<br><br>Questions? Email us at <a href="mailto:support@capcolorado.org" style="color: #0066cc; text-decoration: underline;">support@capcolorado.org</a>.</body></html>',
         sms=f"{family_name} invited you to join the Childcare Affordability Pilot (CAP) to provide care for {child_name}! CAP can help families pay providers like you. Tap to learn more and apply! {link} Questions? support@capcolorado.org.",
     )
 
@@ -312,9 +321,7 @@ def invite_provider():
     if "lang" not in data:
         data["lang"] = "en"
 
-    user = get_current_user()
-    if user is None or user.user_data.family_id is None:
-        abort(401)
+    user = get_family_user()
 
     family_id = user.user_data.family_id
 
@@ -460,10 +467,7 @@ def provider_invite(invite_id: str):
 @bp.post("/family/provider-invite/<invite_id>/accept")
 @auth_required(ClerkUserType.PROVIDER)
 def accept_provider_invite(invite_id: str):
-    user = get_current_user()
-
-    if user is None or user.user_data.provider_id is None:
-        abort(401)
+    user = get_provider_user()
 
     invitation_query = ProviderInvitation.invitations_by_id(invite_id)
 

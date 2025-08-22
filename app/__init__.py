@@ -1,23 +1,24 @@
 import json
 import os
-from flask import Flask
-from dotenv import load_dotenv
 
 import sentry_sdk
+from clerk_backend_api import Clerk
+from dotenv import load_dotenv
+from flask import Flask
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
-from clerk_backend_api import Clerk
-from .config import ENV_DEVELOPMENT, ENV_STAGING, ENV_PRODUCTION, ENV_TESTING
-
-# Import extensions from the extensions module
-from .extensions import db, migrate, cors
+from app.sheets.integration import SheetsManager
 
 # Import models to ensure they are registered with SQLAlchemy
 from . import models
+from .config import ENV_DEVELOPMENT, ENV_PRODUCTION, ENV_STAGING, ENV_TESTING
 
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
+# Import extensions from the extensions module
+from .extensions import cors, csrf, db, migrate
+
 
 def create_app(config_class=None):
     """
@@ -83,9 +84,13 @@ def create_app(config_class=None):
     if not app.config["API_KEY"]:
         raise ValueError("API_KEY environment variable must be set")
 
+    if not app.config["SECRET_KEY"]:
+        raise ValueError("SECRET_KEY environment variable must be set")
+
     # --- Initialize Flask Extensions (after app config) ---
     db.init_app(app)
     migrate.init_app(app, db)
+    csrf.init_app(app)
 
     # --- Google Sheets Integration ---
     credentials = app.config.get("GOOGLE_APPLICATION_CREDENTIALS")
@@ -96,6 +101,8 @@ def create_app(config_class=None):
         )
 
         app.google_sheets_service = build("sheets", "v4", credentials=creds).spreadsheets()
+
+        app.sheets_manager = SheetsManager(app)
 
     # --- CORS Configuration ---
     # For production, use the configured origins, credentials, and headers
@@ -128,21 +135,45 @@ def create_app(config_class=None):
             },
         )
 
+    # --- Initialize Job Queue ---
+    from .jobs import job_manager
+
+    job_manager.init_app(app)
+
+    # --- Initialize Admin Interface ---
+    from .admin import init_app as init_admin
+
+    if env != ENV_TESTING:
+        init_admin(app)
+
     # --- Register Blueprints ---
-    from .routes.main import bp as main_bp
+    from .routes.attendance import bp as attendance_bp
     from .routes.auth import bp as auth_bp
-    from .routes.family import bp as family_bp
-    from .routes.provider import bp as provider_bp
     from .routes.care_day import bp as care_day_bp
     from .routes.child import bp as child_bp
+    from .routes.family import bp as family_bp
+    from .routes.lump_sum import bp as lump_sum_bp
+    from .routes.main import bp as main_bp
     from .routes.payment_rate import payment_rate_bp
+    from .routes.provider import bp as provider_bp
 
     app.register_blueprint(main_bp)
+    csrf.exempt(main_bp)
     app.register_blueprint(auth_bp)
+    csrf.exempt(auth_bp)
     app.register_blueprint(family_bp)
+    csrf.exempt(family_bp)
     app.register_blueprint(provider_bp)
+    csrf.exempt(provider_bp)
     app.register_blueprint(care_day_bp)
+    csrf.exempt(care_day_bp)
     app.register_blueprint(child_bp)
+    csrf.exempt(child_bp)
     app.register_blueprint(payment_rate_bp)
+    csrf.exempt(payment_rate_bp)
+    app.register_blueprint(attendance_bp)
+    csrf.exempt(attendance_bp)
+    app.register_blueprint(lump_sum_bp)
+    csrf.exempt(lump_sum_bp)
 
     return app

@@ -29,9 +29,15 @@ class Config:
     TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
     TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
     API_KEY = os.getenv("API_KEY")
+    REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    EXAMPLE_JOB_CRON = os.getenv("EXAMPLE_JOB_CRON", "*/5 * * * *")
+    EXAMPLE_JOB_SLEEP_TIME = int(os.getenv("EXAMPLE_JOB_SLEEP_TIME", 10))
 
     # Clerk Configuration
     CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
+
+    # For Flask-Admin
+    SECRET_KEY = os.getenv("SECRET_KEY")
 
 
 class DevelopmentConfig(Config):
@@ -41,11 +47,14 @@ class DevelopmentConfig(Config):
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "postgresql://dev:dev@localhost/myapp")  # Fallback for local
     CORS_HEADERS = "Content-Type"  # Example CORS setting
 
+
 class TestingConfig(Config):
     """Testing configuration."""
 
     TESTING = True
+    DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
+    WTF_CSRF_ENABLED = False
 
 
 class StagingConfig(Config):

@@ -1,7 +1,16 @@
-from app.sheets.helpers import Key, KeyMap, filter_rows_by_value, get_row, get_rows, money_to_float
-from app.sheets.integration import get_sheet_data
 from datetime import datetime
 from typing import Optional
+
+from flask import current_app
+
+from app.sheets.helpers import (
+    Key,
+    KeyMap,
+    filter_rows_by_value,
+    get_row,
+    get_rows,
+    money_to_float,
+)
 
 
 class FamilyColumnNames:
@@ -10,6 +19,9 @@ class FamilyColumnNames:
     ID = Key("ID")
     FIRST_NAME = Key("First Name")
     LAST_NAME = Key("Last Name")
+    EMAIL = Key("Email")
+    LANGUAGE = Key("Language", default="en")
+    PHONE_NUMBER = Key("Phone Number")
 
 
 class ChildColumnNames:
@@ -23,6 +35,7 @@ class ChildColumnNames:
     BALANCE = Key("Balance", money_to_float)
     MONTHLY_ALLOCATION = Key("Monthly Allocation", money_to_float)
     PRORATED_FIRST_MONTH_ALLOCATION = Key("Prorated First Month Allocation", money_to_float)
+    STATUS = Key("Status")
 
 
 class ProviderColumnNames:
@@ -34,6 +47,9 @@ class ProviderColumnNames:
     LAST_NAME = Key("Last Name")
     STATUS = Key("Status", default="Pending")
     EMAIL = Key("Email")
+    LANGUAGE = Key("Language", default="en")
+    PHONE_NUMBER = Key("Phone Number")
+    TYPE = Key("Type")
 
 
 class ContentColumnNames:
@@ -61,7 +77,7 @@ class TransactionColumnNames:
 
 
 def get_families() -> list[KeyMap]:
-    return get_sheet_data(FamilyColumnNames.SHEET_NAME)
+    return current_app.sheets_manager.get_sheet_data(FamilyColumnNames.SHEET_NAME)
 
 
 def get_family(family_id: str, families: list[KeyMap]) -> Optional[KeyMap]:
@@ -69,7 +85,7 @@ def get_family(family_id: str, families: list[KeyMap]) -> Optional[KeyMap]:
 
 
 def get_children() -> list[KeyMap]:
-    return get_sheet_data(ChildColumnNames.SHEET_NAME)
+    return current_app.sheets_manager.get_sheet_data(ChildColumnNames.SHEET_NAME)
 
 
 def get_child(child_id: str, children: list[KeyMap]) -> Optional[KeyMap]:
@@ -86,7 +102,7 @@ def get_family_children(family_id: str, children: list[KeyMap]) -> list[KeyMap]:
 
 
 def get_providers() -> list[KeyMap]:
-    return get_sheet_data(ProviderColumnNames.SHEET_NAME)
+    return current_app.sheets_manager.get_sheet_data(ProviderColumnNames.SHEET_NAME)
 
 
 def get_provider(provider_id: str, providers: list[KeyMap]) -> Optional[KeyMap]:
@@ -94,7 +110,7 @@ def get_provider(provider_id: str, providers: list[KeyMap]) -> Optional[KeyMap]:
 
 
 def get_provider_child_mappings() -> list[KeyMap]:
-    return get_sheet_data(ProviderChildMappingColumnNames.SHEET_NAME)
+    return current_app.sheets_manager.get_sheet_data(ProviderChildMappingColumnNames.SHEET_NAME)
 
 
 def get_provider_child_mappings_by_provider_id(provider_id: str, provider_child_mappings: list[KeyMap]) -> list[KeyMap]:
@@ -142,7 +158,7 @@ def get_provider_children(
 
 
 def get_transactions() -> list[KeyMap]:
-    return get_sheet_data(TransactionColumnNames.SHEET_NAME)
+    return current_app.sheets_manager.get_sheet_data(TransactionColumnNames.SHEET_NAME)
 
 
 def get_transaction(transaction_id: str, transactions: list[KeyMap]) -> Optional[KeyMap]:

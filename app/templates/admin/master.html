@@ -1,0 +1,11 @@
+{% extends 'admin/base.html' %}
+
+{% block head_css %}
+  {{ super() }}
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block page_body %}
+  {% include 'admin/banner.html' %}
+  {{ super() }}
+{% endblock %}

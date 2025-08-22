@@ -1,11 +1,12 @@
+from datetime import date
+from unittest.mock import patch
+
 import pytest
 from pytest_mock import MockerFixture
+
 from app import create_app
 from app.extensions import db
 from app.models.month_allocation import MonthAllocation
-from app.models.allocated_care_day import AllocatedCareDay
-from unittest.mock import patch
-from datetime import date
 
 
 @pytest.fixture
@@ -16,21 +17,38 @@ def db_session(app):
 
 @pytest.fixture(autouse=True)
 def mock_send_submission_notification(mocker: MockerFixture):
-    mock = mocker.patch('app.routes.child.send_submission_notification')
+    mock = mocker.patch("app.routes.child.send_submission_notification")
     return mock
+
+
+@pytest.fixture(autouse=True)
+def mock_clerk_authentication(mocker: MockerFixture):
+    mock_request_state = mocker.Mock()
+    mock_request_state.is_signed_in = True
+    mock_request_state.payload = {
+        "sub": "user_id_123",
+        "sid": "session_id_123",
+        "data": {"types": ["family"], "family_id": "family123", "provider_id": None},
+    }
+    # Patch the authenticate_request method of the Clerk class
+    mocker.patch("clerk_backend_api.Clerk.authenticate_request", return_value=mock_request_state)
+
 
 @pytest.fixture
 def app():
     app = create_app()
-    app.config.update({
-        "TESTING": True,
-    })
+    app.config.update(
+        {
+            "TESTING": True,
+        }
+    )
 
     with app.app_context():
         db.create_all()
         yield app
         db.session.remove()
         db.drop_all()
+
 
 @pytest.fixture
 def client(app):

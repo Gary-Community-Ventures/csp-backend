@@ -17,6 +17,7 @@ jobs:
 
     - name: Set up Docker Compose environment variables
       run: |
+        touch .env
         # These are non-sensitive variables that might be needed by your Docker Compose setup
         echo "POSTGRES_DB=test_db" >> $GITHUB_ENV
         echo "POSTGRES_USER=test_user" >> $GITHUB_ENV
@@ -25,6 +26,7 @@ jobs:
         echo "SENTRY_TRACES_SAMPLE_RATE=0.0" >> $GITHUB_ENV # Disable Sentry for tests
         echo "SENTRY_PROFILES_SAMPLE_RATE=0.0" >> $GITHUB_ENV # Disable Sentry for tests
         echo "APP_VERSION=ci-test" >> $GITHUB_ENV # A version for CI runs
+        echo "CLERK_SECRET_KEY=sk_test_dummy_key" >> $GITHUB_ENV # Dummy key for tests
 
     - name: Build Docker images
       run: docker compose -f docker-compose.yml -f docker-compose.test.yml build backend

@@ -1,7 +1,10 @@
-from pydantic import BaseModel
 from datetime import date, datetime
 from typing import List
+
+from pydantic import BaseModel
+
 from app.schemas.care_day import AllocatedCareDayResponse
+
 
 class MonthAllocationResponse(BaseModel):
     id: int
@@ -17,4 +20,4 @@ class MonthAllocationResponse(BaseModel):
     updated_at: datetime
     care_days: List[AllocatedCareDayResponse]
 
-    model_config = {'from_attributes': True}
+    model_config = {"from_attributes": True}

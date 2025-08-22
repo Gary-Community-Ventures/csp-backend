@@ -1,10 +1,48 @@
-from app.sheets.mappings import ChildColumnNames
-from app.sheets.helpers import KeyMap
+from datetime import date, datetime, time, timedelta, timezone
+
 import pytest
-from datetime import date, datetime, timedelta, time
-from app.models import AllocatedCareDay, MonthAllocation
+
 from app.extensions import db
-from decimal import Decimal
+from app.models import AllocatedCareDay, MonthAllocation
+from app.sheets.helpers import KeyMap
+from app.sheets.mappings import ChildColumnNames
+
+
+@pytest.fixture(autouse=True)
+def mock_google_sheets(mocker, app):
+    mocker.patch("app.sheets.integration.SheetsManager.get_sheet_data", return_value=[])
+    mocker.patch(
+        "app.models.month_allocation.get_child",
+        return_value=KeyMap(
+            {
+                ChildColumnNames.MONTHLY_ALLOCATION.key: "1000",
+                ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION.key: "500",
+                ChildColumnNames.ID.key: "1",
+            }
+        ),
+    )
+    mocker.patch(
+        "app.models.month_allocation.get_children",
+        return_value=[
+            KeyMap(
+                {
+                    ChildColumnNames.MONTHLY_ALLOCATION.key: "1000",
+                    ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION.key: "500",
+                    ChildColumnNames.ID.key: "1",
+                }
+            )
+        ],
+    )
+    # Mock the app.google_sheets_service directly on the app instance
+    app.google_sheets_service = mocker.Mock()
+    # Mock app.config.get to ensure GOOGLE_APPLICATION_CREDENTIALS is seen as present
+    mocker.patch.object(
+        app.config,
+        "get",
+        side_effect=lambda key, default=None: (
+            "test_credentials" if key == "GOOGLE_APPLICATION_CREDENTIALS" else default
+        ),
+    )
 
 
 @pytest.fixture
@@ -39,11 +77,10 @@ def seed_db(app):
             locked_date=datetime.now() + timedelta(days=20),
             type="Half Day",
             amount_cents=4000,
-            last_submitted_at=datetime.utcnow()
-            - timedelta(days=5),  # Submitted 5 days ago
+            last_submitted_at=datetime.now(timezone.utc) - timedelta(days=5),  # Submitted 5 days ago
         )
-        care_day_submitted.updated_at = (
-            care_day_submitted.last_submitted_at - timedelta(days=1)
+        care_day_submitted.updated_at = care_day_submitted.last_submitted_at - timedelta(
+            days=1
         )  # Ensure updated_at is before last_submitted_at
         db.session.add(care_day_submitted)
 
@@ -55,10 +92,9 @@ def seed_db(app):
             locked_date=datetime.now() + timedelta(days=20),
             type="Full Day",
             amount_cents=6000,
-            last_submitted_at=datetime.utcnow()
-            - timedelta(days=10),  # Submitted 10 days ago
+            last_submitted_at=datetime.now(timezone.utc) - timedelta(days=10),  # Submitted 10 days ago
         )
-        care_day_needs_resubmission.updated_at = datetime.utcnow()  # Updated recently
+        care_day_needs_resubmission.updated_at = datetime.now(timezone.utc)  # Updated recently
         db.session.add(care_day_needs_resubmission)
 
         # Care day: locked (date is in the past, beyond locked_date)
@@ -70,8 +106,7 @@ def seed_db(app):
             locked_date=locked_date_past,
             type="Full Day",
             amount_cents=6000,
-            last_submitted_at=datetime.utcnow()
-            - timedelta(days=10),  # Submitted 10 days ago
+            last_submitted_at=datetime.now(timezone.utc) - timedelta(days=10),  # Submitted 10 days ago
         )
         # Manually set created_at and updated_at to be before last_submitted_at for testing is_locked
         care_day_locked.created_at = locked_date_past - timedelta(days=11)
@@ -86,9 +121,8 @@ def seed_db(app):
             locked_date=datetime.now() + timedelta(days=20),
             type="Full Day",
             amount_cents=6000,
-            deleted_at=datetime.utcnow(),
-            last_submitted_at=datetime.utcnow()
-            - timedelta(days=1),  # Submitted yesterday
+            deleted_at=datetime.now(timezone.utc),
+            last_submitted_at=datetime.now(timezone.utc) - timedelta(days=1),  # Submitted yesterday
         )
         db.session.add(care_day_deleted)
 
@@ -102,9 +136,7 @@ def mock_authentication(mocker):
     mock_request_state = mocker.Mock()
     mock_request_state.is_signed_in = True
     mock_request_state.payload = {"data": {"types": ["family"], "family_id": 1}}
-    mocker.patch(
-        "app.auth.decorators._authenticate_request", return_value=mock_request_state
-    )
+    mocker.patch("app.auth.decorators._authenticate_request", return_value=mock_request_state)
 
 
 # --- GET /child/{child_id}/allocation/{month}/{year} ---
@@ -145,9 +177,7 @@ def test_get_month_allocation_allocation_not_found(client, seed_db, mocker):
             ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION.key: "5000",
         },
     )
-    mocker.patch(
-        "app.models.month_allocation.get_children", return_value=[mock_child_data]
-    )
+    mocker.patch("app.models.month_allocation.get_children", return_value=[mock_child_data])
 
     # Mock get_child to return the specific child data (it will be called by get_or_create_for_month)
     mocker.patch("app.models.month_allocation.get_child", return_value=mock_child_data)
@@ -156,9 +186,7 @@ def test_get_month_allocation_allocation_not_found(client, seed_db, mocker):
         f"/child/999/allocation/{date.today().month}/{date.today().year}?provider_id=1"
     )  # Non-existent child
     assert response.status_code == 200  # Allocation will be created with default values
-    assert (
-        response.json["allocation_cents"] == 500000
-    )  # 5000 dollars * 100 cents/dollar
+    assert response.json["allocation_cents"] == 500000  # 5000 dollars * 100 cents/dollar
 
 
 # --- POST /child/{child_id}/provider/{provider_id}/allocation/{month}/{year}/submit ---
@@ -166,9 +194,9 @@ def test_submit_care_days_success(client, seed_db, mock_send_submission_notifica
     (
         allocation,
         care_day_new,
-        care_day_submitted,
+        _,
         care_day_needs_resubmission,
-        care_day_locked,
+        _,
         care_day_deleted,
     ) = seed_db
 
@@ -205,16 +233,12 @@ def test_submit_care_days_success(client, seed_db, mock_send_submission_notifica
     # Verify last_submitted_at is updated for submitted days
     with client.application.app_context():
         updated_new_day = db.session.get(AllocatedCareDay, care_day_new.id)
-        updated_needs_resubmission_day = db.session.get(
-            AllocatedCareDay, care_day_needs_resubmission.id
-        )
+        updated_needs_resubmission_day = db.session.get(AllocatedCareDay, care_day_needs_resubmission.id)
         assert updated_new_day.last_submitted_at is not None
         assert updated_needs_resubmission_day.last_submitted_at is not None
 
 
-def test_submit_care_days_no_care_days(
-    client, seed_db, mock_send_submission_notification
-):
+def test_submit_care_days_no_care_days(client, seed_db, mock_send_submission_notification):
 
     # Create a new allocation with no care days
     new_allocation_child_id = "2"
@@ -247,22 +271,16 @@ def test_submit_care_days_no_care_days(
     )
 
 
-def test_submit_care_days_allocation_not_found(
-    client, seed_db, mock_send_submission_notification
-):
+def test_submit_care_days_allocation_not_found(client, seed_db, mock_send_submission_notification):
     _, _, _, _, _, _ = seed_db
 
-    response = client.post(
-        "/child/999/provider/1/allocation/1/2024/submit"
-    )  # Non-existent child
+    response = client.post("/child/999/provider/1/allocation/1/2024/submit")  # Non-existent child
     assert response.status_code == 404
     assert "Allocation not found" in response.json["error"]
     mock_send_submission_notification.assert_not_called()
 
 
-def test_submit_care_days_over_allocation_fails(
-    client, seed_db, mock_send_submission_notification
-):
+def test_submit_care_days_over_allocation_fails(client, seed_db, mock_send_submission_notification):
     allocation, _, _, _, _, _ = seed_db
     allocation.allocation_cents = 0
     db.session.commit()
@@ -278,24 +296,17 @@ def test_submit_care_days_over_allocation_fails(
 def test_get_month_allocation_past_month_creation_fails(client):
     # Attempt to get an allocation for a past month (e.g., January of the current year)
     past_month = date.today().replace(month=1, day=1)
-    response = client.get(
-        f"/child/1/allocation/{past_month.month}/{past_month.year}?provider_id=1"
-    )
+    response = client.get(f"/child/1/allocation/{past_month.month}/{past_month.year}?provider_id=1")
     assert response.status_code == 400
     assert "Cannot create allocation for a past month." in response.json["error"]
 
 
 def test_get_month_allocation_future_month_creation_fails(client):
     # Attempt to get an allocation for a future month that is too far in advance
-    future_month = date.today().replace(day=1) + timedelta(days=32)
-    response = client.get(
-        f"/child/1/allocation/{future_month.month}/{future_month.year}?provider_id=1"
-    )
+    future_month = date.today().replace(day=1) + timedelta(days=65)
+    response = client.get(f"/child/1/allocation/{future_month.month}/{future_month.year}?provider_id=1")
     assert response.status_code == 400
-    assert (
-        "Cannot create allocation for a month that is more than 14 days away."
-        in response.json["error"]
-    )
+    assert "Cannot create allocation for a month more than one month in the future." in response.json["error"]
 
 
 def test_month_allocation_locked_until_date(client, seed_db):
@@ -306,13 +317,9 @@ def test_month_allocation_locked_until_date(client, seed_db):
     current_monday_eod = datetime.combine(current_monday, time(23, 59, 59))
 
     if datetime.now() > current_monday_eod:
-        expected_locked_until_date = current_monday + timedelta(
-            days=6
-        )  # Sunday of current week
+        expected_locked_until_date = current_monday + timedelta(days=6)  # Sunday of current week
     else:
-        expected_locked_until_date = current_monday - timedelta(
-            days=1
-        )  # Sunday of previous week
+        expected_locked_until_date = current_monday - timedelta(days=1)  # Sunday of previous week
 
     with client.application.app_context():
         # Refresh allocation from DB to ensure property is calculated correctly

@@ -1,15 +1,15 @@
-from clerk_backend_api import Clerk
-import httpx
-from flask import request, abort, g, current_app
-from functools import wraps
-from clerk_backend_api.security.types import AuthenticateRequestOptions
-from enum import Enum
 import hmac
-import hashlib
-import os
+from enum import Enum
+from functools import wraps
+
+import httpx
+from clerk_backend_api import Clerk
+from clerk_backend_api.security.types import AuthenticateRequestOptions
+from flask import abort, current_app, g, request
 
 
 class ClerkUserType(Enum):
+    ADMIN = "admin"
     FAMILY = "family"
     PROVIDER = "provider"
     NONE = None

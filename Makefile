@@ -1,10 +1,12 @@
 GOALS := $(MAKECMDGOALS)
 TARGET := $(firstword $(GOALS))
 ARGS := $(wordlist 2,$(words $(GOALS)),$(GOALS))
-.PHONY: format build logs run down exec db db-shell db-upgrade db-downgrade
+.PHONY: format lint build logs run down exec db db-shell db-upgrade db-downgrade
 
 format:
-	black --line-length 120 . $(ARGS)
+	isort --profile black . && black --line-length 120 .
+lint:
+	pylint . $(ARGS)
 build:
 	docker compose up --build -d $(ARGS)
 logs:
@@ -14,16 +16,19 @@ run:
 down:
 	docker compose down $(ARGS)
 test:
-	docker-compose -f docker-compose.yml -f docker-compose.test.yml run --rm backend pytest $(ARGS)
+	docker compose -f docker-compose.yml -f docker-compose.test.yml run --rm backend pytest $(ARGS)
+	docker compose -f docker-compose.yml -f docker-compose.test.yml down
 exec:
 	docker compose exec backend $(ARGS)
+run:
+	docker compose run --rm backend python -m app.scripts.$(ARGS)
 db:
 	docker compose exec backend flask db $(ARGS)
 db-shell:
 	docker compose exec postgres psql -U dev -d myapp $(ARGS)
 db-upgrade:
-	docker-compose exec backend flask db upgrade
+	docker compose exec backend flask db upgrade
 db-downgrade:
-	docker-compose exec backend flask db downgrade
+	docker compose exec backend flask db downgrade
 %:
 	@# Do nothing

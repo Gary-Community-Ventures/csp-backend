@@ -1,16 +1,13 @@
-from flask import Response
+from datetime import date, datetime, timezone
 from json import JSONEncoder, dumps
-from datetime import datetime, date, timezone
+
+from flask import Response
 
 
 class CustomJSONEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime):
-            return (
-                obj.astimezone(timezone.utc)
-                .isoformat(timespec="milliseconds")
-                .replace("+00:00", "Z")
-            )
+            return obj.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
         if isinstance(obj, date):
             return obj.isoformat()
         return super().default(obj)

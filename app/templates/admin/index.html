@@ -1,0 +1,67 @@
+{% extends 'admin/master.html' %}
+
+{% block body %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="jumbotron">
+                <h1 class="display-4">{{ admin_view.admin.name }}</h1>
+                <p class="lead"></p>
+            </div>
+        </div>
+    </div>
+    
+    {% if user_info %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-user"></i> Your Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        <strong>User ID: {{ user_info.user_id }}</strong><br>
+                        <small class="text-muted">Family ID: {{ user_info.family_id }}</small><br>
+                        <small class="text-muted">Provider ID: {{ user_info.provider_id }}</small><br>
+                        <small class="text-muted">Types: {{ user_info.types | join(', ') }}</small><br>
+                    </p>
+                    {% if user_info.is_admin %}
+                    <span class="badge badge-success">Administrator</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="row">
+    {% for category, views in categorized_views %}
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">{{ category }}</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for view in views %}
+                <a href="{{ url_for(view.endpoint + '.index_view') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    {{ view.name }}
+                    <i class="fas fa-chevron-right text-muted"></i>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-md-12">
+        <div class="alert alert-info">
+            No models have been added to the admin dashboard yet.
+        </div>
+    </div>
+    {% endfor %}
+</div>
+    
+    
+</div>
+{% endblock %}

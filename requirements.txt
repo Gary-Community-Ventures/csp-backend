@@ -1,6 +1,10 @@
 # Flask Core
 Flask==3.1.1
 Flask-CORS==6.0.1
+# This version of Flask-Admin has a bug fix we need but is not yet released in stable
+# TODO update to stable version when available
+Flask-Admin==2.0.0a4
+Flask-WTF==1.2.1
 
 # Database
 Flask-SQLAlchemy==3.1.1
@@ -31,6 +35,7 @@ flake8==7.3.0
 pytest==8.4.1
 pytest-flask==1.3.0
 pytest-mock==3.14.0
+isort==6.0.1
 
 # Google Sheets Integration
 google-api-python-client
@@ -41,3 +46,11 @@ sendgrid==6.11.0
 
 # SMS
 twilio==9.7.0
+
+# Job Queue
+redis==6.4.0
+rq==2.4.1
+rq-scheduler==0.14.0
+
+# RQ Dashboard for monitoring
+rq-dashboard==0.8.5

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
-from flask import g
+
+from flask import abort, g
 
 
 @dataclass
@@ -36,6 +37,24 @@ def get_current_user() -> Optional[User]:
             provider_id=g.auth_user_data.get("provider_id", None),
         ),
     )
+
+
+def get_family_user() -> User:
+    user = get_current_user()
+
+    if user is None or user.user_data.family_id is None:
+        abort(401)
+
+    return user
+
+
+def get_provider_user() -> User:
+    user = get_current_user()
+
+    if user is None or user.user_data.provider_id is None:
+        abort(401)
+
+    return user
 
 
 def is_authenticated():
