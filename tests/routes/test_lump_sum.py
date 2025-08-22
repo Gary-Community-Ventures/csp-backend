@@ -102,6 +102,7 @@ def test_create_lump_sum_success(client, seed_lump_sum_db, mock_sheets_data, moc
             "allocation_id": allocation.id,
             "provider_id": "providerABC",
             "amount_cents": 50000,  # 500.00
+            "hours": 10.5,
         },
     )
     assert response.status_code == 201
@@ -118,6 +119,7 @@ def test_create_lump_sum_success(client, seed_lump_sum_db, mock_sheets_data, moc
         child_last_name="Child",
         google_sheets_child_id="child123",
         amount_in_cents=50000,
+        hours=10.5,
         month=allocation.date.strftime("%B %Y"),
     )
 
@@ -126,12 +128,13 @@ def test_create_lump_sum_success(client, seed_lump_sum_db, mock_sheets_data, moc
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id="providerABC",
             amount_cents=50000,
+            hours=10.5,
         ).first()
         assert lump_sum is not None
         assert lump_sum.submitted_at is not None
 
 
-def test_create_lump_sum_missing_fields(client, seed_lump_sum_db, mock_sheets_data):
+def test_create_lump_sum_missing_cents(client, seed_lump_sum_db, mock_sheets_data):
     allocation = seed_lump_sum_db
 
     response = client.post(
@@ -139,11 +142,28 @@ def test_create_lump_sum_missing_fields(client, seed_lump_sum_db, mock_sheets_da
         json={
             "allocation_id": allocation.id,
             "provider_id": "providerABC",
+            "hours": 10.5,
             # Missing amount_cents
         },
     )
     assert response.status_code == 400
     assert any("amount_cents" in err["loc"] for err in response.json["error"])
+
+
+def test_create_lump_sum_missing_hours(client, seed_lump_sum_db, mock_sheets_data):
+    allocation = seed_lump_sum_db
+
+    response = client.post(
+        "/lump-sums",
+        json={
+            "allocation_id": allocation.id,
+            "provider_id": "providerABC",
+            "amount_cents": 50000,  # 500.00
+            # Missing hours
+        },
+    )
+    assert response.status_code == 400
+    assert any("hours" in err["loc"] for err in response.json["error"])
 
 
 def test_create_lump_sum_allocation_not_found(client, mock_sheets_data):
@@ -154,6 +174,7 @@ def test_create_lump_sum_allocation_not_found(client, mock_sheets_data):
             "allocation_id": 999,  # Non-existent ID
             "provider_id": "providerABC",
             "amount_cents": 10000,
+            "hours": 5.0,
         },
     )
     assert response.status_code == 404
@@ -176,6 +197,7 @@ def test_create_lump_sum_child_not_associated_with_family(client, seed_lump_sum_
             "allocation_id": allocation.id,
             "provider_id": "providerABC",
             "amount_cents": 10000,
+            "hours": 5.0,
         },
     )
     assert response.status_code == 403
@@ -198,6 +220,7 @@ def test_create_lump_sum_provider_not_associated_with_child(client, seed_lump_su
             "allocation_id": allocation.id,
             "provider_id": "providerABC",  # This provider is not associated with child123 in the mock
             "amount_cents": 10000,
+            "hours": 5.0,
         },
     )
     assert response.status_code == 403
@@ -213,7 +236,24 @@ def test_create_lump_sum_exceeds_allocation(client, seed_lump_sum_db, mock_sheet
             "allocation_id": allocation.id,
             "provider_id": "providerABC",
             "amount_cents": 150000,  # Exceeds 100000 allocation
+            "hours": 5.0,
         },
     )
     assert response.status_code == 400
     assert "Adding this lump sum would exceed monthly allocation" in response.json["error"]
+
+
+def test_create_lump_sum_hours_negative(client, seed_lump_sum_db, mock_sheets_data):
+    allocation = seed_lump_sum_db
+
+    response = client.post(
+        "/lump-sums",
+        json={
+            "allocation_id": allocation.id,
+            "provider_id": "providerABC",
+            "amount_cents": 150000,  # Exceeds 100000 allocation
+            "hours": -5.0,
+        },
+    )
+    assert response.status_code == 400
+    assert "Hours must be a positive float" in response.json["error"]
