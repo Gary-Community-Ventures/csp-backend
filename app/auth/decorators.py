@@ -47,7 +47,9 @@ def _authenticate_request(user_type: ClerkUserType, allow_cookies: bool = False)
         auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
             raise AuthenticationError("Bearer token required")
-
+        token = auth_header[len("Bearer "):]
+        if not token or token.strip() == "":
+            raise AuthenticationError("Bearer token must not be empty or whitespace")
     clerk_client: Clerk = current_app.clerk_client
     if not clerk_client:
         raise AuthenticationError("Authentication service not initialized", 500)
