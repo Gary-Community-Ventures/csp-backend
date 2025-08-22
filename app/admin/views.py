@@ -36,7 +36,7 @@ class ClerkAuthMixin:
             from app.auth.decorators import ClerkUserType, _authenticate_request
 
             # Try to authenticate the request
-            _authenticate_request(ClerkUserType.ADMIN)
+            _authenticate_request(ClerkUserType.ADMIN, allow_cookies=True)
 
             return True
 
@@ -66,7 +66,7 @@ class SecureAdminIndexView(ClerkAuthMixin, AdminIndexView):
         try:
             from app.auth.decorators import ClerkUserType, _authenticate_request
 
-            request_state = _authenticate_request(ClerkUserType.ADMIN)
+            request_state = _authenticate_request(ClerkUserType.ADMIN, allow_cookies=True)
             payload_data = request_state.payload.get("data", {})
 
             if request_state.is_signed_in:
@@ -119,7 +119,7 @@ class SecureModelView(ClerkAuthMixin, ModelView):
         try:
             from app.auth.decorators import ClerkUserType, _authenticate_request
 
-            _authenticate_request(ClerkUserType.ADMIN)
+            _authenticate_request(ClerkUserType.ADMIN, allow_cookies=True)
             # TODO in the future if we want to add audit logging, we can do it here
             # https://github.com/Gary-Community-Ventures/csp-backend/issues/66
 
