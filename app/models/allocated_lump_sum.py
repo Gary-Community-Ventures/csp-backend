@@ -18,8 +18,8 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
         foreign_keys=[care_month_allocation_id],
     )
 
-    # Calculated fields
     amount_cents = db.Column(db.Integer, nullable=False)
+    hours = db.Column(db.Float, nullable=True)
 
     # Provider info
     provider_google_sheets_id = db.Column(db.String(64), nullable=False, index=True)
@@ -41,9 +41,13 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
         allocation: "MonthAllocation",
         provider_id: str,
         amount_cents: int,
+        hours: float,
     ):
         if not isinstance(amount_cents, int) or amount_cents <= 0:
             raise ValueError("Amount must be a positive integer in cents")
+
+        if not isinstance(hours, float) or hours < 0:
+            raise ValueError("Hours must be a positive float")
 
         # Check if allocation can handle this lump sum
         if not allocation.can_add_lump_sum(amount_cents):
@@ -55,6 +59,7 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
             provider_google_sheets_id=provider_id,
             amount_cents=amount_cents,
             submitted_at=datetime.now(timezone.utc),
+            hours=hours,
         )
 
         return lump_sum
