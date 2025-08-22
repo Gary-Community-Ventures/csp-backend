@@ -1,5 +1,6 @@
 from app.models import (
     AllocatedCareDay,
+    AllocatedLumpSum,
     FamilyInvitation,
     MonthAllocation,
     PaymentRate,
@@ -18,6 +19,7 @@ class ModelAdminConfig:
 ADMIN_MODELS = [
     ModelAdminConfig(PaymentRate, "Payment Rates", "Financial"),
     ModelAdminConfig(AllocatedCareDay, "Allocated Care Days", "Financial"),
+    ModelAdminConfig(AllocatedLumpSum, "Allocated Lump Sums", "Financial"),
     ModelAdminConfig(MonthAllocation, "Month Allocations", "Financial"),
     ModelAdminConfig(PaymentRequest, "Payment Requests", "Financial"),
     ModelAdminConfig(ProviderInvitation, "Provider Invitations", "Users"),

@@ -39,6 +39,7 @@ def create_lump_sum():
     allocation_id = request_data.allocation_id
     provider_id = request_data.provider_id
     amount_cents = request_data.amount_cents
+    hours = request_data.hours
 
     allocation = db.session.get(MonthAllocation, allocation_id)
     if not allocation:
@@ -77,6 +78,7 @@ def create_lump_sum():
             allocation=allocation,
             provider_id=provider_id,
             amount_cents=amount_cents,
+            hours=hours,
         )
         db.session.add(lump_sum)
         db.session.commit()
@@ -87,6 +89,7 @@ def create_lump_sum():
             child_last_name=associated_child.get(ChildColumnNames.LAST_NAME),
             google_sheets_child_id=allocation_child_id,
             amount_in_cents=amount_cents,
+            hours=hours,
             month=allocation.date.strftime("%B %Y"),
         )
         return (

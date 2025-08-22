@@ -9,6 +9,7 @@ class AllocatedLumpSumResponse(BaseModel):
     care_month_allocation_id: int
     provider_google_sheets_id: str
     amount_cents: int
+    hours: Optional[float] = None
     paid_at: Optional[datetime] = None
     submitted_at: Optional[datetime] = None
     created_at: datetime
@@ -21,3 +22,4 @@ class AllocatedLumpSumCreateRequest(BaseModel):
     allocation_id: int
     provider_id: str
     amount_cents: int
+    hours: float
