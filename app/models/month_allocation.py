@@ -128,7 +128,7 @@ class MonthAllocation(db.Model, TimestampMixin):
         return self.used_cents + amount_cents <= self.allocation_cents
 
     @staticmethod
-    def get_for_month(child_id: str, month_date: date):
+    def get_or_create_for_month(child_id: str, month_date: date):
         """Get existing allocation or create with default values"""
         # Normalize to first of month
         month_start = month_date.replace(day=1)
