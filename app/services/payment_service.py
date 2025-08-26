@@ -87,19 +87,25 @@ class PaymentService:
 
     def process_payment(
         self,
-        provider: ProviderPaymentSettings,
-        month_allocation: Optional[MonthAllocation] = None,
+        external_provider_id: str,
+        external_child_id: str,
+        month_allocation: MonthAllocation,
         allocated_care_days: Optional[list[AllocatedCareDay]] = None,
         allocated_lump_sums: Optional[list[AllocatedLumpSum]] = None,
-        external_provider_id: Optional[str] = None,
-        external_child_id: Optional[str] = None,
     ):
         """
         Orchestrates the payment process for a provider.
         Calculates the amount from the allocations and uses the provider's configured payment method.
         """
         try:
-            # 0. Calculate amount from allocations
+            # 0. Look up provider payment settings
+            provider = ProviderPaymentSettings.query.filter_by(provider_external_id=external_provider_id).first()
+            if not provider:
+                error_msg = f"Provider with external ID {external_provider_id} not found in database"
+                current_app.logger.error(f"Payment failed: {error_msg}")
+                raise ValueError(error_msg)
+            
+            # 0.1. Calculate amount from allocations
             amount_cents = 0
             if allocated_care_days:
                 amount_cents = sum(day.amount_cents for day in allocated_care_days)
@@ -111,6 +117,30 @@ class PaymentService:
             if amount_cents <= 0:
                 current_app.logger.warning(f"Payment skipped for Provider {provider.id}: Amount is zero or negative")
                 return False
+            
+            # 0.2. Validate all allocated items are submitted
+            if allocated_care_days:
+                unsubmitted_days = [day for day in allocated_care_days if day.last_submitted_at is None]
+                if unsubmitted_days:
+                    error_msg = f"Cannot process payment: {len(unsubmitted_days)} care days are not submitted"
+                    current_app.logger.error(f"Payment failed for Provider {provider.id}: {error_msg}")
+                    raise ValueError(error_msg)
+            
+            if allocated_lump_sums:
+                unsubmitted_lumps = [lump for lump in allocated_lump_sums if lump.submitted_at is None]
+                if unsubmitted_lumps:
+                    error_msg = f"Cannot process payment: {len(unsubmitted_lumps)} lump sums are not submitted"
+                    current_app.logger.error(f"Payment failed for Provider {provider.id}: {error_msg}")
+                    raise ValueError(error_msg)
+            
+            # 0.3. Validate payment doesn't exceed remaining allocation
+            if amount_cents > month_allocation.remaining_to_pay_cents:
+                error_msg = (
+                    f"Payment amount {amount_cents} cents exceeds remaining allocation "
+                    f"{month_allocation.remaining_to_pay_cents} cents for month {month_allocation.date.strftime('%Y-%m')}"
+                )
+                current_app.logger.error(f"Payment failed for Provider {provider.id}: {error_msg}")
+                raise ValueError(error_msg)
             
             # 1. Ensure provider has a payment method configured
             if not provider.payment_method:
@@ -157,10 +187,10 @@ class PaymentService:
             # 4. Initiate Chek transfer (Program to Wallet)
             # Build description and metadata for tracking
             payment_type = "care_days" if allocated_care_days else "lump_sum" if allocated_lump_sums else "other"
-            description = f"Payment to provider {external_provider_id or provider.provider_external_id} for {payment_type}"
+            description = f"Payment to provider {external_provider_id} for {payment_type}"
             
             metadata = {
-                "provider_id": external_provider_id or provider.provider_external_id,
+                "provider_id": external_provider_id,
                 "child_id": external_child_id,
                 "payment_type": payment_type,
                 "payment_id": str(payment.id),

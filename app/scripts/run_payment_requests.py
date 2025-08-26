@@ -80,12 +80,13 @@ def run_payment_requests():
             )
             continue
 
-        # Process payment using the PaymentService
+        # Process payment using the PaymentService  
+        month_allocation = days[0].care_month_allocation  # All care days belong to same month allocation
         payment_successful = payment_service.process_payment(
-            provider=provider_orm,
-            allocated_care_days=days,
             external_provider_id=provider_id,
             external_child_id=child_id,
+            month_allocation=month_allocation,
+            allocated_care_days=days,
         )
 
         if payment_successful:

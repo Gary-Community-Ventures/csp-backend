@@ -1,4 +1,5 @@
-from flask import Blueprint, jsonify, request
+import traceback
+from flask import Blueprint, current_app, jsonify, request
 from pydantic import ValidationError
 
 from app.auth.decorators import (
@@ -9,7 +10,6 @@ from app.auth.helpers import get_family_user
 from app.extensions import db
 from app.models.allocated_lump_sum import AllocatedLumpSum
 from app.models.month_allocation import MonthAllocation
-from app.models.provider_payment_settings import ProviderPaymentSettings
 from app.schemas.lump_sum import AllocatedLumpSumCreateRequest, AllocatedLumpSumResponse
 from app.services.payment_service import PaymentService
 from app.sheets.mappings import (
@@ -75,11 +75,6 @@ def create_lump_sum():
     if not provider_found:
         return jsonify({"error": "Provider not associated with the specified child."}), 403
 
-    # Retrieve the ProviderPaymentSettings object
-    provider_orm = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
-    if not provider_orm:
-        return jsonify({"error": f"Provider with external ID {provider_id} not found in database."}), 404
-
     try:
         lump_sum = AllocatedLumpSum.create_lump_sum(
             allocation=allocation,
@@ -92,10 +87,10 @@ def create_lump_sum():
 
         # Process payment using the PaymentService
         payment_successful = current_app.payment_service.process_payment(
-            provider=provider_orm,
-            allocated_lump_sums=[lump_sum],
             external_provider_id=provider_id,
             external_child_id=allocation_child_id,
+            month_allocation=allocation,
+            allocated_lump_sums=[lump_sum],
         )
 
         if not payment_successful:
