@@ -33,11 +33,11 @@ class PaymentService:
         provider: ProviderPaymentSettings,
         amount_cents: int,
         payment_method: PaymentMethod,
-        month_allocation: Optional[MonthAllocation] = None,
+        month_allocation: MonthAllocation,
+        external_provider_id: str,
+        external_child_id: str,
         allocated_care_days: Optional[list[AllocatedCareDay]] = None,
         allocated_lump_sums: Optional[list[AllocatedLumpSum]] = None,
-        external_provider_id: Optional[str] = None,
-        external_child_id: Optional[str] = None,
     ) -> Payment:
         """
         Creates a new Payment record and an initial PaymentAttempt.
@@ -98,14 +98,14 @@ class PaymentService:
         Calculates the amount from the allocations and uses the provider's configured payment method.
         """
         try:
-            # 0. Look up provider payment settings
+            # 1. Look up provider payment settings
             provider = ProviderPaymentSettings.query.filter_by(provider_external_id=external_provider_id).first()
             if not provider:
                 error_msg = f"Provider with external ID {external_provider_id} not found in database"
                 current_app.logger.error(f"Payment failed: {error_msg}")
                 raise ValueError(error_msg)
             
-            # 0.1. Calculate amount from allocations
+            # 2. Calculate amount from allocations
             amount_cents = 0
             if allocated_care_days:
                 amount_cents += sum(day.amount_cents for day in allocated_care_days)
@@ -114,11 +114,7 @@ class PaymentService:
             if amount_cents <= 0:
                 raise ValueError("No allocations provided for payment")
             
-            if amount_cents <= 0:
-                current_app.logger.warning(f"Payment skipped for Provider {provider.id}: Amount is zero or negative")
-                return False
-            
-            # 0.2. Validate all allocated items are submitted
+            # 3. Validate all allocated items are submitted
             if allocated_care_days:
                 unsubmitted_days = [day for day in allocated_care_days if day.last_submitted_at is None]
                 if unsubmitted_days:
@@ -133,7 +129,7 @@ class PaymentService:
                     current_app.logger.error(f"Payment failed for Provider {provider.id}: {error_msg}")
                     raise ValueError(error_msg)
             
-            # 0.3. Validate payment doesn't exceed remaining allocation
+            # 4. Validate payment doesn't exceed remaining allocation
             if amount_cents > month_allocation.remaining_to_pay_cents:
                 error_msg = (
                     f"Payment amount {amount_cents} cents exceeds remaining allocation "
@@ -142,16 +138,16 @@ class PaymentService:
                 current_app.logger.error(f"Payment failed for Provider {provider.id}: {error_msg}")
                 raise ValueError(error_msg)
             
-            # 1. Ensure provider has a payment method configured
+            # 5. Ensure provider has a payment method configured
             if not provider.payment_method:
                 current_app.logger.error(f"Payment failed for Provider {provider.id}: No payment method configured")
                 return False
             
-            # 2. Refresh provider Chek status to ensure freshness
+            # 6. Refresh provider Chek status to ensure freshness
             self.refresh_provider_status(provider)
             db.session.flush() # Ensure provider object is updated in session
 
-            # 3. Check if provider is payable after refresh
+            # 7. Check if provider is payable after refresh
             if not provider.payable:
                 current_app.logger.warning(
                     f"Payment skipped for Provider {provider.id}: Not payable after refresh."
@@ -162,29 +158,29 @@ class PaymentService:
                     amount_cents=amount_cents,
                     payment_method=provider.payment_method,
                     month_allocation=month_allocation,
-                    allocated_care_days=allocated_care_days,
-                    allocated_lump_sums=allocated_lump_sums,
                     external_provider_id=external_provider_id,
                     external_child_id=external_child_id,
+                    allocated_care_days=allocated_care_days,
+                    allocated_lump_sums=allocated_lump_sums,
                 )
                 self._update_payment_attempt_status(payment.attempts[0], "failed", error_message="Provider not payable")
                 db.session.commit()
                 return False
 
-            # 4. Create Payment and initial PaymentAttempt
+            # 8. Create Payment and initial PaymentAttempt
             payment = self._create_payment_and_attempt(
                 provider=provider,
                 amount_cents=amount_cents,
                 payment_method=provider.payment_method,
                 month_allocation=month_allocation,
-                allocated_care_days=allocated_care_days,
-                allocated_lump_sums=allocated_lump_sums,
                 external_provider_id=external_provider_id,
                 external_child_id=external_child_id,
+                allocated_care_days=allocated_care_days,
+                allocated_lump_sums=allocated_lump_sums,
             )
             attempt = payment.attempts[0]
 
-            # 4. Initiate Chek transfer (Program to Wallet)
+            # 9. Initiate Chek transfer (Program to Wallet)
             # Build description and metadata for tracking
             payment_type = "care_days" if allocated_care_days else "lump_sum" if allocated_lump_sums else "other"
             description = f"Payment to provider {external_provider_id} for {payment_type}"
