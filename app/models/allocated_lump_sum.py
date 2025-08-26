@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+from ..config import MAX_PAYMENT_AMOUNT_CENTS
 from ..extensions import db
 from .mixins import TimestampMixin
 from .month_allocation import MonthAllocation
@@ -48,6 +49,13 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
 
         if not isinstance(hours, float) or hours < 0:
             raise ValueError("Hours must be a positive float")
+
+        # Check if lump sum exceeds maximum payment amount
+        if amount_cents > MAX_PAYMENT_AMOUNT_CENTS:
+            raise ValueError(
+                f"Lump sum amount ${amount_cents / 100:.2f} exceeds maximum allowed payment "
+                f"of ${MAX_PAYMENT_AMOUNT_CENTS / 100:.2f}"
+            )
 
         # Check if allocation can handle this lump sum
         if not allocation.can_add_lump_sum(amount_cents):

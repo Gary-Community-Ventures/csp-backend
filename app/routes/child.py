@@ -79,6 +79,7 @@ def submit_care_days(child_id, provider_id, month, year):
         AllocatedCareDay.care_month_allocation_id == allocation.id,
         AllocatedCareDay.provider_google_sheets_id == provider_id,
         AllocatedCareDay.deleted_at.is_(None),  # Don't submit deleted days
+        AllocatedCareDay.last_submitted_at.is_(None),  # Don't submit already submitted days
     ).all()
 
     # Only process payment for care days that have an amount
@@ -97,30 +98,25 @@ def submit_care_days(child_id, provider_id, month, year):
     if not child_data:
         return jsonify({"error": "Child not found"}), 404
 
+    # Calculate total amount for email (before payment processing)
+    total_amount_cents = sum(day.amount_cents for day in care_days_to_submit)
+
+    # Process payment for submitted care days
+    # PaymentService now handles marking care days as submitted within the same transaction
+    payment_successful = current_app.payment_service.process_payment(
+        external_provider_id=provider_id,
+        external_child_id=child_id,
+        month_allocation=allocation,
+        allocated_care_days=care_days_to_submit,
+    )
+
+    if not payment_successful:
+        error_response = PaymentErrorResponse(error="Payment processing failed. Please try again.")
+        return error_response.model_dump_json(), 500, {"Content-Type": "application/json"}
+
+    # Send payment notification email (after successful payment)
+    # If email fails, we log it but don't fail the request since payment succeeded
     try:
-        # Process payment for submitted care days
-        payment_successful = current_app.payment_service.process_payment(
-            external_provider_id=provider_id,
-            external_child_id=child_id,
-            month_allocation=allocation,
-            allocated_care_days=care_days_to_submit,
-        )
-
-        if not payment_successful:
-            error_response = PaymentErrorResponse(error="Payment processing failed. Please try again.")
-            return error_response.model_dump_json(), 500, {"Content-Type": "application/json"}
-
-        # Mark care days as submitted and payment processed only after successful payment
-        for day in care_days_to_submit:
-            day.mark_as_submitted()
-            day.payment_distribution_requested = True  # Flag to prevent batch script reprocessing
-
-        db.session.commit()
-
-        # Calculate total amount for email
-        total_amount_cents = sum(day.amount_cents for day in care_days_to_submit)
-
-        # Send payment notification email
         send_care_days_payment_request_email(
             provider_name=provider_data.get("Name", "Unknown"),
             google_sheets_provider_id=provider_id,
@@ -130,12 +126,12 @@ def submit_care_days(child_id, provider_id, month, year):
             amount_in_cents=total_amount_cents,
             care_days=care_days_to_submit,
         )
-
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error processing payment for care days: {e}")
-        error_response = PaymentErrorResponse(error=f"Payment processing error: {str(e)}")
-        return error_response.model_dump_json(), 500, {"Content-Type": "application/json"}
+    except Exception as email_error:
+        # Log email failure as warning, but payment was successful so continue
+        current_app.logger.warning(
+            f"Payment processed successfully for provider {provider_id}, child {child_id} "
+            f"(${total_amount_cents / 100:.2f}), but email notification failed: {email_error}"
+        )
 
     response = PaymentProcessedResponse(
         message="Payment processed successfully",

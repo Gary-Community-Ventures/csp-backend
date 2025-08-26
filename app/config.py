@@ -9,6 +9,8 @@ ENV_TESTING = "testing"
 
 # --- Business Logic Constants ---
 BUSINESS_TIMEZONE = "America/Denver"  # Mountain Time for care day locking and business rules
+MAX_PAYMENT_AMOUNT_CENTS = 140000  # $1400 maximum per transaction
+MAX_ALLOCATION_AMOUNT_CENTS = 140000  # $1400 maximum per month allocation
 # --- End Business Logic Constants ---
 
 

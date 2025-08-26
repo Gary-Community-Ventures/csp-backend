@@ -4,6 +4,7 @@ from typing import Optional
 import sentry_sdk
 from flask import current_app
 
+from app.config import MAX_PAYMENT_AMOUNT_CENTS
 from app.enums.payment_attempt_status import PaymentAttemptStatus
 from app.enums.payment_method import PaymentMethod
 from app.extensions import db
@@ -143,7 +144,16 @@ class PaymentService:
                     current_app.logger.error(f"Payment failed for Provider {provider.id}: {error_msg}")
                     raise ValueError(error_msg)
 
-            # 4. Validate payment doesn't exceed remaining allocation
+            # 4. Validate payment doesn't exceed $1400 limit
+            if amount_cents > MAX_PAYMENT_AMOUNT_CENTS:
+                error_msg = (
+                    f"Payment amount ${amount_cents / 100:.2f} exceeds maximum allowed payment "
+                    f"of ${MAX_PAYMENT_AMOUNT_CENTS / 100:.2f}"
+                )
+                current_app.logger.error(f"Payment failed for Provider {provider.id}: {error_msg}")
+                raise ValueError(error_msg)
+
+            # 5. Validate payment doesn't exceed remaining allocation
             if amount_cents > month_allocation.remaining_to_pay_cents:
                 error_msg = (
                     f"Payment amount {amount_cents} cents exceeds remaining allocation "
@@ -152,16 +162,16 @@ class PaymentService:
                 current_app.logger.error(f"Payment failed for Provider {provider.id}: {error_msg}")
                 raise ValueError(error_msg)
 
-            # 5. Ensure provider has a payment method configured
+            # 6. Ensure provider has a payment method configured
             if not provider.payment_method:
                 current_app.logger.error(f"Payment failed for Provider {provider.id}: No payment method configured")
                 return False
 
-            # 6. Refresh provider Chek status to ensure freshness
+            # 7. Refresh provider Chek status to ensure freshness
             self.refresh_provider_status(provider)
             db.session.flush()  # Ensure provider object is updated in session
 
-            # 7. Check if provider is payable after refresh
+            # 8. Check if provider is payable after refresh
             if not provider.payable:
                 current_app.logger.warning(f"Payment skipped for Provider {provider.id}: Not payable after refresh.")
                 # Create a failed payment record
@@ -181,7 +191,7 @@ class PaymentService:
                 db.session.commit()
                 return False
 
-            # 8. Create Payment and initial PaymentAttempt
+            # 9. Create Payment and initial PaymentAttempt
             payment = self._create_payment_and_attempt(
                 provider=provider,
                 amount_cents=amount_cents,
@@ -194,7 +204,7 @@ class PaymentService:
             )
             attempt = payment.attempts[0]
 
-            # 9. Initiate Chek transfer (Program to Wallet)
+            # 10. Initiate Chek transfer (Program to Wallet)
             # Build description and metadata for tracking
             payment_type = "care_days" if allocated_care_days else "lump_sum" if allocated_lump_sums else "other"
             description = f"Payment to provider {external_provider_id} for {payment_type}"
@@ -227,7 +237,7 @@ class PaymentService:
             # Store transfer ID but don't mark as success yet for ACH payments
             attempt.chek_transfer_id = str(transfer_response.transfer.id)
 
-            # 10. If ACH, initiate ACH payment from wallet to bank account
+            # 11. If ACH, initiate ACH payment from wallet to bank account
             if provider.payment_method == PaymentMethod.ACH:
                 ach_request = ACHPaymentRequest(
                     amount=amount_cents,
@@ -252,6 +262,18 @@ class PaymentService:
             else:
                 # For virtual card, wallet transfer is the final step
                 self._update_payment_attempt_status(attempt, PaymentAttemptStatus.SUCCESS)
+
+            # 12. Mark care days and lump sums as submitted only after successful payment
+            # This ensures they are only marked as paid if payment actually succeeded
+            if allocated_care_days:
+                for day in allocated_care_days:
+                    day.mark_as_submitted()
+                    day.payment_distribution_requested = True  # Flag to prevent batch script reprocessing
+
+            if allocated_lump_sums:
+                for lump_sum in allocated_lump_sums:
+                    lump_sum.submitted_at = datetime.utcnow()
+                    lump_sum.paid_at = datetime.utcnow()
 
             db.session.commit()
             current_app.logger.info(f"Payment processed successfully for Provider {provider.id}.")

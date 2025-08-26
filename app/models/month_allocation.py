@@ -3,7 +3,7 @@ from datetime import datetime
 from datetime import time as dt_time
 from datetime import timedelta
 
-from app.config import BUSINESS_TIMEZONE
+from app.config import BUSINESS_TIMEZONE, MAX_ALLOCATION_AMOUNT_CENTS
 from app.sheets.mappings import (
     ChildColumnNames,
     get_child,
@@ -147,6 +147,13 @@ class MonthAllocation(db.Model, TimestampMixin):
         if not allocation:
             # Get allocation amount from child data
             allocation_cents = get_allocation_amount(child_id)
+
+            # Validate allocation doesn't exceed maximum
+            if allocation_cents > MAX_ALLOCATION_AMOUNT_CENTS:
+                raise ValueError(
+                    f"Allocation amount ${allocation_cents / 100:.2f} exceeds maximum allowed allocation "
+                    f"of ${MAX_ALLOCATION_AMOUNT_CENTS / 100:.2f} for child {child_id}"
+                )
 
             allocation = MonthAllocation(
                 google_sheets_child_id=child_id,
