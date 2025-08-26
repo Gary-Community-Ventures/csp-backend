@@ -66,7 +66,12 @@ class MonthAllocation(db.Model, TimestampMixin):
     @property
     def over_allocation(self):
         """Check if allocated care days exceed the monthly allocation"""
-        return self.used_cents > self.allocation_cents
+        return self.allocated_cents > self.allocation_cents
+    
+    @property
+    def over_paid(self):
+        """Check if payments exceed what was allocated"""
+        return self.paid_cents > self.allocated_cents
 
     @property
     def used_days(self):
@@ -74,16 +79,42 @@ class MonthAllocation(db.Model, TimestampMixin):
         return sum(day.day_count for day in self.care_days)
 
     @property
-    def used_cents(self):
-        """Calculate total cents used from active care days"""
+    def allocated_cents(self):
+        """Total allocated (promised) from care days + lump sums"""
         return sum(day.amount_cents for day in self.care_days) + sum(
             lump_sum.amount_cents for lump_sum in self.lump_sums
         )
+    
+    @property
+    def paid_cents(self):
+        """Total actually paid via successful payments"""
+        return sum(
+            payment.amount_cents 
+            for payment in self.payments 
+            if payment.has_successful_attempt
+        )
+    
+    @property
+    def used_cents(self):
+        """Calculate total cents used from active care days (DEPRECATED: use allocated_cents)"""
+        # Keep for backward compatibility
+        return self.allocated_cents
+
+    @property
+    def remaining_to_allocate_cents(self):
+        """How much budget is left to allocate (create care days/lump sums)"""
+        return self.allocation_cents - self.allocated_cents
+    
+    @property
+    def remaining_to_pay_cents(self):
+        """How much allocated money is left to pay"""
+        return self.allocated_cents - self.paid_cents
 
     @property
     def remaining_cents(self):
-        """Calculate remaining cents available"""
-        return self.allocation_cents - self.used_cents
+        """Calculate remaining cents available (DEPRECATED: use remaining_to_allocate_cents)"""
+        # Keep for backward compatibility
+        return self.remaining_to_allocate_cents
 
     def can_add_care_day(self, day_type: CareDayType, provider_id: str) -> bool:
         """Check if we can add a care day of given type without over-allocating"""

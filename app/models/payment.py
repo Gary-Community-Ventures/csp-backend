@@ -31,5 +31,10 @@ class Payment(db.Model, TimestampMixin):
     )
     allocated_lump_sums = relationship('AllocatedLumpSum', backref='payments')
 
+    @property
+    def has_successful_attempt(self):
+        """Check if this payment has at least one successful attempt"""
+        return any(attempt.status == "success" for attempt in self.attempts)
+    
     def __repr__(self):
-        return f"<Payment {self.id} - Amount: {self.amount_cents} cents - Provider: {self.provider_id}>"
+        return f"<Payment {self.id} - Amount: {self.amount_cents} cents - Provider: {self.external_provider_id}>"
