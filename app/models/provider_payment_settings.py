@@ -40,7 +40,7 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
 
         # Return payable status based on cached data
         return (self.chek_direct_pay_status == "Active" and self.payment_method == PaymentMethod.ACH) or \
-               (self.chek_card_status == "Active" and self.payment_method == PaymentMethod.VIRTUAL_CARD)
+               (self.chek_card_status == "Active" and self.payment_method == PaymentMethod.CARD)
 
     def __repr__(self):
         return f"<ProviderPaymentSettings {self.id} - External ID: {self.provider_external_id}>"

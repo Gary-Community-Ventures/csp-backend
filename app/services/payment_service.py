@@ -399,7 +399,7 @@ class PaymentService:
                 # Update provider settings with card info
                 provider_settings.chek_card_id = str(card_response.id)
                 provider_settings.chek_card_status = "Active"
-                provider_settings.payment_method = PaymentMethod.VIRTUAL_CARD
+                provider_settings.payment_method = PaymentMethod.CARD
                 provider_settings.payment_method_updated_at = datetime.utcnow()
                 provider_settings.last_chek_sync_at = datetime.utcnow()
                 db.session.commit()

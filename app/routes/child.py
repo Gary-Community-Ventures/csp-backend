@@ -12,6 +12,7 @@ from app.schemas.care_day import AllocatedCareDayResponse
 from app.schemas.month_allocation import (
     MonthAllocationResponse,
 )
+from app.schemas.payment import PaymentProcessedResponse, PaymentErrorResponse
 from app.utils.email_service import send_submission_notification, send_care_days_payment_request_email
 from app.utils.json_utils import custom_jsonify
 from app.sheets.mappings import get_child, get_children, get_provider, get_providers
@@ -104,7 +105,8 @@ def submit_care_days(child_id, provider_id, month, year):
         )
 
         if not payment_successful:
-            return jsonify({"error": "Payment processing failed. Please try again."}), 500
+            error_response = PaymentErrorResponse(error="Payment processing failed. Please try again.")
+            return error_response.model_dump_json(), 500, {"Content-Type": "application/json"}
 
         # Mark care days as submitted and payment processed only after successful payment
         for day in care_days_to_submit:
@@ -130,12 +132,13 @@ def submit_care_days(child_id, provider_id, month, year):
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Error processing payment for care days: {e}")
-        return jsonify({"error": f"Payment processing error: {str(e)}"}), 500
+        error_response = PaymentErrorResponse(error=f"Payment processing error: {str(e)}")
+        return error_response.model_dump_json(), 500, {"Content-Type": "application/json"}
 
-    return jsonify(
-        {
-            "message": "Payment processed successfully",
-            "total_amount": f"${total_amount_cents / 100:.2f}",
-            "care_days": [AllocatedCareDayResponse.model_validate(day).model_dump() for day in care_days_to_submit],
-        }
+    response = PaymentProcessedResponse(
+        message="Payment processed successfully",
+        total_amount=f"${total_amount_cents / 100:.2f}",
+        care_days=[AllocatedCareDayResponse.model_validate(day) for day in care_days_to_submit],
     )
+    
+    return response.model_dump_json(), 200, {"Content-Type": "application/json"}

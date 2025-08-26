@@ -254,7 +254,7 @@ def update_payment_settings():
         abort(404, description="Provider payment settings not found. Please complete onboarding first.")
     
     # Check if the payment method is available
-    if new_payment_method == PaymentMethod.VIRTUAL_CARD and not provider.chek_card_id:
+    if new_payment_method == PaymentMethod.CARD and not provider.chek_card_id:
         abort(400, description="Virtual card not available. Please set up a virtual card first.")
     
     if new_payment_method == PaymentMethod.ACH and not provider.chek_direct_pay_id:

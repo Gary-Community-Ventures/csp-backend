@@ -140,7 +140,7 @@ def retry_payment(payment_id):
             )
             
             # Process the payment based on payment method
-            if provider.payment_method == "VIRTUAL_CARD":
+            if provider.payment_method == PaymentMethod.CARD:
                 # For virtual card, just do the transfer to wallet
                 transfer_response = payment_service.chek_service.transfer_balance(
                     int(provider.chek_user_id),
@@ -154,7 +154,7 @@ def retry_payment(payment_id):
                 else:
                     raise Exception("Transfer to wallet failed")
                     
-            elif provider.payment_method == "ACH":
+            elif provider.payment_method == PaymentMethod.ACH:
                 # For ACH, do transfer then initiate ACH payment
                 transfer_response = payment_service.chek_service.transfer_balance(
                     int(provider.chek_user_id),
