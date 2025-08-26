@@ -9,6 +9,7 @@ from ..extensions import db
 from .mixins import TimestampMixin
 from .month_allocation import MonthAllocation
 from .utils import get_care_day_cost
+from ..config import BUSINESS_TIMEZONE
 
 
 class AllocatedCareDay(db.Model, TimestampMixin):
@@ -79,10 +80,10 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     @property
     def is_locked(self):
         """Check if this care day is locked"""
-        # Use MST timezone for business logic
-        mst = zoneinfo.ZoneInfo("America/Denver")
-        now_mst = datetime.now(mst)
-        return now_mst > self.locked_date
+        # Use business timezone for logic
+        business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
+        now_business = datetime.now(business_tz)
+        return now_business > self.locked_date
 
     @property
     def is_deleted(self):
@@ -111,10 +112,10 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         day_type: CareDayType,
     ):
         """Create a new care day with proper validation"""
-        # Prevent creating care days in the past (using MST)
-        mst = zoneinfo.ZoneInfo("America/Denver")
-        today_mst = datetime.now(mst).date()
-        if care_date < today_mst:
+        # Prevent creating care days in the past (using business timezone)
+        business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
+        today_business = datetime.now(business_tz).date()
+        if care_date < today_business:
             raise ValueError("Cannot create a care day in the past.")
 
         # Check if allocation can handle this care day
@@ -161,10 +162,10 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         monday = care_date - timedelta(days=days_since_monday)
         calculated_locked_date = datetime.combine(monday, dt_time(23, 59, 59))
 
-        # Prevent creating a care day that would be locked (using MST)
-        mst = zoneinfo.ZoneInfo("America/Denver") 
-        now_mst = datetime.now(mst)
-        if now_mst > calculated_locked_date:
+        # Prevent creating a care day that would be locked (using business timezone)
+        business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
+        now_business = datetime.now(business_tz)
+        if now_business > calculated_locked_date:
             raise ValueError("Cannot create a care day that would be locked.")
 
         # Create new care day
