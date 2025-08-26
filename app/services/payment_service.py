@@ -525,10 +525,12 @@ class PaymentService:
             provider_email = provider_data.get(ProviderColumnNames.EMAIL)
             first_name = provider_data.get(ProviderColumnNames.FIRST_NAME, "")
             last_name = provider_data.get(ProviderColumnNames.LAST_NAME, "")
-            street_address = provider_data.get(ProviderColumnNames.ADDRESS, "")
+            address_line1 = provider_data.get(ProviderColumnNames.ADDRESS_LINE1, "")
+            address_line2 = provider_data.get(ProviderColumnNames.ADDRESS_LINE2, "")
             city = provider_data.get(ProviderColumnNames.CITY, "")
             state = provider_data.get(ProviderColumnNames.STATE, "")
-            zip_code = provider_data.get(ProviderColumnNames.ZIP, "")
+            zip_code = provider_data.get(ProviderColumnNames.ZIP_CODE, "")
+            country_code = provider_data.get(ProviderColumnNames.COUNTRY_CODE, "US")
 
             if not provider_email:
                 raise ValueError(f"Provider {provider_external_id} has no email in Google Sheets")
@@ -549,11 +551,12 @@ class PaymentService:
                     first_name=first_name,
                     last_name=last_name,
                     address=Address(
-                        line1=street_address or "",
+                        line1=address_line1 or "",
+                        line2=address_line2 or "",
                         city=city or "",
                         state=state or "",
                         postal_code=zip_code or "",
-                        country="US",
+                        country=country_code or "US",
                     ),
                 )
 

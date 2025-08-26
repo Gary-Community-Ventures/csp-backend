@@ -22,6 +22,12 @@ class FamilyColumnNames:
     EMAIL = Key("Email")
     LANGUAGE = Key("Language", default="en")
     PHONE_NUMBER = Key("Phone Number")
+    ADDRESS_LINE1 = Key("Address Line 1")
+    ADDRESS_LINE2 = Key("Address Line 2")
+    CITY = Key("City")
+    STATE = Key("State")
+    ZIP_CODE = Key("ZIP Code")
+    COUNTRY_CODE = Key("Country Code", default="US")
 
 
 class ChildColumnNames:
@@ -50,6 +56,12 @@ class ProviderColumnNames:
     LANGUAGE = Key("Language", default="en")
     PHONE_NUMBER = Key("Phone Number")
     TYPE = Key("Type")
+    ADDRESS_LINE1 = Key("Address Line 1")
+    ADDRESS_LINE2 = Key("Address Line 2")
+    CITY = Key("City")
+    STATE = Key("State")
+    ZIP_CODE = Key("ZIP Code")
+    COUNTRY_CODE = Key("Country Code", default="US")
 
 
 class ContentColumnNames:
