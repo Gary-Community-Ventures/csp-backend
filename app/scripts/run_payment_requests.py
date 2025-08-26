@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from app import create_app
 from app.extensions import db
-from app.models import AllocatedCareDay, MonthAllocation, PaymentRequest
+from app.models import AllocatedCareDay, MonthAllocation, PaymentRequest, Provider
 from app.sheets.mappings import (
     ChildColumnNames,
     ProviderColumnNames,
@@ -13,10 +13,14 @@ from app.sheets.mappings import (
     get_providers,
 )
 from app.utils.email_service import send_care_days_payment_request_email
+from app.services.payment_service import PaymentService
 
 # Create Flask app context
 app = create_app()
 app.app_context().push()
+
+# Initialize PaymentService within the app context
+payment_service = PaymentService(app)
 
 
 def run_payment_requests():
@@ -59,55 +63,44 @@ def run_payment_requests():
 
         if not provider_data:
             app.logger.warning(
-                f"run_payment_requests: Skipping payment request for provider ID {provider_id}: Provider not found in Google Sheets."
+                f"run_payment_requests: Skipping payment for provider ID {provider_id}: Provider not found in Google Sheets."
             )
             continue
         if not child_data:
             app.logger.warning(
-                f"run_payment_requests: Skipping payment request for child ID {child_id}: Child not found in Google Sheets."
+                f"run_payment_requests: Skipping payment for child ID {child_id}: Child not found in Google Sheets."
             )
             continue
 
-        provider_name = (
-            provider_data.get(ProviderColumnNames.NAME)
-            or f"{provider_data.get(ProviderColumnNames.FIRST_NAME)} {provider_data.get(ProviderColumnNames.LAST_NAME)}"
-        )
-        child_first_name = child_data.get(ChildColumnNames.FIRST_NAME)
-        child_last_name = child_data.get(ChildColumnNames.LAST_NAME)
+        # Retrieve the Provider ORM object
+        provider_orm = Provider.query.filter_by(provider_external_id=provider_id).first()
+        if not provider_orm:
+            app.logger.warning(
+                f"run_payment_requests: Skipping payment for provider ID {provider_id}: Provider not found in database."
+            )
+            continue
 
-        # Create PaymentRequest record
-        payment_request = PaymentRequest(
-            google_sheets_provider_id=provider_id,
-            google_sheets_child_id=child_id,
-            care_days_count=len(days),
-            amount_in_cents=total_amount_cents,
-            care_day_ids=[day.id for day in days],
+        # Process payment using the PaymentService
+        payment_successful = payment_service.process_payment(
+            provider=provider_orm,
+            amount_cents=total_amount_cents,
+            payment_method=provider_orm.payment_method, # Use the provider's configured payment method
+            allocated_care_days=days,
+            external_provider_id=provider_id,
+            external_child_id=child_id,
         )
-        db.session.add(payment_request)
 
-        # TODO Write payment request information to a spreadsheet for James
-        sent_email = send_care_days_payment_request_email(
-            provider_name=provider_name,
-            google_sheets_provider_id=provider_id,
-            child_first_name=child_first_name,
-            child_last_name=child_last_name,
-            google_sheets_child_id=child_id,
-            amount_in_cents=total_amount_cents,
-            care_days=days,
-        )
-        if not sent_email:
+        if payment_successful:
+            # Mark care days as payment_distribution_requested only if payment was successful
+            for day in days:
+                day.payment_distribution_requested = True
+        else:
             app.logger.error(
-                f"run_payment_requests: Failed to send payment request email for provider {provider_name} (ID: {provider_id}) and child {child_first_name} {child_last_name} (ID: {child_id})."
+                f"run_payment_requests: Failed to process payment for provider {provider_id} and child {child_id}."
             )
-            payment_request.is_email_sent = False
-            continue
-
-        # Mark care days as payment_distribution_requested
-        for day in days:
-            day.payment_distribution_requested = True
 
     db.session.commit()
-    app.logger.info("run_payment_requests: Payment request processing finished.")
+    app.logger.info("run_payment_requests: Payment processing finished.")
 
 
 if __name__ == "__main__":

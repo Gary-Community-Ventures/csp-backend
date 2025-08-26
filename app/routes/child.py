@@ -27,7 +27,7 @@ def get_month_allocation(child_id, month, year):
     provider_id = request.args.get("provider_id")
     try:
         month_date = date(year, month, 1)
-        allocation = MonthAllocation.get_or_create_for_month(child_id, month_date)
+        allocation = MonthAllocation.get_for_month(child_id, month_date)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 

@@ -7,6 +7,9 @@ from app.auth.decorators import (
 )
 from app.auth.helpers import get_current_user
 from app.jobs.example_job import example_call_job_from_function
+from app.integrations.chek.schemas import Address, UserCreateRequest, DirectPayAccountInviteRequest, FlowDirection, TransferBalanceRequest, ACHPaymentType, ACHFundingSource, ACHPaymentRequest, CardCreateRequest, CardDetails
+import traceback
+import time
 
 bp = Blueprint("main", __name__)
 
@@ -130,3 +133,106 @@ def example_job():
     except Exception as e:
         current_app.logger.error(f"Failed to enqueue example job: {e}")
         return jsonify({"error": f"Failed to enqueue example job: {str(e)}"}), 500
+
+
+@bp.route("/test-chek", methods=["GET"])
+def test_chek():
+    """An endpoint to test the Chek integration."""
+    try:
+        chek_service = current_app.chek_service
+        
+        # --- Test: Create Card ---
+        test_user_id = 750039 # As requested by the user
+        test_amount = 0 # 10.00 USD in cents
+
+        card_details = CardDetails(
+            funding_method="wallet", # Default from docs
+            source_id=test_user_id, # Assuming source_id is user_id for wallet funding
+            amount=test_amount
+        )
+        card_request = CardCreateRequest(
+            user_id=test_user_id,
+            card_details=card_details
+        )
+
+        new_card = chek_service.create_card(card_request)
+
+        return jsonify({
+            "message": f"Successfully created a card for user ID {test_user_id}.",
+            "card": new_card.model_dump()
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Chek test endpoint failed: {e}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/test-ach-payment", methods=["POST"])
+def test_ach_payment():
+    """An endpoint to test the Chek ACH payment functionality."""
+    try:
+        chek_service = current_app.chek_service
+
+        # Dummy direct_pay_account_id for testing
+        # Replace with an actual active DirectPay account ID from your Chek account
+        test_direct_pay_account_id = 90592  # Example DirectPay Account ID
+        payment_amount = 5000  # 50.00 USD in cents
+
+        ach_payment_request = ACHPaymentRequest(
+            amount=payment_amount,
+            type=ACHPaymentType.SAME_DAY_ACH,
+            funding_source=ACHFundingSource.WALLET_BALANCE,
+        )
+
+        # This will also pre-check if the DirectPay account is Active
+        direct_pay_account_response = chek_service.send_ach_payment(
+            direct_pay_account_id=test_direct_pay_account_id, request=ach_payment_request
+        )
+
+        return jsonify(
+            {
+                "message": "ACH payment initiated successfully.",
+                "direct_pay_account": direct_pay_account_response.model_dump(),
+            }
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"Chek ACH payment test endpoint failed: {e}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/test-transfer", methods=["POST"])
+def test_transfer():
+    """An endpoint to test the Chek balance transfer functionality."""
+    try:
+        chek_service = current_app.chek_service
+
+        # Dummy user_id and program_id for testing
+        # Replace with actual IDs from your Chek account
+        test_user_id = 750003  # Example user ID
+        test_program_id = "prog_12345"  # Example program ID
+        transfer_amount = 1000  # 10.00 USD in cents
+
+        transfer_request = TransferBalanceRequest(
+            flow_direction=FlowDirection.PROGRAM_TO_WALLET,
+            program_id=test_program_id,
+            amount=transfer_amount,
+        )
+
+        transfer_response = chek_service.transfer_balance(
+            user_id=test_user_id, request=transfer_request
+        )
+
+        return jsonify(
+            {
+                "message": "Balance transfer initiated successfully.",
+                "transfer_details": transfer_response.model_dump(),
+            }
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"Chek transfer test endpoint failed: {e}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500

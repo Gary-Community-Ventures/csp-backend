@@ -9,7 +9,9 @@ from app.auth.helpers import get_family_user
 from app.extensions import db
 from app.models.allocated_lump_sum import AllocatedLumpSum
 from app.models.month_allocation import MonthAllocation
+from app.models.provider import Provider
 from app.schemas.lump_sum import AllocatedLumpSumCreateRequest, AllocatedLumpSumResponse
+from app.services.payment_service import PaymentService
 from app.sheets.mappings import (
     ChildColumnNames,
     ProviderColumnNames,
@@ -65,13 +67,18 @@ def create_lump_sum():
     child_providers = get_child_providers(allocation_child_id, provider_child_mapping_rows, provider_rows)
 
     provider_found = False
-    for provider in child_providers:
-        if provider.get(ProviderColumnNames.ID) == provider_id:
+    for provider_data in child_providers:
+        if provider_data.get(ProviderColumnNames.ID) == provider_id:
             provider_found = True
             break
 
     if not provider_found:
         return jsonify({"error": "Provider not associated with the specified child."}), 403
+
+    # Retrieve the Provider ORM object
+    provider_orm = Provider.query.filter_by(provider_external_id=provider_id).first()
+    if not provider_orm:
+        return jsonify({"error": f"Provider with external ID {provider_id} not found in database."}), 404
 
     try:
         lump_sum = AllocatedLumpSum.create_lump_sum(
@@ -81,9 +88,25 @@ def create_lump_sum():
             hours=hours,
         )
         db.session.add(lump_sum)
+        db.session.flush() # Flush to get lump_sum ID before payment processing
+
+        # Process payment using the PaymentService
+        payment_successful = current_app.payment_service.process_payment(
+            provider=provider_orm,
+            amount_cents=amount_cents,
+            payment_method=provider_orm.payment_method, # Use the provider's configured payment method
+            allocated_lump_sums=[lump_sum],
+            external_provider_id=provider_id,
+            external_child_id=allocation_child_id,
+        )
+
+        if not payment_successful:
+            db.session.rollback()
+            return jsonify({"error": "Failed to process payment for lump sum."}), 500
+
         db.session.commit()
         send_lump_sum_payment_request_email(
-            provider_name=provider.get(ProviderColumnNames.NAME),
+            provider_name=provider_data.get(ProviderColumnNames.NAME),
             google_sheets_provider_id=provider_id,
             child_first_name=associated_child.get(ChildColumnNames.FIRST_NAME),
             child_last_name=associated_child.get(ChildColumnNames.LAST_NAME),
@@ -98,4 +121,10 @@ def create_lump_sum():
             {"Content-Type": "application/json"},
         )
     except ValueError as e:
+        db.session.rollback()
         return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error creating lump sum or processing payment: {e}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({"error": "An unexpected error occurred."}), 500

@@ -5,6 +5,9 @@ from .family_invitation import FamilyInvitation
 from .month_allocation import MonthAllocation
 from .payment_rate import PaymentRate
 from .payment_request import PaymentRequest
+from .payment import Payment
+from .payment_attempt import PaymentAttempt
+from .provider import Provider
 from .provider_invitation import ProviderInvitation
 
 __all__ = [
@@ -16,4 +19,7 @@ __all__ = [
     "ProviderInvitation",
     "Attendance",
     "FamilyInvitation",
+    "Payment",
+    "PaymentAttempt",
+    "Provider",
 ]

@@ -43,6 +43,13 @@ class Config:
     # For Flask-Admin
     SECRET_KEY = os.getenv("SECRET_KEY")
 
+    # Chek Configuration
+    CHEK_BASE_URL = os.getenv("CHEK_BASE_URL")
+    CHEK_ACCOUNT_ID = os.getenv("CHEK_ACCOUNT_ID")
+    CHEK_API_KEY = os.getenv("CHEK_API_KEY")
+    CHEK_WRITE_KEY = os.getenv("CHEK_WRITE_KEY")
+    CHEK_PROGRAM_ID = os.getenv("CHEK_PROGRAM_ID")
+
 
 class DevelopmentConfig(Config):
     """Development configuration."""

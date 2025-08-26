@@ -18,6 +18,8 @@ from .config import ENV_DEVELOPMENT, ENV_PRODUCTION, ENV_STAGING, ENV_TESTING
 
 # Import extensions from the extensions module
 from .extensions import cors, csrf, db, migrate
+from .integrations.chek import ChekService
+from app.services.payment_service import PaymentService
 
 
 def create_app(config_class=None):
@@ -103,6 +105,12 @@ def create_app(config_class=None):
         app.google_sheets_service = build("sheets", "v4", credentials=creds).spreadsheets()
 
         app.sheets_manager = SheetsManager(app)
+
+    # --- Chek Integration ---
+    app.chek_service = ChekService(app)
+
+    # --- Payment Service ---
+    app.payment_service = PaymentService(app)
 
     # --- CORS Configuration ---
     # For production, use the configured origins, credentials, and headers

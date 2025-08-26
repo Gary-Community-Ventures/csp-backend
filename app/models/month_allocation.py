@@ -95,7 +95,7 @@ class MonthAllocation(db.Model, TimestampMixin):
         return self.used_cents + amount_cents <= self.allocation_cents
 
     @staticmethod
-    def get_or_create_for_month(child_id: str, month_date: date):
+    def get_for_month(child_id: str, month_date: date):
         """Get existing allocation or create with default values"""
         # Normalize to first of month
         month_start = month_date.replace(day=1)
@@ -126,6 +126,15 @@ class MonthAllocation(db.Model, TimestampMixin):
             db.session.add(allocation)
             db.session.commit()
 
+        return allocation
+
+    @staticmethod
+    def get_for_month(child_id: str, month_date: date):
+        """Get existing allocation for a child and month, or None if not found"""
+        # Normalize to first of month
+        month_start = month_date.replace(day=1)
+
+        allocation = MonthAllocation.query.filter_by(google_sheets_child_id=child_id, date=month_start).first()
         return allocation
 
     @property
