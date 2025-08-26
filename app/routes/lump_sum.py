@@ -93,8 +93,6 @@ def create_lump_sum():
         # Process payment using the PaymentService
         payment_successful = current_app.payment_service.process_payment(
             provider=provider_orm,
-            amount_cents=amount_cents,
-            payment_method=provider_orm.payment_method, # Use the provider's configured payment method
             allocated_lump_sums=[lump_sum],
             external_provider_id=provider_id,
             external_child_id=allocation_child_id,

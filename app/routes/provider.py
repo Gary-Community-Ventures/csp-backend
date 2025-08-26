@@ -66,8 +66,8 @@ def new_provider():
     
     # Create Chek user and ProviderPaymentSettings
     try:
-        chek_service = current_app.chek_service
-        provider_settings = chek_service.onboard_provider(
+        payment_service = current_app.payment_service
+        provider_settings = payment_service.onboard_provider(
             provider_external_id=data["google_sheet_id"]
         )
         current_app.logger.info(f"Created ProviderPaymentSettings for provider {data['google_sheet_id']} with Chek user {provider_settings.chek_user_id}")
@@ -179,8 +179,8 @@ def get_payment_settings():
     if not provider:
         # Onboard provider to Chek when first accessing payment settings
         try:
-            chek_service = current_app.chek_service
-            provider = chek_service.onboard_provider(provider_external_id=provider_id)
+            payment_service = current_app.payment_service
+            provider = payment_service.onboard_provider(provider_external_id=provider_id)
             current_app.logger.info(f"Onboarded provider {provider_id} to Chek via payment-settings endpoint")
         except Exception as e:
             current_app.logger.error(f"Failed to onboard provider {provider_id} to Chek: {e}")
@@ -269,8 +269,8 @@ def update_payment_settings():
     if old_payment_method != new_payment_method:
         # Trigger a status refresh for the new payment method
         try:
-            chek_service = current_app.chek_service
-            chek_service.refresh_provider_status(provider)
+            payment_service = current_app.payment_service
+            payment_service.refresh_provider_status(provider)
         except Exception as e:
             current_app.logger.warning(f"Failed to refresh provider status during payment method update: {e}")
             # Don't fail the request if refresh fails

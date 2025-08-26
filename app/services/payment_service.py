@@ -26,6 +26,7 @@ class PaymentService:
 
     def __init__(self, app):
         self.chek_service = ChekIntegrationService(app)
+        self.app = app
 
     def _create_payment_and_attempt(
         self,
@@ -87,8 +88,6 @@ class PaymentService:
     def process_payment(
         self,
         provider: ProviderPaymentSettings,
-        amount_cents: int,
-        payment_method: PaymentMethod,
         month_allocation: Optional[MonthAllocation] = None,
         allocated_care_days: Optional[list[AllocatedCareDay]] = None,
         allocated_lump_sums: Optional[list[AllocatedLumpSum]] = None,
@@ -97,13 +96,32 @@ class PaymentService:
     ):
         """
         Orchestrates the payment process for a provider.
+        Calculates the amount from the allocations and uses the provider's configured payment method.
         """
         try:
-            # 1. Refresh provider Chek status to ensure freshness
-            self.chek_service.refresh_provider_status(provider)
+            # 0. Calculate amount from allocations
+            amount_cents = 0
+            if allocated_care_days:
+                amount_cents = sum(day.amount_cents for day in allocated_care_days)
+            elif allocated_lump_sums:
+                amount_cents = sum(lump.amount_cents for lump in allocated_lump_sums)
+            else:
+                raise ValueError("No allocations provided for payment")
+            
+            if amount_cents <= 0:
+                current_app.logger.warning(f"Payment skipped for Provider {provider.id}: Amount is zero or negative")
+                return False
+            
+            # 1. Ensure provider has a payment method configured
+            if not provider.payment_method:
+                current_app.logger.error(f"Payment failed for Provider {provider.id}: No payment method configured")
+                return False
+            
+            # 2. Refresh provider Chek status to ensure freshness
+            self.refresh_provider_status(provider)
             db.session.flush() # Ensure provider object is updated in session
 
-            # 2. Check if provider is payable after refresh
+            # 3. Check if provider is payable after refresh
             if not provider.payable:
                 current_app.logger.warning(
                     f"Payment skipped for Provider {provider.id}: Not payable after refresh."
@@ -112,7 +130,7 @@ class PaymentService:
                 payment = self._create_payment_and_attempt(
                     provider=provider,
                     amount_cents=amount_cents,
-                    payment_method=payment_method,
+                    payment_method=provider.payment_method,
                     month_allocation=month_allocation,
                     allocated_care_days=allocated_care_days,
                     allocated_lump_sums=allocated_lump_sums,
@@ -123,11 +141,11 @@ class PaymentService:
                 db.session.commit()
                 return False
 
-            # 3. Create Payment and initial PaymentAttempt
+            # 4. Create Payment and initial PaymentAttempt
             payment = self._create_payment_and_attempt(
                 provider=provider,
                 amount_cents=amount_cents,
-                payment_method=payment_method,
+                payment_method=provider.payment_method,
                 month_allocation=month_allocation,
                 allocated_care_days=allocated_care_days,
                 allocated_lump_sums=allocated_lump_sums,
@@ -171,7 +189,7 @@ class PaymentService:
             )
 
             # 5. If ACH, initiate ACH payment from wallet to bank account
-            if payment_method == PaymentMethod.ACH:
+            if provider.payment_method == PaymentMethod.ACH:
                 ach_request = ACHPaymentRequest(
                     amount=amount_cents,
                     type=ACHPaymentType.SAME_DAY_ACH,
@@ -224,7 +242,7 @@ class PaymentService:
             
             if not provider_settings:
                 # Onboard the provider to Chek
-                provider_settings = self.chek_service.onboard_provider(
+                provider_settings = self.onboard_provider(
                     provider_external_id=provider_external_id
                 )
                 current_app.logger.info(f"Onboarded provider {provider_external_id} to Chek")
@@ -313,4 +331,114 @@ class PaymentService:
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Failed to initialize payment for provider {provider_external_id}: {e}")
+            raise
+    
+    def refresh_provider_status(self, provider: ProviderPaymentSettings):
+        """
+        Refreshes the Chek status of a provider and updates the database.
+        """
+        if not provider.chek_user_id:
+            current_app.logger.warning(f"Provider {provider.id} has no chek_user_id. Cannot refresh status.")
+            return
+        
+        try:
+            # Get status from Chek API
+            status = self.chek_service.get_provider_chek_status(int(provider.chek_user_id))
+            
+            # Update provider with new status
+            provider.chek_direct_pay_id = status["direct_pay_id"]
+            provider.chek_direct_pay_status = status["direct_pay_status"]
+            provider.chek_card_id = status["card_id"]
+            provider.chek_card_status = status["card_status"]
+            provider.last_chek_sync_at = status["timestamp"]
+            
+            db.session.add(provider)
+            db.session.commit()
+            current_app.logger.info(f"Provider {provider.id} Chek status refreshed successfully.")
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Failed to refresh Chek status for provider {provider.id}: {e}")
+            sentry_sdk.capture_exception(e)
+    
+    def onboard_provider(self, provider_external_id: str) -> ProviderPaymentSettings:
+        """
+        Onboards a new provider by creating a Chek user and ProviderPaymentSettings record.
+        """
+        from app.integrations.chek.schemas import UserCreateRequest, Address
+        from app.sheets.mappings import get_providers, get_provider, ProviderColumnNames
+        import uuid
+        
+        try:
+            # Check if provider already exists
+            existing_provider = ProviderPaymentSettings.query.filter_by(
+                provider_external_id=provider_external_id
+            ).first()
+            
+            if existing_provider:
+                current_app.logger.info(f"Provider {provider_external_id} already exists with Chek user {existing_provider.chek_user_id}")
+                return existing_provider
+            
+            # Get provider data from Google Sheets
+            provider_rows = get_providers()
+            provider_data = get_provider(provider_external_id, provider_rows)
+            
+            if not provider_data:
+                raise ValueError(f"Provider {provider_external_id} not found in Google Sheets")
+            
+            # Extract provider information
+            provider_email = provider_data.get(ProviderColumnNames.EMAIL)
+            first_name = provider_data.get(ProviderColumnNames.FIRST_NAME, "")
+            last_name = provider_data.get(ProviderColumnNames.LAST_NAME, "")
+            street_address = provider_data.get(ProviderColumnNames.ADDRESS, "")
+            city = provider_data.get(ProviderColumnNames.CITY, "")
+            state = provider_data.get(ProviderColumnNames.STATE, "")
+            zip_code = provider_data.get(ProviderColumnNames.ZIP, "")
+            
+            if not provider_email:
+                raise ValueError(f"Provider {provider_external_id} has no email in Google Sheets")
+            
+            # Check if Chek user already exists with this email
+            existing_chek_user = self.chek_service.get_user_by_email(provider_email)
+            
+            if existing_chek_user:
+                # User already exists in Chek, just create the ProviderPaymentSettings
+                current_app.logger.info(f"Chek user already exists for email {provider_email}, linking to provider {provider_external_id}")
+                chek_user_id = str(existing_chek_user.id)
+            else:
+                # Create new Chek user
+                user_request = UserCreateRequest(
+                    email=provider_email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    address=Address(
+                        line1=street_address or "",
+                        city=city or "",
+                        state=state or "",
+                        postal_code=zip_code or "",
+                        country="US"
+                    )
+                )
+                
+                chek_user_response = self.chek_service.create_user(user_request)
+                current_app.logger.info(f"Created Chek user {chek_user_response.id} for provider {provider_external_id}")
+                chek_user_id = str(chek_user_response.id)
+            
+            # Create ProviderPaymentSettings record
+            provider = ProviderPaymentSettings(
+                id=uuid.uuid4(),
+                provider_external_id=provider_external_id,
+                chek_user_id=chek_user_id,
+                payment_method=None  # Provider chooses this later
+            )
+            db.session.add(provider)
+            db.session.commit()
+            
+            current_app.logger.info(f"Successfully onboarded provider {provider_external_id} with Chek user {chek_user_id}")
+            return provider
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Failed to onboard provider {provider_external_id}: {e}")
+            sentry_sdk.capture_exception(e)
             raise

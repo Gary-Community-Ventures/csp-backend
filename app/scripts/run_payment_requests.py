@@ -83,8 +83,6 @@ def run_payment_requests():
         # Process payment using the PaymentService
         payment_successful = payment_service.process_payment(
             provider=provider_orm,
-            amount_cents=total_amount_cents,
-            payment_method=provider_orm.payment_method, # Use the provider's configured payment method
             allocated_care_days=days,
             external_provider_id=provider_id,
             external_child_id=child_id,

@@ -109,7 +109,7 @@ def retry_payment(payment_id):
         
         try:
             # Refresh provider status first
-            payment_service.chek_service.refresh_provider_status(provider)
+            payment_service.refresh_provider_status(provider)
             
             # Check if provider is payable
             if not provider.payable:
