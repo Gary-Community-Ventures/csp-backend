@@ -4,7 +4,7 @@ from typing import Optional
 import sentry_sdk
 from flask import current_app
 
-from app.config import MAX_PAYMENT_AMOUNT_CENTS
+from app.config import CARE_DAYS_SAMPLE_SIZE, MAX_PAYMENT_AMOUNT_CENTS
 from app.enums.payment_attempt_status import PaymentAttemptStatus
 from app.enums.payment_method import PaymentMethod
 from app.extensions import db
@@ -218,7 +218,9 @@ class PaymentService:
 
             # Add month/date info based on payment type
             if allocated_care_days and allocated_care_days:
-                dates = [day.date.isoformat() for day in allocated_care_days[:3]]  # First 3 dates as sample
+                dates = [
+                    day.date.isoformat() for day in allocated_care_days[:CARE_DAYS_SAMPLE_SIZE]
+                ]  # First few dates as sample
                 metadata["care_dates_sample"] = dates
                 metadata["care_days_count"] = len(allocated_care_days)
             elif month_allocation:

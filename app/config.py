@@ -11,6 +11,16 @@ ENV_TESTING = "testing"
 BUSINESS_TIMEZONE = "America/Denver"  # Mountain Time for care day locking and business rules
 MAX_PAYMENT_AMOUNT_CENTS = 140000  # $1400 maximum per transaction
 MAX_ALLOCATION_AMOUNT_CENTS = 140000  # $1400 maximum per month allocation
+
+# --- Timing Constants ---
+PROVIDER_STATUS_STALE_SECONDS = 300  # 5 minutes - how long before provider status is considered stale
+PROVIDER_STATUS_STALE_MINUTES = 5  # Same as above, in minutes for timedelta usage
+
+# --- Date Calculation Constants ---
+DAYS_TO_NEXT_MONTH = 32  # Days to add to current month to safely get into next month
+WEEK_START_OFFSET = 7  # Days to subtract to get to previous week
+SUNDAY_OFFSET = 6  # Days from Monday to Sunday
+CARE_DAYS_SAMPLE_SIZE = 3  # Number of care days to include in payment metadata sample
 # --- End Business Logic Constants ---
 
 

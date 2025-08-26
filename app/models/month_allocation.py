@@ -3,7 +3,12 @@ from datetime import datetime
 from datetime import time as dt_time
 from datetime import timedelta
 
-from app.config import BUSINESS_TIMEZONE, MAX_ALLOCATION_AMOUNT_CENTS
+from app.config import (
+    BUSINESS_TIMEZONE,
+    DAYS_TO_NEXT_MONTH,
+    MAX_ALLOCATION_AMOUNT_CENTS,
+    SUNDAY_OFFSET,
+)
 from app.sheets.mappings import (
     ChildColumnNames,
     get_child,
@@ -137,7 +142,9 @@ class MonthAllocation(db.Model, TimestampMixin):
 
         # Prevent creating allocations for months more than one month in the future
         current_month_start = today_business.replace(day=1)
-        next_month_start = (current_month_start + timedelta(days=32)).replace(day=1)  # Get first day of next month
+        next_month_start = (current_month_start + timedelta(days=DAYS_TO_NEXT_MONTH)).replace(
+            day=1
+        )  # Get first day of next month
 
         if month_start > next_month_start:
             raise ValueError(f"Cannot create allocation for a month more than one month in the future.")
@@ -189,7 +196,7 @@ class MonthAllocation(db.Model, TimestampMixin):
 
         if now_business > current_monday_eod:
             # If current time is past Monday EOD (business time), all days in current week are locked
-            return current_monday + timedelta(days=6)  # Sunday of current week
+            return current_monday + timedelta(days=SUNDAY_OFFSET)  # Sunday of current week
         else:
             # If current time is not yet past Monday EOD (business time), days up to previous Sunday are locked
             return current_monday - timedelta(days=1)  # Sunday of previous week

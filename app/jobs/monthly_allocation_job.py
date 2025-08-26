@@ -3,6 +3,7 @@ from typing import Any, Dict
 
 from flask import current_app
 
+from ..config import DAYS_TO_NEXT_MONTH
 from ..extensions import db
 from ..models.month_allocation import MonthAllocation
 from ..sheets.mappings import ChildColumnNames, get_children
@@ -20,7 +21,7 @@ def create_monthly_allocations(from_info: str = "scheduler", **kwargs) -> Dict[s
         today = date.today()
         current_month = today.replace(day=1)
         # Get first day of next month
-        next_month = (current_month + timedelta(days=32)).replace(day=1)
+        next_month = (current_month + timedelta(days=DAYS_TO_NEXT_MONTH)).replace(day=1)
 
         current_app.logger.info(
             f"{datetime.now()} Starting monthly allocation creation from {from_info} for {next_month.strftime('%B %Y')}"
