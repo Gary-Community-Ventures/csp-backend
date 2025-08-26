@@ -119,17 +119,34 @@ def retry_payment(payment_id):
                 print(f"Error: Provider is not in payable state.")
                 return False
             
+            # Build transfer request with metadata
+            from app.integrations.chek.schemas import TransferBalanceRequest, FlowDirection
+            
+            transfer_request = TransferBalanceRequest(
+                flow_direction=FlowDirection.PROGRAM_TO_WALLET,
+                program_id=payment_service.chek_service.program_id,
+                amount=payment.amount_cents,
+                description=f"Retry payment {payment_id} to provider {provider.provider_external_id}",
+                metadata={
+                    "provider_id": payment.external_provider_id,
+                    "child_id": payment.external_child_id,
+                    "payment_id": str(payment.id),
+                    "retry_attempt": next_attempt_number,
+                    "original_payment_date": payment.created_at.isoformat()
+                }
+            )
+            
             # Process the payment based on payment method
             if provider.payment_method == "VIRTUAL_CARD":
                 # For virtual card, just do the transfer to wallet
                 transfer_response = payment_service.chek_service.transfer_balance(
-                    provider.chek_user_id,
-                    payment_service._build_transfer_request(payment.amount_cents)
+                    int(provider.chek_user_id),
+                    transfer_request
                 )
                 
                 if transfer_response:
                     new_attempt.status = "success"
-                    new_attempt.chek_transfer_id = transfer_response.id
+                    new_attempt.chek_transfer_id = str(transfer_response.transfer.id)
                     print(f"✓ Payment {payment_id} retry successful (Virtual Card)")
                 else:
                     raise Exception("Transfer to wallet failed")
@@ -137,19 +154,27 @@ def retry_payment(payment_id):
             elif provider.payment_method == "ACH":
                 # For ACH, do transfer then initiate ACH payment
                 transfer_response = payment_service.chek_service.transfer_balance(
-                    provider.chek_user_id,
-                    payment_service._build_transfer_request(payment.amount_cents)
+                    int(provider.chek_user_id),
+                    transfer_request
                 )
                 
                 if not transfer_response:
                     raise Exception("Transfer to wallet failed")
                 
-                new_attempt.chek_transfer_id = transfer_response.id
+                new_attempt.chek_transfer_id = str(transfer_response.transfer.id)
                 
                 # Send ACH payment
+                from app.integrations.chek.schemas import ACHPaymentRequest, ACHPaymentType, ACHFundingSource
+                
+                ach_request = ACHPaymentRequest(
+                    amount=payment.amount_cents,
+                    type=ACHPaymentType.SAME_DAY_ACH,
+                    funding_source=ACHFundingSource.WALLET_BALANCE,
+                )
+                
                 ach_response = payment_service.chek_service.send_ach_payment(
-                    provider.chek_direct_pay_id,
-                    payment_service._build_ach_request(payment.amount_cents)
+                    int(provider.chek_direct_pay_id),
+                    ach_request
                 )
                 
                 if ach_response:

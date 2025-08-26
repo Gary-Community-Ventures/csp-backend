@@ -63,6 +63,18 @@ def new_provider():
 
     if "email" not in data:
         abort(400, description="Missing required field: email")
+    
+    # Create Chek user and ProviderPaymentSettings
+    try:
+        chek_service = current_app.chek_service
+        provider_settings = chek_service.onboard_provider(
+            provider_external_id=data["google_sheet_id"]
+        )
+        current_app.logger.info(f"Created ProviderPaymentSettings for provider {data['google_sheet_id']} with Chek user {provider_settings.chek_user_id}")
+    except Exception as e:
+        current_app.logger.error(f"Failed to create Chek user for provider {data['google_sheet_id']}: {e}")
+        # Don't fail the entire request if Chek onboarding fails
+        # Provider can be onboarded to Chek later
 
     # send clerk invite
     clerk: Clerk = current_app.clerk_client
@@ -165,14 +177,27 @@ def get_payment_settings():
     provider = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
     
     if not provider:
-        # Create a new provider payment settings record with no payment method set
-        provider = ProviderPaymentSettings(
-            id=uuid4(),
-            provider_external_id=provider_id,
-            payment_method=None
-        )
-        db.session.add(provider)
-        db.session.commit()
+        # Onboard provider to Chek when first accessing payment settings
+        try:
+            chek_service = current_app.chek_service
+            provider = chek_service.onboard_provider(provider_external_id=provider_id)
+            current_app.logger.info(f"Onboarded provider {provider_id} to Chek via payment-settings endpoint")
+        except Exception as e:
+            current_app.logger.error(f"Failed to onboard provider {provider_id} to Chek: {e}")
+            # Return empty settings if onboarding fails
+            return jsonify({
+                "provider_id": provider_id,
+                "payment_method": None,
+                "payment_method_updated_at": None,
+                "payable": False,
+                "needs_refresh": False,
+                "last_sync": None,
+                "payment_methods": {
+                    "card": {"available": False, "status": None, "id": None},
+                    "ach": {"available": False, "status": None, "id": None}
+                },
+                "error": "Failed to initialize payment settings. Please contact support."
+            }), 500
     
     # Check if status is stale and needs refresh
     needs_refresh = False
@@ -258,6 +283,58 @@ def update_payment_settings():
         "payment_method_updated_at": provider.payment_method_updated_at.isoformat(),
         "payable": provider.payable
     })
+
+
+@bp.post("/provider/<string:provider_id>/initialize-payment")
+@api_key_required
+def initialize_provider_payment(provider_id: str):
+    """
+    Initialize a provider's Chek account and set up their payment method.
+    Can create either a virtual card or send ACH invite.
+    Protected by API key for admin use.
+    """
+    data = request.json or {}
+    payment_method = data.get("payment_method", "card").lower()
+    
+    if payment_method not in ["card", "ach"]:
+        abort(400, description="Invalid payment_method. Must be 'card' or 'ach'")
+    
+    try:
+        payment_service = current_app.payment_service
+        result = payment_service.initialize_provider_payment(provider_id, payment_method)
+        return jsonify(result)
+    except ValueError as e:
+        abort(400, description=str(e))
+    except Exception as e:
+        current_app.logger.error(f"Failed to initialize payment for provider {provider_id}: {e}")
+        abort(500, description=f"Failed to initialize payment: {str(e)}")
+
+
+@bp.post("/provider/initialize-my-payment")
+@auth_required(ClerkUserType.PROVIDER)
+def initialize_my_payment():
+    """
+    Initialize the authenticated provider's payment method.
+    Provider can set up their own card or ACH.
+    """
+    user = get_provider_user()
+    provider_id = user.user_data.provider_id
+    
+    data = request.json or {}
+    payment_method = data.get("payment_method", "card").lower()
+    
+    if payment_method not in ["card", "ach"]:
+        abort(400, description="Invalid payment_method. Must be 'card' or 'ach'")
+    
+    try:
+        payment_service = current_app.payment_service
+        result = payment_service.initialize_provider_payment(provider_id, payment_method)
+        return jsonify(result)
+    except ValueError as e:
+        abort(400, description=str(e))
+    except Exception as e:
+        current_app.logger.error(f"Failed to initialize payment for provider {provider_id}: {e}")
+        abort(500, description=f"Failed to initialize payment: {str(e)}")
 
 
 @bp.route("/provider/<string:provider_id>/allocated_care_days", methods=["GET"])

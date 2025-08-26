@@ -137,10 +137,31 @@ class PaymentService:
             attempt = payment.attempts[0]
 
             # 4. Initiate Chek transfer (Program to Wallet)
+            # Build description and metadata for tracking
+            payment_type = "care_days" if allocated_care_days else "lump_sum" if allocated_lump_sums else "other"
+            description = f"Payment to provider {external_provider_id or provider.provider_external_id} for {payment_type}"
+            
+            metadata = {
+                "provider_id": external_provider_id or provider.provider_external_id,
+                "child_id": external_child_id,
+                "payment_type": payment_type,
+                "payment_id": str(payment.id),
+            }
+            
+            # Add month/date info based on payment type
+            if allocated_care_days and allocated_care_days:
+                dates = [day.date.isoformat() for day in allocated_care_days[:3]]  # First 3 dates as sample
+                metadata["care_dates_sample"] = dates
+                metadata["care_days_count"] = len(allocated_care_days)
+            elif month_allocation:
+                metadata["allocation_month"] = month_allocation.date.strftime("%Y-%m")
+            
             transfer_request = TransferBalanceRequest(
                 flow_direction=FlowDirection.PROGRAM_TO_WALLET,
                 program_id=self.chek_service.program_id,
                 amount=amount_cents,
+                description=description,
+                metadata=metadata,
             )
             transfer_response = self.chek_service.transfer_balance(
                 user_id=int(provider.chek_user_id), request=transfer_request
@@ -176,3 +197,120 @@ class PaymentService:
             current_app.logger.error(f"Error processing payment for Provider {provider.id}: {e}")
             sentry_sdk.capture_exception(e)
             return False
+    
+    def initialize_provider_payment(self, provider_external_id: str, payment_method: str) -> dict:
+        """
+        Initialize a provider's payment method (card or ACH).
+        
+        Args:
+            provider_external_id: Provider ID from Google Sheets
+            payment_method: Either "card" or "ach"
+            
+        Returns:
+            dict with status and details of the initialization
+        """
+        from app.integrations.chek.schemas import (
+            CardCreateRequest,
+            CardDetails,
+            DirectPayAccountInviteRequest
+        )
+        from app.sheets.mappings import get_providers, get_provider, ProviderColumnNames
+        
+        try:
+            # Ensure provider is onboarded to Chek
+            provider_settings = ProviderPaymentSettings.query.filter_by(
+                provider_external_id=provider_external_id
+            ).first()
+            
+            if not provider_settings:
+                # Onboard the provider to Chek
+                provider_settings = self.chek_service.onboard_provider(
+                    provider_external_id=provider_external_id
+                )
+                current_app.logger.info(f"Onboarded provider {provider_external_id} to Chek")
+            
+            if not provider_settings.chek_user_id:
+                raise ValueError("Provider has no Chek user ID")
+            
+            result = {
+                "provider_id": provider_external_id,
+                "chek_user_id": provider_settings.chek_user_id,
+                "payment_method": payment_method
+            }
+            
+            if payment_method == "card":
+                # Check if card already exists
+                if provider_settings.chek_card_id:
+                    result["message"] = "Provider already has a virtual card"
+                    result["card_id"] = provider_settings.chek_card_id
+                    result["already_exists"] = True
+                    return result
+                
+                # Create virtual card
+                card_request = CardCreateRequest(
+                    user_id=int(provider_settings.chek_user_id),
+                    card_details=CardDetails(
+                        funding_method="wallet",
+                        source_id=int(provider_settings.chek_user_id),
+                        amount=0  # Initial amount
+                    )
+                )
+                
+                card_response = self.chek_service.create_card(card_request)
+                
+                # Update provider settings with card info
+                provider_settings.chek_card_id = str(card_response.id)
+                provider_settings.chek_card_status = "Active"
+                provider_settings.payment_method = PaymentMethod.VIRTUAL_CARD
+                provider_settings.payment_method_updated_at = datetime.utcnow()
+                provider_settings.last_chek_sync_at = datetime.utcnow()
+                db.session.commit()
+                
+                result["message"] = "Virtual card created successfully"
+                result["card_id"] = card_response.id
+                
+            else:  # ACH
+                # Check if ACH already exists
+                if provider_settings.chek_direct_pay_id:
+                    result["message"] = "Provider already has ACH set up"
+                    result["direct_pay_id"] = provider_settings.chek_direct_pay_id
+                    result["already_exists"] = True
+                    return result
+                
+                # Get provider email from Google Sheets
+                provider_rows = get_providers()
+                provider_data = get_provider(provider_external_id, provider_rows)
+                
+                if not provider_data:
+                    raise ValueError(f"Provider {provider_external_id} not found in Google Sheets")
+                
+                provider_email = provider_data.get(ProviderColumnNames.EMAIL)
+                if not provider_email:
+                    raise ValueError(f"Provider {provider_external_id} has no email address")
+                
+                # Send ACH invite
+                invite_request = DirectPayAccountInviteRequest(
+                    user_id=int(provider_settings.chek_user_id),
+                    email=provider_email
+                )
+                
+                invite_response = self.chek_service.invite_direct_pay_account(invite_request)
+                
+                # Update provider settings with pending ACH info
+                provider_settings.chek_direct_pay_id = str(invite_response.id)
+                provider_settings.chek_direct_pay_status = invite_response.status
+                provider_settings.payment_method = PaymentMethod.ACH
+                provider_settings.payment_method_updated_at = datetime.utcnow()
+                provider_settings.last_chek_sync_at = datetime.utcnow()
+                db.session.commit()
+                
+                result["message"] = "ACH invite sent successfully"
+                result["direct_pay_id"] = invite_response.id
+                result["invite_sent_to"] = provider_email
+            
+            return result
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Failed to initialize payment for provider {provider_external_id}: {e}")
+            raise
