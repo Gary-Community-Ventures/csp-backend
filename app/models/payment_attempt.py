@@ -4,6 +4,7 @@ from sqlalchemy.orm import relationship
 
 from ..extensions import db
 from .mixins import TimestampMixin
+from ..enums.payment_method import PaymentMethod
 
 
 class PaymentAttempt(db.Model, TimestampMixin):
@@ -13,6 +14,7 @@ class PaymentAttempt(db.Model, TimestampMixin):
 
     attempt_number = db.Column(db.Integer, nullable=False)
     status = db.Column(db.String(32), nullable=False)  # e.g., 'pending', 'success', 'failed', 'retrying'
+    payment_method = db.Column(db.Enum(PaymentMethod), nullable=False)  # Method used for this specific attempt
     chek_transfer_id = db.Column(db.String(64), nullable=True, index=True) # ID from Chek for this specific attempt
     error_message = db.Column(db.Text, nullable=True)
 

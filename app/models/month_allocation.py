@@ -1,6 +1,7 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from datetime import time as dt_time
 from datetime import timedelta
+import zoneinfo
 
 from app.sheets.mappings import (
     ChildColumnNames,
@@ -131,13 +132,14 @@ class MonthAllocation(db.Model, TimestampMixin):
         # Normalize to first of month
         month_start = month_date.replace(day=1)
 
-        # Prevent creating allocations for past months
-        today = datetime.now().date()
-        if month_start < today.replace(day=1):
-            raise ValueError(f"Cannot create allocation for a past month. {today} vs {month_start}")
+        # Prevent creating allocations for past months (using MST)
+        mst = zoneinfo.ZoneInfo("America/Denver")
+        today_mst = datetime.now(mst).date()
+        if month_start < today_mst.replace(day=1):
+            raise ValueError(f"Cannot create allocation for a past month. {today_mst} vs {month_start}")
 
         # Prevent creating allocations for months more than one month in the future
-        current_month_start = today.replace(day=1)
+        current_month_start = today_mst.replace(day=1)
         next_month_start = (current_month_start + timedelta(days=32)).replace(day=1)  # Get first day of next month
 
         if month_start > next_month_start:
@@ -171,17 +173,21 @@ class MonthAllocation(db.Model, TimestampMixin):
     @property
     def locked_until_date(self) -> date:
         """Returns the last date (inclusive) for which a newly created care day would be immediately locked."""
-        today = date.today()
-        # Calculate the Monday of the current week
-        current_monday = today - timedelta(days=today.weekday())
-        # Calculate the end of day for the current Monday
-        current_monday_eod = datetime.combine(current_monday, dt_time(23, 59, 59))
+        # Use MST timezone for business logic
+        mst = zoneinfo.ZoneInfo("America/Denver")
+        now_mst = datetime.now(mst)
+        today_mst = now_mst.date()
+        
+        # Calculate the Monday of the current week (in MST)
+        current_monday = today_mst - timedelta(days=today_mst.weekday())
+        # Calculate the end of day for the current Monday (in MST)
+        current_monday_eod_mst = datetime.combine(current_monday, dt_time(23, 59, 59), tzinfo=mst)
 
-        if datetime.now() > current_monday_eod:
-            # If current time is past Monday EOD, all days in current week are locked
+        if now_mst > current_monday_eod_mst:
+            # If current time is past Monday EOD (MST), all days in current week are locked
             return current_monday + timedelta(days=6)  # Sunday of current week
         else:
-            # If current time is not yet past Monday EOD, days up to previous Sunday are locked
+            # If current time is not yet past Monday EOD (MST), days up to previous Sunday are locked
             return current_monday - timedelta(days=1)  # Sunday of previous week
 
     def __repr__(self):

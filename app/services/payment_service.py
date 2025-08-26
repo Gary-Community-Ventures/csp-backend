@@ -15,6 +15,7 @@ from app.integrations.chek.schemas import (
 )
 from app.integrations.chek.service import ChekService as ChekIntegrationService # Avoid name collision
 from app.enums.payment_method import PaymentMethod
+from app.enums.payment_attempt_status import PaymentAttemptStatus
 
 
 
@@ -67,7 +68,8 @@ class PaymentService:
         attempt = PaymentAttempt(
             payment=payment,
             attempt_number=1,
-            status="pending",
+            status=PaymentAttemptStatus.PENDING,
+            payment_method=payment_method,
         )
         db.session.add(attempt)
         db.session.flush()
@@ -163,7 +165,7 @@ class PaymentService:
                     allocated_care_days=allocated_care_days,
                     allocated_lump_sums=allocated_lump_sums,
                 )
-                self._update_payment_attempt_status(payment.attempts[0], "failed", error_message="Provider not payable")
+                self._update_payment_attempt_status(payment.attempts[0], PaymentAttemptStatus.FAILED, error_message="Provider not payable")
                 db.session.commit()
                 return False
 
@@ -210,11 +212,10 @@ class PaymentService:
             transfer_response = self.chek_service.transfer_balance(
                 user_id=int(provider.chek_user_id), request=transfer_request
             )
-            self._update_payment_attempt_status(
-                attempt, "success", chek_transfer_id=str(transfer_response.transfer.id)
-            )
+            # Store transfer ID but don't mark as success yet for ACH payments
+            attempt.chek_transfer_id = str(transfer_response.transfer.id)
 
-            # 5. If ACH, initiate ACH payment from wallet to bank account
+            # 10. If ACH, initiate ACH payment from wallet to bank account  
             if provider.payment_method == PaymentMethod.ACH:
                 ach_request = ACHPaymentRequest(
                     amount=amount_cents,
@@ -231,6 +232,12 @@ class PaymentService:
                 # Note: The ACH payment response is the DirectPayAccount object, not a separate transfer ID.
                 # We can log this or update the attempt with relevant info if needed.
                 current_app.logger.info(f"ACH payment initiated for provider {provider.id}. DirectPayAccount status: {ach_response.status}")
+                
+                # Mark as success only after both wallet transfer AND ACH payment complete
+                self._update_payment_attempt_status(attempt, PaymentAttemptStatus.SUCCESS)
+            else:
+                # For virtual card, wallet transfer is the final step
+                self._update_payment_attempt_status(attempt, PaymentAttemptStatus.SUCCESS)
 
             db.session.commit()
             current_app.logger.info(f"Payment processed successfully for Provider {provider.id}.")
@@ -240,6 +247,93 @@ class PaymentService:
             db.session.rollback()
             current_app.logger.error(f"Error processing payment for Provider {provider.id}: {e}")
             sentry_sdk.capture_exception(e)
+            return False
+
+    def retry_ach_payment(self, payment_id: str) -> bool:
+        """
+        Retry ACH payment for payments where wallet transfer succeeded but ACH failed.
+        This handles the specific case where money is in the provider's wallet but ACH didn't complete.
+        """
+        try:
+            payment = Payment.query.get(payment_id)
+            if not payment:
+                current_app.logger.error(f"Payment {payment_id} not found")
+                return False
+            
+            provider = ProviderPaymentSettings.query.get(payment.provider_id)
+            if not provider:
+                current_app.logger.error(f"Provider not found for payment {payment_id}")
+                return False
+            
+            if provider.payment_method != PaymentMethod.ACH:
+                current_app.logger.error(f"Payment {payment_id} is not an ACH payment")
+                return False
+            
+            # Find the latest attempt that has a transfer ID but failed
+            last_attempt = (PaymentAttempt.query
+                           .filter_by(payment_id=payment.id)
+                           .filter(PaymentAttempt.chek_transfer_id.isnot(None))
+                           .filter(PaymentAttempt.status == PaymentAttemptStatus.FAILED)
+                           .order_by(PaymentAttempt.attempt_number.desc())
+                           .first())
+            
+            if not last_attempt:
+                current_app.logger.error(f"No failed attempt with transfer ID found for payment {payment_id}")
+                return False
+            
+            current_app.logger.info(f"Retrying ACH payment {payment_id} (wallet transfer already completed)")
+            
+            # Create new attempt for ACH retry
+            next_attempt_number = last_attempt.attempt_number + 1
+            new_attempt = PaymentAttempt(
+                payment=payment,
+                attempt_number=next_attempt_number,
+                status=PaymentAttemptStatus.PENDING,
+                payment_method=PaymentMethod.ACH,  # This method is specifically for ACH retries
+                chek_transfer_id=last_attempt.chek_transfer_id,  # Reuse existing transfer ID
+            )
+            db.session.add(new_attempt)
+            db.session.flush()
+            
+            # Refresh provider status
+            self.refresh_provider_status(provider)
+            
+            if not provider.payable:
+                self._update_payment_attempt_status(
+                    new_attempt, PaymentAttemptStatus.FAILED, 
+                    error_message=f"Provider not payable. DirectPay status: {provider.chek_direct_pay_status}"
+                )
+                db.session.commit()
+                return False
+            
+            # Retry ACH payment (wallet transfer already completed)
+            ach_request = ACHPaymentRequest(
+                amount=payment.amount_cents,
+                type=ACHPaymentType.SAME_DAY_ACH,
+                funding_source=ACHFundingSource.WALLET_BALANCE,
+            )
+            
+            if not provider.chek_direct_pay_id:
+                raise ValueError("Provider has no direct pay account ID for ACH payment")
+            
+            ach_response = self.chek_service.send_ach_payment(
+                direct_pay_account_id=int(provider.chek_direct_pay_id), 
+                request=ach_request
+            )
+            
+            self._update_payment_attempt_status(new_attempt, PaymentAttemptStatus.SUCCESS)
+            db.session.commit()
+            
+            current_app.logger.info(f"ACH payment retry successful for {payment_id}")
+            return True
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error retrying ACH payment {payment_id}: {e}")
+            sentry_sdk.capture_exception(e)
+            if 'new_attempt' in locals():
+                self._update_payment_attempt_status(new_attempt, PaymentAttemptStatus.FAILED, error_message=str(e))
+                db.session.commit()
             return False
     
     def initialize_provider_payment(self, provider_external_id: str, payment_method: str) -> dict:

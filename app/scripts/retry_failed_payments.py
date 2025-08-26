@@ -18,6 +18,8 @@ from app import create_app
 from app.extensions import db
 from app.models import Payment, PaymentAttempt, ProviderPaymentSettings
 from app.services.payment_service import PaymentService
+from app.enums.payment_attempt_status import PaymentAttemptStatus
+from app.enums.payment_method import PaymentMethod
 
 # Create Flask app context
 app = create_app()
@@ -27,7 +29,7 @@ app.app_context().push()
 def list_failed_payments(since_date=None):
     """List all failed payments with details."""
     query = db.session.query(Payment).join(PaymentAttempt).filter(
-        PaymentAttempt.status == "failed"
+        PaymentAttempt.status == PaymentAttemptStatus.FAILED
     )
     
     if since_date:
@@ -76,7 +78,7 @@ def retry_payment(payment_id):
         # Check if payment already succeeded
         successful_attempt = PaymentAttempt.query.filter_by(
             payment_id=payment.id,
-            status="success"
+            status=PaymentAttemptStatus.SUCCESS
         ).first()
         
         if successful_attempt:
@@ -98,7 +100,8 @@ def retry_payment(payment_id):
         new_attempt = PaymentAttempt(
             payment_id=payment.id,
             attempt_number=next_attempt_number,
-            status="pending",
+            status=PaymentAttemptStatus.PENDING,
+            payment_method=provider.payment_method,  # Use current provider payment method
             attempted_at=datetime.utcnow()
         )
         db.session.add(new_attempt)
@@ -113,7 +116,7 @@ def retry_payment(payment_id):
             
             # Check if provider is payable
             if not provider.payable:
-                new_attempt.status = "failed"
+                new_attempt.status = PaymentAttemptStatus.FAILED
                 new_attempt.error_message = f"Provider not payable. Payment method: {provider.payment_method}, DirectPay status: {provider.chek_direct_pay_status}, Card status: {provider.chek_card_status}"
                 db.session.commit()
                 print(f"Error: Provider is not in payable state.")
@@ -145,7 +148,7 @@ def retry_payment(payment_id):
                 )
                 
                 if transfer_response:
-                    new_attempt.status = "success"
+                    new_attempt.status = PaymentAttemptStatus.SUCCESS
                     new_attempt.chek_transfer_id = str(transfer_response.transfer.id)
                     print(f"✓ Payment {payment_id} retry successful (Virtual Card)")
                 else:
@@ -178,7 +181,7 @@ def retry_payment(payment_id):
                 )
                 
                 if ach_response:
-                    new_attempt.status = "success"
+                    new_attempt.status = PaymentAttemptStatus.SUCCESS
                     print(f"✓ Payment {payment_id} retry successful (ACH)")
                 else:
                     raise Exception("ACH payment initiation failed")

@@ -1,6 +1,7 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from datetime import time as dt_time
-from datetime import timedelta, timezone
+from datetime import timedelta
+import zoneinfo
 from decimal import Decimal
 
 from ..enums.care_day_type import CareDayType
@@ -78,7 +79,10 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     @property
     def is_locked(self):
         """Check if this care day is locked"""
-        return datetime.now() > self.locked_date
+        # Use MST timezone for business logic
+        mst = zoneinfo.ZoneInfo("America/Denver")
+        now_mst = datetime.now(mst)
+        return now_mst > self.locked_date
 
     @property
     def is_deleted(self):
@@ -107,8 +111,10 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         day_type: CareDayType,
     ):
         """Create a new care day with proper validation"""
-        # Prevent creating care days in the past
-        if care_date < date.today():
+        # Prevent creating care days in the past (using MST)
+        mst = zoneinfo.ZoneInfo("America/Denver")
+        today_mst = datetime.now(mst).date()
+        if care_date < today_mst:
             raise ValueError("Cannot create a care day in the past.")
 
         # Check if allocation can handle this care day
@@ -155,8 +161,10 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         monday = care_date - timedelta(days=days_since_monday)
         calculated_locked_date = datetime.combine(monday, dt_time(23, 59, 59))
 
-        # Prevent creating a care day that would be locked
-        if datetime.now() > calculated_locked_date:
+        # Prevent creating a care day that would be locked (using MST)
+        mst = zoneinfo.ZoneInfo("America/Denver") 
+        now_mst = datetime.now(mst)
+        if now_mst > calculated_locked_date:
             raise ValueError("Cannot create a care day that would be locked.")
 
         # Create new care day

@@ -5,6 +5,7 @@ from sqlalchemy.orm import relationship
 from ..extensions import db
 from .mixins import TimestampMixin
 from ..enums.payment_method import PaymentMethod
+from ..enums.payment_attempt_status import PaymentAttemptStatus
 
 
 class Payment(db.Model, TimestampMixin):
@@ -34,7 +35,7 @@ class Payment(db.Model, TimestampMixin):
     @property
     def has_successful_attempt(self):
         """Check if this payment has at least one successful attempt"""
-        return any(attempt.status == "success" for attempt in self.attempts)
+        return any(attempt.status == PaymentAttemptStatus.SUCCESS for attempt in self.attempts)
     
     def __repr__(self):
         return f"<Payment {self.id} - Amount: {self.amount_cents} cents - Provider: {self.external_provider_id}>"
