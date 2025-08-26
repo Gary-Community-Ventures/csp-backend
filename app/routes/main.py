@@ -1,4 +1,3 @@
-import time
 import traceback
 from dataclasses import asdict
 
@@ -9,16 +8,11 @@ from app.auth.decorators import (
 )
 from app.auth.helpers import get_current_user
 from app.integrations.chek.schemas import (
-    ACHFundingSource,
     ACHPaymentRequest,
-    ACHPaymentType,
-    Address,
     CardCreateRequest,
     CardDetails,
-    DirectPayAccountInviteRequest,
     FlowDirection,
     TransferBalanceRequest,
-    UserCreateRequest,
 )
 from app.jobs.example_job import example_call_job_from_function
 

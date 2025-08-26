@@ -6,19 +6,15 @@ from app.extensions import db
 from app.models import (
     AllocatedCareDay,
     MonthAllocation,
-    PaymentRequest,
     ProviderPaymentSettings,
 )
 from app.services.payment_service import PaymentService
 from app.sheets.mappings import (
-    ChildColumnNames,
-    ProviderColumnNames,
     get_child,
     get_children,
     get_provider,
     get_providers,
 )
-from app.utils.email_service import send_care_days_payment_request_email
 
 # Create Flask app context
 app = create_app()
@@ -61,8 +57,6 @@ def run_payment_requests():
     all_providers_data = get_providers()
 
     for (provider_id, child_id), days in grouped_care_days.items():
-        total_amount_cents = sum(day.amount_cents for day in days)
-
         provider_data = get_provider(provider_id, all_providers_data)
         child_data = get_child(child_id, all_children_data)
 

@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 from typing import Optional
 
@@ -7,10 +6,7 @@ from flask import current_app
 
 from .client import ChekClient
 from .schemas import (
-    ACHFundingSource,
     ACHPaymentRequest,
-    ACHPaymentType,
-    Address,
     Card,
     CardCreateRequest,
     CardCreateResponse,

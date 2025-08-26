@@ -12,7 +12,6 @@ from app.extensions import db
 from app.models.allocated_lump_sum import AllocatedLumpSum
 from app.models.month_allocation import MonthAllocation
 from app.schemas.lump_sum import AllocatedLumpSumCreateRequest, AllocatedLumpSumResponse
-from app.services.payment_service import PaymentService
 from app.sheets.mappings import (
     ChildColumnNames,
     ProviderColumnNames,

@@ -11,7 +11,7 @@ Usage:
 
 import argparse
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from uuid import UUID
 
 from app import create_app

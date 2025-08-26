@@ -16,7 +16,6 @@ from app.schemas.payment import PaymentErrorResponse, PaymentProcessedResponse
 from app.sheets.mappings import get_child, get_children, get_provider, get_providers
 from app.utils.email_service import (
     send_care_days_payment_request_email,
-    send_submission_notification,
 )
 from app.utils.json_utils import custom_jsonify
 

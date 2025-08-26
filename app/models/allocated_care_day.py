@@ -1,5 +1,5 @@
 import zoneinfo
-from datetime import date, datetime
+from datetime import datetime
 from datetime import time as dt_time
 from datetime import timedelta, timezone
 from decimal import Decimal
