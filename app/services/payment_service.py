@@ -108,10 +108,10 @@ class PaymentService:
             # 0.1. Calculate amount from allocations
             amount_cents = 0
             if allocated_care_days:
-                amount_cents = sum(day.amount_cents for day in allocated_care_days)
-            elif allocated_lump_sums:
-                amount_cents = sum(lump.amount_cents for lump in allocated_lump_sums)
-            else:
+                amount_cents += sum(day.amount_cents for day in allocated_care_days)
+            if allocated_lump_sums:
+                amount_cents += sum(lump.amount_cents for lump in allocated_lump_sums)
+            if amount_cents <= 0:
                 raise ValueError("No allocations provided for payment")
             
             if amount_cents <= 0:
