@@ -187,11 +187,11 @@ def send_care_days_payment_request_email(
     from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(
-        f"Sending payment request email to {to_emails} for provider ID: {google_sheets_provider_id} from child ID: {google_sheets_child_id}"
+        f"Sending payment processed notification to {to_emails} for provider ID: {google_sheets_provider_id} from child ID: {google_sheets_child_id}"
     )
 
-    subject = "New Care Days Payment Request Notification"
-    description = f"A new payment request has been created:"
+    subject = "Care Days Payment Processed"
+    description = f"Payment has been successfully processed for the following care days:"
 
     care_day_info = "<br>".join([f"{day.date} - {day.type.value} (${day.amount_cents / 100:.2f})" for day in care_days])
 
