@@ -8,7 +8,9 @@ from app.auth.decorators import (
 )
 from app.auth.helpers import get_current_user
 from app.integrations.chek.schemas import (
+    ACHFundingSource,
     ACHPaymentRequest,
+    ACHPaymentType,
     CardCreateRequest,
     CardDetails,
     FlowDirection,
