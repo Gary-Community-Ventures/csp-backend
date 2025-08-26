@@ -1,5 +1,7 @@
+from datetime import datetime
 from typing import Optional
 from flask import current_app
+import sentry_sdk
 
 from app.extensions import db
 from app.models.provider import Provider
@@ -119,7 +121,7 @@ class ChekService:
             user_id,
             TransferBalanceRequest(
                 flow_direction=FlowDirection.PROGRAM_TO_WALLET,
-                program_id="platform_funds",  # Assuming 'platform_funds' is the correct ID
+                program_id=self.program_id,
                 amount=amount,
             ),
         )
@@ -144,7 +146,7 @@ class ChekService:
         response_json = self.client._request("POST", endpoint, json=request_data)
         return DirectPayAccount.model_validate(response_json)
 
-    def refresh_provider_status(self, provider: Provider):
+    def refresh_provider_status(self, provider: ProviderPaymentSettings):
         """
         Refreshes the Chek status of a provider from the Chek API and updates the database.
         """

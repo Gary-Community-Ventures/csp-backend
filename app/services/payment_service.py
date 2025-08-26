@@ -2,9 +2,10 @@ from datetime import datetime
 from typing import Optional
 
 from flask import current_app
+import sentry_sdk
 
 from app.extensions import db
-from app.models import Provider, Payment, PaymentAttempt, MonthAllocation, AllocatedCareDay, AllocatedLumpSum
+from app.models import ProviderPaymentSettings, Payment, PaymentAttempt, MonthAllocation, AllocatedCareDay, AllocatedLumpSum
 from app.integrations.chek.schemas import (
     ACHFundingSource,
     ACHPaymentRequest,
@@ -15,7 +16,6 @@ from app.integrations.chek.schemas import (
 from app.integrations.chek.service import ChekService as ChekIntegrationService # Avoid name collision
 from app.enums.payment_method import PaymentMethod
 
-from app.models import PaymentAttempt, Payment, Provider
 
 
 class PaymentService:
@@ -29,7 +29,7 @@ class PaymentService:
 
     def _create_payment_and_attempt(
         self,
-        provider: Provider,
+        provider: ProviderPaymentSettings,
         amount_cents: int,
         payment_method: PaymentMethod,
         month_allocation: Optional[MonthAllocation] = None,
@@ -86,7 +86,7 @@ class PaymentService:
 
     def process_payment(
         self,
-        provider: Provider,
+        provider: ProviderPaymentSettings,
         amount_cents: int,
         payment_method: PaymentMethod,
         month_allocation: Optional[MonthAllocation] = None,

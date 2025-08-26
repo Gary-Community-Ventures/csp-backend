@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from app import create_app
 from app.extensions import db
-from app.models import AllocatedCareDay, MonthAllocation, PaymentRequest, Provider
+from app.models import AllocatedCareDay, MonthAllocation, PaymentRequest, ProviderPaymentSettings
 from app.sheets.mappings import (
     ChildColumnNames,
     ProviderColumnNames,
@@ -72,8 +72,8 @@ def run_payment_requests():
             )
             continue
 
-        # Retrieve the Provider ORM object
-        provider_orm = Provider.query.filter_by(provider_external_id=provider_id).first()
+        # Retrieve the ProviderPaymentSettings object
+        provider_orm = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
         if not provider_orm:
             app.logger.warning(
                 f"run_payment_requests: Skipping payment for provider ID {provider_id}: Provider not found in database."

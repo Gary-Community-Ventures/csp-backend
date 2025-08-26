@@ -16,6 +16,7 @@ from app.constants import MAX_CHILDREN_PER_PROVIDER
 from app.data.providers.mappings import ProviderListColumnNames
 from app.extensions import db
 from app.models.attendance import Attendance
+from app.models.provider_payment_settings import ProviderPaymentSettings
 from app.models.provider_invitation import ProviderInvitation
 from app.sheets.helpers import KeyMap, format_name, get_row
 from app.sheets.integration import get_csv_data
@@ -139,15 +140,19 @@ def family_data(child_id: Optional[str] = None):
         "prorated_first_month_allocation": child_data.get(ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION),
     }
 
-    providers = [
-        {
-            "id": c.get(ProviderColumnNames.ID),
+    providers = []
+    for c in provider_data:
+        provider_id = c.get(ProviderColumnNames.ID)
+        # Look up the ProviderPaymentSettings to get payable status
+        provider_orm = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
+        
+        providers.append({
+            "id": provider_id,
             "name": c.get(ProviderColumnNames.NAME),
             "status": c.get(ProviderColumnNames.STATUS).lower(),
             "type": c.get(ProviderColumnNames.TYPE).lower(),
-        }
-        for c in provider_data
-    ]
+            "payable": provider_orm.payable if provider_orm else False,
+        })
 
     transactions = [
         {

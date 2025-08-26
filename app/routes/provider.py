@@ -1,6 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from uuid import uuid4
 
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
@@ -18,6 +18,8 @@ from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation
 from app.models.attendance import Attendance
 from app.models.family_invitation import FamilyInvitation
+from app.models.provider_payment_settings import ProviderPaymentSettings
+from app.enums.payment_method import PaymentMethod
 from app.sheets.helpers import KeyMap, format_name, get_row
 from app.sheets.mappings import (
     ChildColumnNames,
@@ -150,6 +152,112 @@ def get_provider_data():
             "is_also_family": ClerkUserType.FAMILY.value in user.user_data.types,
         }
     )
+
+
+@bp.get("/provider/payment-settings")
+@auth_required(ClerkUserType.PROVIDER)
+def get_payment_settings():
+    """Get provider's payment settings including payment method and status."""
+    user = get_provider_user()
+    provider_id = user.user_data.provider_id
+    
+    # Get or create ProviderPaymentSettings record
+    provider = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
+    
+    if not provider:
+        # Create a new provider payment settings record with no payment method set
+        provider = ProviderPaymentSettings(
+            id=uuid4(),
+            provider_external_id=provider_id,
+            payment_method=None
+        )
+        db.session.add(provider)
+        db.session.commit()
+    
+    # Check if status is stale and needs refresh
+    needs_refresh = False
+    if provider.last_chek_sync_at:
+        time_since_sync = datetime.utcnow() - provider.last_chek_sync_at
+        if time_since_sync.total_seconds() > 300:  # 5 minutes
+            needs_refresh = True
+    
+    payment_settings = {
+        "provider_id": provider_id,
+        "payment_method": provider.payment_method.value if provider.payment_method else None,
+        "payment_method_updated_at": provider.payment_method_updated_at.isoformat() if provider.payment_method_updated_at else None,
+        "payable": provider.payable,
+        "needs_refresh": needs_refresh,
+        "last_sync": provider.last_chek_sync_at.isoformat() if provider.last_chek_sync_at else None,
+        "payment_methods": {
+            "card": {
+                "available": provider.chek_card_id is not None,
+                "status": provider.chek_card_status,
+                "id": provider.chek_card_id
+            },
+            "ach": {
+                "available": provider.chek_direct_pay_id is not None,
+                "status": provider.chek_direct_pay_status,
+                "id": provider.chek_direct_pay_id
+            }
+        }
+    }
+    
+    return jsonify(payment_settings)
+
+
+@bp.put("/provider/payment-settings")
+@auth_required(ClerkUserType.PROVIDER)
+def update_payment_settings():
+    """Update provider's payment method (switch between card and ACH)."""
+    user = get_provider_user()
+    provider_id = user.user_data.provider_id
+    
+    data = request.json
+    if "payment_method" not in data:
+        abort(400, description="Missing required field: payment_method")
+    
+    # Validate payment method
+    try:
+        new_payment_method = PaymentMethod(data["payment_method"])
+    except ValueError:
+        abort(400, description=f"Invalid payment method. Must be one of: {[e.value for e in PaymentMethod]}")
+    
+    # Get provider payment settings record
+    provider = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
+    
+    if not provider:
+        abort(404, description="Provider payment settings not found. Please complete onboarding first.")
+    
+    # Check if the payment method is available
+    if new_payment_method == PaymentMethod.VIRTUAL_CARD and not provider.chek_card_id:
+        abort(400, description="Virtual card not available. Please set up a virtual card first.")
+    
+    if new_payment_method == PaymentMethod.ACH and not provider.chek_direct_pay_id:
+        abort(400, description="ACH not available. Please set up ACH payment first.")
+    
+    # Update payment method
+    old_payment_method = provider.payment_method
+    provider.payment_method = new_payment_method
+    provider.payment_method_updated_at = datetime.utcnow()
+    
+    # If switching methods, might want to refresh status
+    if old_payment_method != new_payment_method:
+        # Trigger a status refresh for the new payment method
+        try:
+            chek_service = current_app.chek_service
+            chek_service.refresh_provider_status(provider)
+        except Exception as e:
+            current_app.logger.warning(f"Failed to refresh provider status during payment method update: {e}")
+            # Don't fail the request if refresh fails
+    
+    db.session.commit()
+    
+    return jsonify({
+        "message": "Payment method updated successfully",
+        "payment_method": provider.payment_method.value,
+        "payment_method_updated_at": provider.payment_method_updated_at.isoformat(),
+        "payable": provider.payable
+    })
 
 
 @bp.route("/provider/<string:provider_id>/allocated_care_days", methods=["GET"])

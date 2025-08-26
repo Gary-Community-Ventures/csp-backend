@@ -1,14 +1,16 @@
 from sqlalchemy.orm import Query
 from datetime import datetime, timedelta
 from flask import current_app
+import uuid
 
 from ..extensions import db
 from .mixins import TimestampMixin
 from ..enums.payment_method import PaymentMethod
 
 
-class Provider(db.Model, TimestampMixin):
-    id = db.Column(db.UUID(as_uuid=True), index=True, primary_key=True)
+class ProviderPaymentSettings(db.Model, TimestampMixin):
+    __tablename__ = 'provider_payment_settings'
+    id = db.Column(db.UUID(as_uuid=True), index=True, primary_key=True, default=uuid.uuid4)
     provider_external_id = db.Column(db.String(64), nullable=True, index=True)
 
     # Payment-related fields
@@ -18,6 +20,7 @@ class Provider(db.Model, TimestampMixin):
     chek_card_id = db.Column(db.String(64), nullable=True, index=True)
     chek_card_status = db.Column(db.String(32), nullable=True) # Cached status
     payment_method = db.Column(db.Enum(PaymentMethod), nullable=True)
+    payment_method_updated_at = db.Column(db.DateTime, nullable=True)  # Timestamp of last payment method change
     last_chek_sync_at = db.Column(db.DateTime, nullable=True) # Timestamp of last sync
 
     @property
@@ -40,11 +43,14 @@ class Provider(db.Model, TimestampMixin):
                (self.chek_card_status == "Active" and self.payment_method == PaymentMethod.VIRTUAL_CARD)
 
     def __repr__(self):
-        return f"<Provider {self.id} - External ID: {self.provider_external_id}>"
+        return f"<ProviderPaymentSettings {self.id} - External ID: {self.provider_external_id}>"
 
     @staticmethod
     def new(provider_external_id: str):
-        return Provider(provider_external_id=provider_external_id)
+        return ProviderPaymentSettings(
+            id=uuid.uuid4(),
+            provider_external_id=provider_external_id
+        )
 
     @classmethod
     def provider_by_external_id(cls, id: str) -> Query:
