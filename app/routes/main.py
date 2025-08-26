@@ -1,3 +1,5 @@
+import time
+import traceback
 from dataclasses import asdict
 
 from flask import Blueprint, current_app, jsonify, request
@@ -6,10 +8,19 @@ from app.auth.decorators import (
     api_key_required,
 )
 from app.auth.helpers import get_current_user
+from app.integrations.chek.schemas import (
+    ACHFundingSource,
+    ACHPaymentRequest,
+    ACHPaymentType,
+    Address,
+    CardCreateRequest,
+    CardDetails,
+    DirectPayAccountInviteRequest,
+    FlowDirection,
+    TransferBalanceRequest,
+    UserCreateRequest,
+)
 from app.jobs.example_job import example_call_job_from_function
-from app.integrations.chek.schemas import Address, UserCreateRequest, DirectPayAccountInviteRequest, FlowDirection, TransferBalanceRequest, ACHPaymentType, ACHFundingSource, ACHPaymentRequest, CardCreateRequest, CardDetails
-import traceback
-import time
 
 bp = Blueprint("main", __name__)
 
@@ -140,27 +151,23 @@ def test_chek():
     """An endpoint to test the Chek integration."""
     try:
         chek_service = current_app.chek_service
-        
+
         # --- Test: Create Card ---
-        test_user_id = 750039 # As requested by the user
-        test_amount = 0 # 10.00 USD in cents
+        test_user_id = 750039  # As requested by the user
+        test_amount = 0  # 10.00 USD in cents
 
         card_details = CardDetails(
-            funding_method="wallet", # Default from docs
-            source_id=test_user_id, # Assuming source_id is user_id for wallet funding
-            amount=test_amount
+            funding_method="wallet",  # Default from docs
+            source_id=test_user_id,  # Assuming source_id is user_id for wallet funding
+            amount=test_amount,
         )
-        card_request = CardCreateRequest(
-            user_id=test_user_id,
-            card_details=card_details
-        )
+        card_request = CardCreateRequest(user_id=test_user_id, card_details=card_details)
 
         new_card = chek_service.create_card(card_request)
 
-        return jsonify({
-            "message": f"Successfully created a card for user ID {test_user_id}.",
-            "card": new_card.model_dump()
-        })
+        return jsonify(
+            {"message": f"Successfully created a card for user ID {test_user_id}.", "card": new_card.model_dump()}
+        )
 
     except Exception as e:
         current_app.logger.error(f"Chek test endpoint failed: {e}")
@@ -221,9 +228,7 @@ def test_transfer():
             amount=transfer_amount,
         )
 
-        transfer_response = chek_service.transfer_balance(
-            user_id=test_user_id, request=transfer_request
-        )
+        transfer_response = chek_service.transfer_balance(user_id=test_user_id, request=transfer_request)
 
         return jsonify(
             {

@@ -3,7 +3,13 @@ from datetime import datetime, timezone
 
 from app import create_app
 from app.extensions import db
-from app.models import AllocatedCareDay, MonthAllocation, PaymentRequest, ProviderPaymentSettings
+from app.models import (
+    AllocatedCareDay,
+    MonthAllocation,
+    PaymentRequest,
+    ProviderPaymentSettings,
+)
+from app.services.payment_service import PaymentService
 from app.sheets.mappings import (
     ChildColumnNames,
     ProviderColumnNames,
@@ -13,7 +19,6 @@ from app.sheets.mappings import (
     get_providers,
 )
 from app.utils.email_service import send_care_days_payment_request_email
-from app.services.payment_service import PaymentService
 
 # Create Flask app context
 app = create_app()
@@ -80,7 +85,7 @@ def run_payment_requests():
             )
             continue
 
-        # Process payment using the PaymentService  
+        # Process payment using the PaymentService
         month_allocation = days[0].care_month_allocation  # All care days belong to same month allocation
         payment_successful = payment_service.process_payment(
             external_provider_id=provider_id,

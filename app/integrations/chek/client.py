@@ -28,21 +28,32 @@ class ChekClient:
         """
         if not isinstance(data, dict):
             return data
-            
+
         # Fields to mask for security
         sensitive_fields = {
-            'api_key', 'write_key', 'password', 'token', 'secret',
-            'ssn', 'social_security_number', 'account_number', 'routing_number',
-            'card_number', 'cvv', 'pin', 'bank_account', 'tax_id'
+            "api_key",
+            "write_key",
+            "password",
+            "token",
+            "secret",
+            "ssn",
+            "social_security_number",
+            "account_number",
+            "routing_number",
+            "card_number",
+            "cvv",
+            "pin",
+            "bank_account",
+            "tax_id",
         }
-        
+
         sanitized = {}
         for key, value in data.items():
             key_lower = key.lower()
-            
+
             # Check if key contains sensitive terms
             is_sensitive = any(sensitive_term in key_lower for sensitive_term in sensitive_fields)
-            
+
             if is_sensitive:
                 if isinstance(value, str) and len(value) > 4:
                     # Show first 2 and last 2 characters
@@ -54,7 +65,7 @@ class ChekClient:
                 sanitized[key] = self._sanitize_request_data(value)
             else:
                 sanitized[key] = value
-                
+
         return sanitized
 
     def _request(self, method, endpoint, **kwargs):
@@ -105,7 +116,7 @@ class ChekClient:
                 "response_body": e.response.text,
                 "request_headers": dict(e.response.request.headers),
             }
-            
+
             # Add request body if present (but sanitize sensitive data)
             if "json" in kwargs:
                 sanitized_body = self._sanitize_request_data(kwargs["json"])
@@ -119,7 +130,7 @@ class ChekClient:
                 f"Chek API HTTP Error: {e.response.status_code} - {e.response.text}\n"
                 f"Request Context: {error_context}"
             )
-            
+
             # Add context to Sentry
             with sentry_sdk.push_scope() as scope:
                 scope.set_context("chek_api_error", error_context)
@@ -127,9 +138,9 @@ class ChekClient:
                 scope.set_tag("chek_api_method", method)
                 scope.set_tag("chek_api_status", e.response.status_code)
                 sentry_sdk.capture_exception(e)
-            
+
             raise  # Re-raise the original exception
-            
+
         except requests.exceptions.RequestException as e:  # Catch other request errors
             # Build error context for non-HTTP errors (connection, timeout, etc.)
             error_context = {
@@ -137,7 +148,7 @@ class ChekClient:
                 "url": url,
                 "error_type": type(e).__name__,
             }
-            
+
             # Add request body if present (but sanitize sensitive data)
             if "json" in kwargs:
                 sanitized_body = self._sanitize_request_data(kwargs["json"])
@@ -145,12 +156,9 @@ class ChekClient:
             elif "data" in kwargs:
                 sanitized_body = self._sanitize_request_data(kwargs["data"])
                 error_context["request_body"] = sanitized_body
-                
-            current_app.logger.error(
-                f"Chek API request failed: {e}\n"
-                f"Request Context: {error_context}"
-            )
-            
+
+            current_app.logger.error(f"Chek API request failed: {e}\n" f"Request Context: {error_context}")
+
             # Add context to Sentry
             with sentry_sdk.push_scope() as scope:
                 scope.set_context("chek_api_error", error_context)
@@ -158,7 +166,7 @@ class ChekClient:
                 scope.set_tag("chek_api_method", method)
                 scope.set_tag("chek_error_type", type(e).__name__)
                 sentry_sdk.capture_exception(e)
-                
+
             raise
 
     def list_users(self, email=None):

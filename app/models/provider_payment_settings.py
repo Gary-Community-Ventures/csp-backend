@@ -1,34 +1,34 @@
-from sqlalchemy.orm import Query
-from datetime import datetime, timedelta
-from flask import current_app
 import uuid
+from datetime import datetime, timedelta
 
+from flask import current_app
+from sqlalchemy.orm import Query
+
+from ..enums.payment_method import PaymentMethod
 from ..extensions import db
 from .mixins import TimestampMixin
-from ..enums.payment_method import PaymentMethod
 
 
 class ProviderPaymentSettings(db.Model, TimestampMixin):
-    __tablename__ = 'provider_payment_settings'
+    __tablename__ = "provider_payment_settings"
     id = db.Column(db.UUID(as_uuid=True), index=True, primary_key=True, default=uuid.uuid4)
     provider_external_id = db.Column(db.String(64), nullable=True, index=True)
 
     # Payment-related fields
     chek_user_id = db.Column(db.String(64), nullable=True, index=True)
     chek_direct_pay_id = db.Column(db.String(64), nullable=True, index=True)
-    chek_direct_pay_status = db.Column(db.String(32), nullable=True) # Cached status
+    chek_direct_pay_status = db.Column(db.String(32), nullable=True)  # Cached status
     chek_card_id = db.Column(db.String(64), nullable=True, index=True)
-    chek_card_status = db.Column(db.String(32), nullable=True) # Cached status
+    chek_card_status = db.Column(db.String(32), nullable=True)  # Cached status
     payment_method = db.Column(db.Enum(PaymentMethod), nullable=True)
     payment_method_updated_at = db.Column(db.DateTime, nullable=True)  # Timestamp of last payment method change
-    last_chek_sync_at = db.Column(db.DateTime, nullable=True) # Timestamp of last sync
+    last_chek_sync_at = db.Column(db.DateTime, nullable=True)  # Timestamp of last sync
 
     @property
     def payable(self):
         # Check if status is stale
-        stale_threshold = timedelta(minutes=5) # Example: 5 minutes
-        is_stale = self.last_chek_sync_at is None or \
-                   (datetime.utcnow() - self.last_chek_sync_at) > stale_threshold
+        stale_threshold = timedelta(minutes=5)  # Example: 5 minutes
+        is_stale = self.last_chek_sync_at is None or (datetime.utcnow() - self.last_chek_sync_at) > stale_threshold
 
         if is_stale:
             # Trigger an asynchronous refresh.
@@ -39,18 +39,16 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
             # current_app.job_manager.enqueue(refresh_chek_status_task, provider_id=self.id)
 
         # Return payable status based on cached data
-        return (self.chek_direct_pay_status == "Active" and self.payment_method == PaymentMethod.ACH) or \
-               (self.chek_card_status == "Active" and self.payment_method == PaymentMethod.CARD)
+        return (self.chek_direct_pay_status == "Active" and self.payment_method == PaymentMethod.ACH) or (
+            self.chek_card_status == "Active" and self.payment_method == PaymentMethod.CARD
+        )
 
     def __repr__(self):
         return f"<ProviderPaymentSettings {self.id} - External ID: {self.provider_external_id}>"
 
     @staticmethod
     def new(provider_external_id: str):
-        return ProviderPaymentSettings(
-            id=uuid.uuid4(),
-            provider_external_id=provider_external_id
-        )
+        return ProviderPaymentSettings(id=uuid.uuid4(), provider_external_id=provider_external_id)
 
     @classmethod
     def provider_by_external_id(cls, id: str) -> Query:
@@ -59,4 +57,3 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
     @classmethod
     def provider_by_chek_user_id(cls, id: str) -> Query:
         return cls.query.filter_by(chek_user_id=id)
-

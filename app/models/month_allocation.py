@@ -1,14 +1,14 @@
-from datetime import date, datetime, timezone
-from datetime import time as dt_time
-from datetime import timedelta
 import zoneinfo
+from datetime import date, datetime
+from datetime import time as dt_time
+from datetime import timedelta, timezone
 
+from app.config import BUSINESS_TIMEZONE
 from app.sheets.mappings import (
     ChildColumnNames,
     get_child,
     get_children,
 )
-from app.config import BUSINESS_TIMEZONE
 
 from ..enums.care_day_type import CareDayType
 from ..extensions import db
@@ -69,7 +69,7 @@ class MonthAllocation(db.Model, TimestampMixin):
     def over_allocation(self):
         """Check if allocated care days exceed the monthly allocation"""
         return self.allocated_cents > self.allocation_cents
-    
+
     @property
     def over_paid(self):
         """Check if payments exceed what was allocated"""
@@ -86,16 +86,12 @@ class MonthAllocation(db.Model, TimestampMixin):
         return sum(day.amount_cents for day in self.care_days) + sum(
             lump_sum.amount_cents for lump_sum in self.lump_sums
         )
-    
+
     @property
     def paid_cents(self):
         """Total actually paid via successful payments"""
-        return sum(
-            payment.amount_cents 
-            for payment in self.payments 
-            if payment.has_successful_attempt
-        )
-    
+        return sum(payment.amount_cents for payment in self.payments if payment.has_successful_attempt)
+
     @property
     def used_cents(self):
         """Calculate total cents used from active care days (DEPRECATED: use allocated_cents)"""
@@ -106,7 +102,7 @@ class MonthAllocation(db.Model, TimestampMixin):
     def remaining_to_allocate_cents(self):
         """How much budget is left to allocate (create care days/lump sums)"""
         return self.allocation_cents - self.allocated_cents
-    
+
     @property
     def remaining_to_pay_cents(self):
         """How much allocated money is left to pay"""
@@ -178,7 +174,7 @@ class MonthAllocation(db.Model, TimestampMixin):
         business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
         now_business = datetime.now(business_tz)
         today_business = now_business.date()
-        
+
         # Calculate the Monday of the current week (in business timezone)
         current_monday = today_business - timedelta(days=today_business.weekday())
         # Calculate the end of day for the current Monday (in business timezone)

@@ -1,4 +1,5 @@
 import traceback
+
 from flask import Blueprint, current_app, jsonify, request
 from pydantic import ValidationError
 
@@ -83,7 +84,7 @@ def create_lump_sum():
             hours=hours,
         )
         db.session.add(lump_sum)
-        db.session.flush() # Flush to get lump_sum ID before payment processing
+        db.session.flush()  # Flush to get lump_sum ID before payment processing
 
         # Process payment using the PaymentService
         payment_successful = current_app.payment_service.process_payment(

@@ -10,6 +10,7 @@ from googleapiclient.discovery import build
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
+from app.services.payment_service import PaymentService
 from app.sheets.integration import SheetsManager
 
 # Import models to ensure they are registered with SQLAlchemy
@@ -19,7 +20,6 @@ from .config import ENV_DEVELOPMENT, ENV_PRODUCTION, ENV_STAGING, ENV_TESTING
 # Import extensions from the extensions module
 from .extensions import cors, csrf, db, migrate
 from .integrations.chek import ChekService
-from app.services.payment_service import PaymentService
 
 
 def create_app(config_class=None):

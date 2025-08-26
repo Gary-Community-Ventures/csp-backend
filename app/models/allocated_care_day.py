@@ -1,15 +1,15 @@
-from datetime import date, datetime, timezone
-from datetime import time as dt_time
-from datetime import timedelta
 import zoneinfo
+from datetime import date, datetime
+from datetime import time as dt_time
+from datetime import timedelta, timezone
 from decimal import Decimal
 
+from ..config import BUSINESS_TIMEZONE
 from ..enums.care_day_type import CareDayType
 from ..extensions import db
 from .mixins import TimestampMixin
 from .month_allocation import MonthAllocation
 from .utils import get_care_day_cost
-from ..config import BUSINESS_TIMEZONE
 
 
 class AllocatedCareDay(db.Model, TimestampMixin):
@@ -82,11 +82,11 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         """Check if this care day has been submitted and payment processed"""
         if self.last_submitted_at is None:
             return False
-        
-        # Primary check: actual payment exists and succeeded    
+
+        # Primary check: actual payment exists and succeeded
         if self.payment and self.payment.has_successful_attempt:
             return True
-            
+
         # Fallback: legacy flag (for transition period from old batch system)
         return self.payment_distribution_requested
 

@@ -12,10 +12,13 @@ from app.schemas.care_day import AllocatedCareDayResponse
 from app.schemas.month_allocation import (
     MonthAllocationResponse,
 )
-from app.schemas.payment import PaymentProcessedResponse, PaymentErrorResponse
-from app.utils.email_service import send_submission_notification, send_care_days_payment_request_email
-from app.utils.json_utils import custom_jsonify
+from app.schemas.payment import PaymentErrorResponse, PaymentProcessedResponse
 from app.sheets.mappings import get_child, get_children, get_provider, get_providers
+from app.utils.email_service import (
+    send_care_days_payment_request_email,
+    send_submission_notification,
+)
+from app.utils.json_utils import custom_jsonify
 
 bp = Blueprint("child", __name__)
 
@@ -86,10 +89,10 @@ def submit_care_days(child_id, provider_id, month, year):
     # Get provider and child data for payment processing and email
     all_providers_data = get_providers()
     all_children_data = get_children()
-    
+
     provider_data = get_provider(provider_id, all_providers_data)
     child_data = get_child(child_id, all_children_data)
-    
+
     if not provider_data:
         return jsonify({"error": "Provider not found"}), 404
     if not child_data:
@@ -112,12 +115,12 @@ def submit_care_days(child_id, provider_id, month, year):
         for day in care_days_to_submit:
             day.mark_as_submitted()
             day.payment_distribution_requested = True  # Flag to prevent batch script reprocessing
-            
+
         db.session.commit()
 
         # Calculate total amount for email
         total_amount_cents = sum(day.amount_cents for day in care_days_to_submit)
-        
+
         # Send payment notification email
         send_care_days_payment_request_email(
             provider_name=provider_data.get("Name", "Unknown"),
@@ -140,5 +143,5 @@ def submit_care_days(child_id, provider_id, month, year):
         total_amount=f"${total_amount_cents / 100:.2f}",
         care_days=[AllocatedCareDayResponse.model_validate(day) for day in care_days_to_submit],
     )
-    
+
     return response.model_dump_json(), 200, {"Content-Type": "application/json"}

@@ -1,8 +1,9 @@
+import uuid
 from datetime import datetime
 from typing import Optional
-from flask import current_app
+
 import sentry_sdk
-import uuid
+from flask import current_app
 
 from .client import ChekClient
 from .schemas import (
@@ -100,9 +101,7 @@ class ChekService:
         account_json = self.client.get_direct_pay_account(account_id)
         return DirectPayAccount.model_validate(account_json)
 
-    def transfer_balance(
-        self, user_id: int, request: TransferBalanceRequest
-    ) -> TransferBalanceResponse:
+    def transfer_balance(self, user_id: int, request: TransferBalanceRequest) -> TransferBalanceResponse:
         """
         Transfers funds between a Program and a User Wallet.
         """
@@ -110,7 +109,6 @@ class ChekService:
         request_data = request.model_dump()
         response_json = self.client._request("POST", endpoint, json=request_data)
         return TransferBalanceResponse.model_validate(response_json)
-    
 
     def pay_user(self, user_id: int, amount: int) -> bool:
         """
@@ -124,11 +122,8 @@ class ChekService:
                 amount=amount,
             ),
         )
-    
 
-    def send_ach_payment(
-        self, direct_pay_account_id: int, request: ACHPaymentRequest
-    ) -> DirectPayAccount:
+    def send_ach_payment(self, direct_pay_account_id: int, request: ACHPaymentRequest) -> DirectPayAccount:
         """
         Initiates a Same-Day ACH transfer to a recipient's linked bank account.
         Requires the DirectPay account to be Active.
@@ -153,30 +148,29 @@ class ChekService:
         try:
             # Fetch user details to get latest direct pay and card info
             user_details = self.get_user(chek_user_id)
-            
+
             status = {
                 "direct_pay_id": None,
                 "direct_pay_status": None,
                 "card_id": None,
                 "card_status": None,
-                "timestamp": datetime.utcnow()
+                "timestamp": datetime.utcnow(),
             }
-            
+
             # Extract direct pay status
             if user_details.directpay:
                 status["direct_pay_id"] = str(user_details.directpay.id)
                 status["direct_pay_status"] = user_details.directpay.status
-            
+
             # Extract card status (assuming first card is primary)
             if user_details.cards:
                 first_card = user_details.cards[0]
                 status["card_id"] = str(first_card.id)
                 status["card_status"] = first_card.status
-            
+
             return status
-            
+
         except Exception as e:
             current_app.logger.error(f"Failed to fetch Chek status for user {chek_user_id}: {e}")
             sentry_sdk.capture_exception(e)
             raise
-    
