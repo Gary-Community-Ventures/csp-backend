@@ -86,10 +86,10 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         # Use business timezone for logic
         business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
         now_business = datetime.now(business_tz)
-        
+
         # Convert locked_date to business timezone for comparison
         locked_date_business = self.locked_date.astimezone(business_tz)
-        
+
         return now_business > locked_date_business
 
     @property
