@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Union
 
 import sentry_sdk
 from flask import current_app
@@ -7,6 +7,18 @@ from flask import current_app
 from app.config import CARE_DAYS_SAMPLE_SIZE, MAX_PAYMENT_AMOUNT_CENTS
 from app.enums.payment_attempt_status import PaymentAttemptStatus
 from app.enums.payment_method import PaymentMethod
+from app.exceptions import (
+    AllocationExceededException,
+    ChekACHException,
+    ChekServiceException,
+    ChekTransferException,
+    DataNotFoundException,
+    InvalidPaymentStateException,
+    PaymentLimitExceededException,
+    PaymentMethodNotConfiguredException,
+    ProviderNotFoundException,
+    ProviderNotPayableException,
+)
 from app.extensions import db
 from app.integrations.chek.schemas import (
     ACHFundingSource,
@@ -26,6 +38,7 @@ from app.models import (
     PaymentAttempt,
     ProviderPaymentSettings,
 )
+from app.services.payment_result import PaymentResult
 
 
 class PaymentService:
@@ -107,10 +120,14 @@ class PaymentService:
         month_allocation: MonthAllocation,
         allocated_care_days: Optional[list[AllocatedCareDay]] = None,
         allocated_lump_sums: Optional[list[AllocatedLumpSum]] = None,
-    ):
+    ) -> Union[bool, PaymentResult]:
         """
         Orchestrates the payment process for a provider.
         Calculates the amount from the allocations and uses the provider's configured payment method.
+
+        Returns:
+            bool: True if payment succeeded, False otherwise (for backward compatibility)
+            In future versions, will return PaymentResult for more details
         """
         try:
             # 1. Look up provider payment settings
@@ -118,7 +135,7 @@ class PaymentService:
             if not provider:
                 error_msg = f"Provider with external ID {external_provider_id} not found in database"
                 current_app.logger.error(f"Payment failed: {error_msg}")
-                raise ValueError(error_msg)
+                raise ProviderNotFoundException(error_msg)
 
             # 2. Calculate amount from allocations
             amount_cents = 0
@@ -127,7 +144,7 @@ class PaymentService:
             if allocated_lump_sums:
                 amount_cents += sum(lump.amount_cents for lump in allocated_lump_sums)
             if amount_cents <= 0:
-                raise ValueError("No allocations provided for payment")
+                raise InvalidPaymentStateException("No allocations provided for payment")
 
             # 3. Validate all allocated items are submitted
             if allocated_care_days:
@@ -135,14 +152,14 @@ class PaymentService:
                 if unsubmitted_days:
                     error_msg = f"Cannot process payment: {len(unsubmitted_days)} care days are not submitted"
                     current_app.logger.error(f"Payment failed for Provider {provider.id}: {error_msg}")
-                    raise ValueError(error_msg)
+                    raise InvalidPaymentStateException(error_msg)
 
             if allocated_lump_sums:
                 unsubmitted_lumps = [lump for lump in allocated_lump_sums if lump.submitted_at is None]
                 if unsubmitted_lumps:
                     error_msg = f"Cannot process payment: {len(unsubmitted_lumps)} lump sums are not submitted"
                     current_app.logger.error(f"Payment failed for Provider {provider.id}: {error_msg}")
-                    raise ValueError(error_msg)
+                    raise InvalidPaymentStateException(error_msg)
 
             # 4. Validate payment doesn't exceed $1400 limit
             if amount_cents > MAX_PAYMENT_AMOUNT_CENTS:
@@ -151,7 +168,7 @@ class PaymentService:
                     f"of ${MAX_PAYMENT_AMOUNT_CENTS / 100:.2f}"
                 )
                 current_app.logger.error(f"Payment failed for Provider {provider.id}: {error_msg}")
-                raise ValueError(error_msg)
+                raise PaymentLimitExceededException(error_msg)
 
             # 5. Validate payment doesn't exceed remaining allocation
             if amount_cents > month_allocation.remaining_to_pay_cents:
@@ -160,12 +177,13 @@ class PaymentService:
                     f"{month_allocation.remaining_to_pay_cents} cents for month {month_allocation.date.strftime('%Y-%m')}"
                 )
                 current_app.logger.error(f"Payment failed for Provider {provider.id}: {error_msg}")
-                raise ValueError(error_msg)
+                raise AllocationExceededException(error_msg)
 
             # 6. Ensure provider has a payment method configured
             if not provider.payment_method:
-                current_app.logger.error(f"Payment failed for Provider {provider.id}: No payment method configured")
-                return False
+                error_msg = f"Provider {external_provider_id} has no payment method configured"
+                current_app.logger.error(f"Payment failed for Provider {provider.id}: {error_msg}")
+                raise PaymentMethodNotConfiguredException(error_msg)
 
             # 7. Refresh provider Chek status to ensure freshness
             self.refresh_provider_status(provider)
@@ -281,9 +299,23 @@ class PaymentService:
             current_app.logger.info(f"Payment processed successfully for Provider {provider.id}.")
             return True
 
-        except Exception as e:
+        except (
+            ProviderNotFoundException,
+            InvalidPaymentStateException,
+            PaymentLimitExceededException,
+            AllocationExceededException,
+            PaymentMethodNotConfiguredException,
+            ProviderNotPayableException,
+        ) as e:
+            # Business logic exceptions - still send to Sentry for monitoring during early rollout
             db.session.rollback()
-            current_app.logger.error(f"Error processing payment for Provider {provider.id}: {e}")
+            current_app.logger.error(f"Payment validation failed for {external_provider_id}: {type(e).__name__}: {e}")
+            sentry_sdk.capture_exception(e)
+            return False
+        except Exception as e:
+            # Unexpected errors
+            db.session.rollback()
+            current_app.logger.error(f"Unexpected error processing payment for {external_provider_id}: {e}")
             sentry_sdk.capture_exception(e)
             return False
 
@@ -354,7 +386,7 @@ class PaymentService:
             )
 
             if not provider.chek_direct_pay_id:
-                raise ValueError("Provider has no direct pay account ID for ACH payment")
+                raise PaymentMethodNotConfiguredException("Provider has no direct pay account ID for ACH payment")
 
             ach_response = self.chek_service.send_ach_payment(
                 direct_pay_account_id=int(provider.chek_direct_pay_id), request=ach_request
