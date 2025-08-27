@@ -126,7 +126,7 @@ def get_provider_data():
         "id": provider_data.get(ProviderColumnNames.ID),
         "first_name": provider_data.get(ProviderColumnNames.FIRST_NAME),
         "last_name": provider_data.get(ProviderColumnNames.LAST_NAME),
-        "payable": provider_payment_settings.payable if provider_payment_settings else False,
+        "is_payable": provider_payment_settings.is_payable if provider_payment_settings else False,
     }
 
     children = [
@@ -202,7 +202,7 @@ def get_payment_settings():
                 chek_user_id=None,
                 payment_method=None,
                 payment_method_updated_at=None,
-                payable=False,
+                is_payable=False,
                 needs_refresh=False,
                 last_sync=None,
                 card={"available": False, "status": None, "id": None},
@@ -228,7 +228,7 @@ def get_payment_settings():
             if provider_payment_settings.payment_method_updated_at
             else None
         ),
-        payable=provider_payment_settings.payable,
+        is_payable=provider_payment_settings.is_payable,
         needs_refresh=needs_refresh,
         last_sync=provider.last_chek_sync_at.isoformat() if provider.last_chek_sync_at else None,
         card={
@@ -305,7 +305,7 @@ def update_payment_settings():
         provider_id=provider_id,
         payment_method=existing_provider_payment_settings.payment_method.value,
         payment_method_updated_at=existing_provider_payment_settings.payment_method_updated_at.isoformat(),
-        payable=existing_provider_payment_settings.payable,
+        is_payable=existing_provider_payment_settings.is_payable,
     )
 
     return response.model_dump_json(), 200, {"Content-Type": "application/json"}

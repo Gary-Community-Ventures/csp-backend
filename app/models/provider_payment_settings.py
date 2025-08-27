@@ -75,7 +75,7 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
         return self.last_chek_sync_at is None or (datetime.now(timezone.utc) - self.last_chek_sync_at) > stale_threshold
 
     @property
-    def payable(self):
+    def is_payable(self):
         # Check if status is stale
         if self.is_status_stale():
             # Trigger an asynchronous refresh.

@@ -112,11 +112,10 @@ def retry_payment(payment_id):
             payment_service.refresh_provider_status(provider_payment_settings)
 
             # Check if provider is payable
-            if not provider_payment_settings.payable:
+            if not provider_payment_settings.is_payable:
                 new_attempt.status = PaymentAttemptStatus.FAILED
                 new_attempt.error_message = f"Provider not payable. Payment method: {provider_payment_settings.payment_method}, DirectPay status: {provider_payment_settings.chek_direct_pay_status}, Card status: {provider_payment_settings.chek_card_status}"
                 db.session.commit()
-                print(f"Error: Provider is not in payable state.")
                 return False
 
             # Build transfer request with metadata
