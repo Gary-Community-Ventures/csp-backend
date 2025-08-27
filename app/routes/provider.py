@@ -120,10 +120,13 @@ def get_provider_data():
     children_data = get_provider_children(provider_id, provider_child_mapping_rows, child_rows)
     transaction_data = get_provider_transactions(provider_id, provider_child_mapping_rows, transaction_rows)
 
+    provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
+
     provider_info = {
         "id": provider_data.get(ProviderColumnNames.ID),
         "first_name": provider_data.get(ProviderColumnNames.FIRST_NAME),
         "last_name": provider_data.get(ProviderColumnNames.LAST_NAME),
+        "payable": provider_payment_settings.payable if provider_payment_settings else False,
     }
 
     children = [
@@ -217,9 +220,13 @@ def get_payment_settings():
     payment_settings = PaymentSettingsResponse(
         provider_id=provider_id,
         chek_user_id=provider_payment_settings.chek_user_id,
-        payment_method=provider_payment_settings.payment_method.value if provider_payment_settings.payment_method else None,
+        payment_method=(
+            provider_payment_settings.payment_method.value if provider_payment_settings.payment_method else None
+        ),
         payment_method_updated_at=(
-            provider_payment_settings.payment_method_updated_at.isoformat() if provider_payment_settings.payment_method_updated_at else None
+            provider_payment_settings.payment_method_updated_at.isoformat()
+            if provider_payment_settings.payment_method_updated_at
+            else None
         ),
         payable=provider_payment_settings.payable,
         needs_refresh=needs_refresh,

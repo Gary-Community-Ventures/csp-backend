@@ -13,7 +13,9 @@ class Payment(db.Model, TimestampMixin):
     external_provider_id = db.Column(db.String(64), nullable=False, index=True)  # Google Sheets ID
     external_child_id = db.Column(db.String(64), nullable=True, index=True)  # Google Sheets ID
 
-    provider_payment_settings_id = db.Column(UUID(as_uuid=True), ForeignKey("provider_payment_settings.id"), nullable=False)
+    provider_payment_settings_id = db.Column(
+        UUID(as_uuid=True), ForeignKey("provider_payment_settings.id"), nullable=False
+    )
     provider_payment_settings = relationship("ProviderPaymentSettings", backref="payments")
 
     chek_user_id = db.Column(db.String(64), nullable=True, index=True)

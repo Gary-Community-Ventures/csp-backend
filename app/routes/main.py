@@ -149,6 +149,7 @@ def test_chek():
 
         # --- Test: Create Card ---
         from app.config import CHEK_PROGRAM_ID
+
         if not CHEK_PROGRAM_ID:
             return jsonify({"error": "CHEK_PROGRAM_ID not configured"}), 400
         test_user_id = 750039  # As requested by the user
