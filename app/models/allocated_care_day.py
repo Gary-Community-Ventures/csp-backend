@@ -1,5 +1,5 @@
 import zoneinfo
-from datetime import date, datetime
+from datetime import datetime
 from datetime import time as dt_time
 from datetime import timedelta, timezone
 from decimal import Decimal
@@ -82,11 +82,11 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         """Check if this care day is locked"""
         if not self.locked_date:
             return False
-            
+
         # Use business timezone for logic
         business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
         now_business = datetime.now(business_tz)
-        
+
         # Handle both timezone-aware and timezone-naive locked_date
         if self.locked_date.tzinfo:
             # If locked_date is timezone-aware, convert to business timezone
@@ -95,7 +95,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
             # If locked_date is timezone-naive, assume it's UTC and convert
             locked_date_utc = self.locked_date.replace(tzinfo=timezone.utc)
             locked_date_business = locked_date_utc.astimezone(business_tz)
-            
+
         return now_business > locked_date_business
 
     @property
@@ -173,7 +173,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         # Calculate and set locked_date
         days_since_monday = care_date.weekday()
         monday = care_date - timedelta(days=days_since_monday)
-        
+
         # Create timezone-aware locked_date in business timezone
         business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
         calculated_locked_date = datetime.combine(monday, dt_time(23, 59, 59), tzinfo=business_tz)
