@@ -62,7 +62,7 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
             date=date.today() + timedelta(days=7),  # Set date to a week in the future
-            locked_date=datetime.now() + timedelta(days=20),
+            locked_date=datetime.now(timezone.utc) + timedelta(days=20),
             type="Full Day",
             amount_cents=6000,
             last_submitted_at=None,
@@ -74,7 +74,7 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
             date=date.today() + timedelta(days=1),  # Set date to tomorrow
-            locked_date=datetime.now() + timedelta(days=20),
+            locked_date=datetime.now(timezone.utc) + timedelta(days=20),
             type="Half Day",
             amount_cents=4000,
             last_submitted_at=datetime.now(timezone.utc) - timedelta(days=5),  # Submitted 5 days ago
@@ -89,7 +89,7 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
             date=date.today() + timedelta(days=2),  # Set date to two days from now
-            locked_date=datetime.now() + timedelta(days=20),
+            locked_date=datetime.now(timezone.utc) + timedelta(days=20),
             type="Full Day",
             amount_cents=6000,
             last_submitted_at=datetime.now(timezone.utc) - timedelta(days=10),  # Submitted 10 days ago
@@ -98,7 +98,7 @@ def seed_db(app):
         db.session.add(care_day_needs_resubmission)
 
         # Care day: locked (date is in the past, beyond locked_date)
-        locked_date_past = datetime.now() - timedelta(days=7)  # A week ago
+        locked_date_past = datetime.now(timezone.utc) - timedelta(days=7)  # A week ago
         care_day_locked = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
@@ -118,7 +118,7 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
             date=date.today() + timedelta(days=3),  # Set date to three days from now
-            locked_date=datetime.now() + timedelta(days=20),
+            locked_date=datetime.now(timezone.utc) + timedelta(days=20),
             type="Full Day",
             amount_cents=6000,
             deleted_at=datetime.now(timezone.utc),
@@ -316,7 +316,7 @@ def test_month_allocation_locked_until_date(client, seed_db):
     current_monday = today - timedelta(days=today.weekday())
     current_monday_eod = datetime.combine(current_monday, time(23, 59, 59))
 
-    if datetime.now() > current_monday_eod:
+    if datetime.now(timezone.utc) > current_monday_eod.replace(tzinfo=timezone.utc):
         expected_locked_until_date = current_monday + timedelta(days=6)  # Sunday of current week
     else:
         expected_locked_until_date = current_monday - timedelta(days=1)  # Sunday of previous week

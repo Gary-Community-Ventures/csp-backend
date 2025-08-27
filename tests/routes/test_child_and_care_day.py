@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -40,7 +40,7 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id="1",
             date=date.today() + timedelta(days=7),  # Set date to a week in the future
-            locked_date=datetime.now() + timedelta(days=20),
+            locked_date=datetime.now(timezone.utc) + timedelta(days=20),
             type=CareDayType.FULL_DAY,
             amount_cents=payment_rate.full_day_rate_cents,
             last_submitted_at=None,

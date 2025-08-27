@@ -33,7 +33,7 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id="1",
             date=date.today() + timedelta(days=7),  # Set date to a week in the future
-            locked_date=datetime.now() + timedelta(days=20),
+            locked_date=datetime.now(timezone.utc) + timedelta(days=20),
             type=CareDayType.FULL_DAY,
             amount_cents=payment_rate.full_day_rate_cents,
             last_submitted_at=None,
@@ -46,7 +46,7 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id="1",
             date=date.today() + timedelta(days=1),  # Set date to tomorrow
-            locked_date=datetime.now() + timedelta(days=8),
+            locked_date=datetime.now(timezone.utc) + timedelta(days=8),
             type=CareDayType.FULL_DAY,
             amount_cents=payment_rate.full_day_rate_cents,
             last_submitted_at=None,  # Never submitted
@@ -55,7 +55,7 @@ def seed_db(app):
         db.session.commit()
 
         # Create a locked care day
-        locked_date = datetime.now() - timedelta(days=7)  # A week ago
+        locked_date = datetime.now(timezone.utc) - timedelta(days=7)  # A week ago
         care_day_locked = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id="1",
@@ -76,7 +76,7 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id="1",
             date=date.today() + timedelta(days=2),  # Set date to two days from now
-            locked_date=datetime.now() + timedelta(days=10),  # Set locked_date to future
+            locked_date=datetime.now(timezone.utc) + timedelta(days=10),  # Set locked_date to future
             type=CareDayType.FULL_DAY,
             amount_cents=payment_rate.full_day_rate_cents,
             deleted_at=datetime.now(timezone.utc),
@@ -167,7 +167,7 @@ def test_create_care_day_exceeds_allocation(client, seed_db):
             care_day = AllocatedCareDay(
                 care_month_allocation_id=allocation.id,
                 provider_google_sheets_id="1",
-                locked_date=datetime.now() + timedelta(days=10),
+                locked_date=datetime.now(timezone.utc) + timedelta(days=10),
                 date=date.today() + timedelta(days=i + 10),
                 type=CareDayType.FULL_DAY,
                 amount_cents=payment_rate.full_day_rate_cents,
@@ -269,7 +269,7 @@ def test_update_care_day_over_allocation_soft_deletes(client, seed_db):
         care_month_allocation_id=allocation.id,
         provider_google_sheets_id="1",
         date=date.today() + timedelta(days=3),
-        locked_date=datetime.now() + timedelta(days=10),
+        locked_date=datetime.now(timezone.utc) + timedelta(days=10),
         type=CareDayType.HALF_DAY,
         amount_cents=payment_rate.half_day_rate_cents,
     )
