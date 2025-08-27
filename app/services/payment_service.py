@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timezone
 from typing import Optional, Union
 
@@ -36,6 +37,44 @@ from app.models import (
     ProviderPaymentSettings,
 )
 from app.services.payment_result import PaymentResult
+
+
+def format_phone_to_e164(phone: Optional[str], default_country: str = "US") -> Optional[str]:
+    """
+    Format a phone number to E.164 format for Chek API.
+
+    Args:
+        phone: Phone number string in various formats
+        default_country: Default country code if not provided (US = +1)
+
+    Returns:
+        Phone number in E.164 format (e.g., +13035551234) or None if invalid
+    """
+    if not phone:
+        return None
+
+    # Remove all non-digit characters
+    digits = re.sub(r"\D", "", phone)
+
+    # If empty after cleaning, return None
+    if not digits:
+        return None
+
+    # Handle US numbers (default)
+    if default_country == "US":
+        # If it starts with 1 and is 11 digits, it's already formatted
+        if len(digits) == 11 and digits.startswith("1"):
+            return f"+{digits}"
+        # If it's 10 digits, add US country code
+        elif len(digits) == 10:
+            return f"+1{digits}"
+        # If it's less than 10 digits, it's invalid
+        else:
+            return None
+
+    # For other countries, you'd add their logic here
+    # For now, just prepend + if not present
+    return f"+{digits}" if not digits.startswith("+") else digits
 
 
 class PaymentService:
@@ -590,17 +629,25 @@ class PaymentService:
 
             # Extract provider information
             provider_email = provider_data.get(ProviderColumnNames.EMAIL)
-            first_name = provider_data.get(ProviderColumnNames.FIRST_NAME, "")
-            last_name = provider_data.get(ProviderColumnNames.LAST_NAME, "")
-            address_line1 = provider_data.get(ProviderColumnNames.ADDRESS_LINE1, "")
-            address_line2 = provider_data.get(ProviderColumnNames.ADDRESS_LINE2, "")
-            city = provider_data.get(ProviderColumnNames.CITY, "")
-            state = provider_data.get(ProviderColumnNames.STATE, "")
-            zip_code = provider_data.get(ProviderColumnNames.ZIP_CODE, "")
-            country_code = provider_data.get(ProviderColumnNames.COUNTRY_CODE, "US")
+            provider_phone_raw = provider_data.get(ProviderColumnNames.PHONE_NUMBER)
+            first_name = provider_data.get(ProviderColumnNames.FIRST_NAME)
+            last_name = provider_data.get(ProviderColumnNames.LAST_NAME)
+            address_line1 = provider_data.get(ProviderColumnNames.ADDRESS_LINE1)
+            address_line2 = provider_data.get(ProviderColumnNames.ADDRESS_LINE2)
+            city = provider_data.get(ProviderColumnNames.CITY)
+            state = provider_data.get(ProviderColumnNames.STATE)
+            zip_code = provider_data.get(ProviderColumnNames.ZIP_CODE)
+            country_code = provider_data.get(ProviderColumnNames.COUNTRY_CODE)
 
             if not provider_email:
                 raise DataNotFoundException(f"Provider {provider_external_id} has no email in Google Sheets")
+
+            # Format phone number to E.164 format
+            provider_phone = format_phone_to_e164(provider_phone_raw)
+            if not provider_phone:
+                raise DataNotFoundException(
+                    f"Provider {provider_external_id} has invalid phone number: {provider_phone_raw}"
+                )
 
             # Check if Chek user already exists with this email
             existing_chek_user = self.chek_service.get_user_by_email(provider_email)
@@ -615,6 +662,7 @@ class PaymentService:
                 # Create new Chek user
                 user_request = UserCreateRequest(
                     email=provider_email,
+                    phone=provider_phone,
                     first_name=first_name,
                     last_name=last_name,
                     address=Address(
@@ -623,7 +671,7 @@ class PaymentService:
                         city=city or "",
                         state=state or "",
                         postal_code=zip_code or "",
-                        country=country_code or "US",
+                        country_code=country_code or "US",
                     ),
                 )
 

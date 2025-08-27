@@ -192,7 +192,7 @@ def get_payment_settings():
         # Onboard provider to Chek when first accessing payment settings
         try:
             payment_service = current_app.payment_service
-            provider = payment_service.onboard_provider(provider_external_id=provider_id)
+            provider_payment_settings = payment_service.onboard_provider(provider_external_id=provider_id)
             current_app.logger.info(f"Onboarded provider {provider_id} to Chek via payment-settings endpoint")
         except Exception as e:
             current_app.logger.error(f"Failed to onboard provider {provider_id} to Chek: {e}")
@@ -207,6 +207,7 @@ def get_payment_settings():
                 last_sync=None,
                 card={"available": False, "status": None, "id": None},
                 ach={"available": False, "status": None, "id": None},
+                validation={"is_valid": False, "message": "Onboarding to Chek failed"},
             )
             return error_response.model_dump_json(), 500, {"Content-Type": "application/json"}
 
@@ -230,20 +231,24 @@ def get_payment_settings():
         ),
         is_payable=provider_payment_settings.is_payable,
         needs_refresh=needs_refresh,
-        last_sync=provider.last_chek_sync_at.isoformat() if provider.last_chek_sync_at else None,
+        last_sync=(
+            provider_payment_settings.last_chek_sync_at.isoformat()
+            if provider_payment_settings.last_chek_sync_at
+            else None
+        ),
         card={
-            "available": provider.chek_card_id is not None,
-            "status": provider.chek_card_status,
-            "id": provider.chek_card_id,
+            "available": provider_payment_settings.chek_card_id is not None,
+            "status": provider_payment_settings.chek_card_status,
+            "id": provider_payment_settings.chek_card_id,
         },
         ach={
-            "available": provider.chek_direct_pay_id is not None,
-            "status": provider.chek_direct_pay_status,
-            "id": provider.chek_direct_pay_id,
+            "available": provider_payment_settings.chek_direct_pay_id is not None,
+            "status": provider_payment_settings.chek_direct_pay_status,
+            "id": provider_payment_settings.chek_direct_pay_id,
         },
         validation={
-            "is_valid": provider.validate_payment_method_status()[0],
-            "message": provider.validate_payment_method_status()[1],
+            "is_valid": provider_payment_settings.validate_payment_method_status()[0],
+            "message": provider_payment_settings.validate_payment_method_status()[1],
         },
     )
 
@@ -350,21 +355,25 @@ def initialize_my_payment():
     user = get_provider_user()
     provider_id = user.user_data.provider_id
 
-    data = request.json or {}
-    payment_method = data.get("payment_method", "card").lower()
+    try:
+        request_data = PaymentMethodInitializeRequest.model_validate(request.get_json() or {"payment_method": "card"})
+    except ValidationError as e:
+        return jsonify({"error": e.errors()}), 400
 
-    if payment_method not in ["card", "ach"]:
-        abort(400, description="Invalid payment_method. Must be 'card' or 'ach'")
+    payment_method = request_data.payment_method
 
     try:
         payment_service = current_app.payment_service
         result = payment_service.initialize_provider_payment(provider_id, payment_method)
-        return jsonify(result)
+
+        # Convert the result to PaymentInitializationResponse for consistency
+        response = PaymentInitializationResponse(**result)
+        return response.model_dump_json(), 200, {"Content-Type": "application/json"}
     except ValueError as e:
-        abort(400, description=str(e))
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         current_app.logger.error(f"Failed to initialize payment for provider {provider_id}: {e}")
-        abort(500, description=f"Failed to initialize payment: {str(e)}")
+        return jsonify({"error": f"Failed to initialize payment: {str(e)}"}), 500
 
 
 @bp.route("/provider/<string:provider_id>/allocated_care_days", methods=["GET"])
