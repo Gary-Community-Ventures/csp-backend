@@ -44,6 +44,7 @@ from app.utils.email_service import (
     send_add_licensed_provider_email,
     send_email,
     send_provider_invite_accept_email,
+    send_provider_invited_email,
 )
 from app.utils.sms_service import send_sms
 
@@ -343,6 +344,7 @@ def invite_provider():
 
         children.append(child)
 
+    invitations: list[ProviderInvitation] = []
     for child in children:
         try:
             child_id = child.get(ChildColumnNames.ID)
@@ -350,6 +352,7 @@ def invite_provider():
 
             invitation = ProviderInvitation.new(id, data["provider_email"], child_id)
             db.session.add(invitation)
+            invitations.append(invitation)
 
             domain = current_app.config.get("FRONTEND_DOMAIN")
             link = f"{domain}/invite/provider/{id}"
@@ -375,6 +378,10 @@ def invite_provider():
             current_app.logger.error(f"Failed to send provider invite for child ID {child_id}: {e}")
         finally:
             db.session.commit()
+
+    send_provider_invited_email(
+        format_name(family), family.get(FamilyColumnNames.ID), [i.public_id for i in invitations]
+    )
 
     return jsonify({"message": "Success"}, 201)
 

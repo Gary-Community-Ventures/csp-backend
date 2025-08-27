@@ -330,6 +330,38 @@ def send_add_licensed_provider_email(
     )
 
 
+def send_provider_invited_email(family_name: str, family_id: str, ids: list[str]):
+    from_email, to_emails = get_internal_emails()
+
+    current_app.logger.info(f"Sending invite sent request email to {to_emails} for family ID: {family_id}")
+
+    rows = [
+        SystemMessageRow(
+            title="Family Name",
+            value=family_name,
+        ),
+    ]
+
+    for id in ids:
+        rows.append(
+            SystemMessageRow(
+                title="Invite ID",
+                value=id,
+            )
+        )
+
+    subject = "Family Has Invited A Provider Notification"
+    description = f"A family has invited a provider:"
+    html_content = system_message(subject, description, rows)
+
+    return send_email(
+        from_email=from_email,
+        to_emails=to_emails,
+        subject=subject,
+        html_content=html_content,
+    )
+
+
 def send_provider_invite_accept_email(
     provider_name: str, provider_id: str, parent_name: str, parent_id: str, child_name: str, child_id: str
 ):
@@ -430,6 +462,34 @@ def send_submission_notification(provider_id, child_id, new_days, modified_days,
     return send_email(
         from_email=from_email,
         to_emails=[to_email],
+        subject=subject,
+        html_content=html_content,
+    )
+
+
+def send_family_invited_email(provider_name: str, provider_id: str, id: str):
+    from_email, to_emails = get_internal_emails()
+
+    current_app.logger.info(f"Sending invite sent request email to {to_emails} for provider ID: {provider_id}")
+
+    rows = [
+        SystemMessageRow(
+            title="Provider Name",
+            value=f"{provider_name} (ID: {provider_id})",
+        ),
+        SystemMessageRow(
+            title="Invite ID",
+            value=id,
+        ),
+    ]
+
+    subject = "Provider Has Invited A Family Notification"
+    description = f"A proivder has invited a family:"
+    html_content = system_message(subject, description, rows)
+
+    return send_email(
+        from_email=from_email,
+        to_emails=to_emails,
         subject=subject,
         html_content=html_content,
     )
