@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import current_app
 from sqlalchemy.orm import Query
@@ -29,7 +29,9 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
     def payable(self):
         # Check if status is stale
         stale_threshold = timedelta(minutes=PROVIDER_STATUS_STALE_MINUTES)
-        is_stale = self.last_chek_sync_at is None or (datetime.utcnow() - self.last_chek_sync_at) > stale_threshold
+        is_stale = (
+            self.last_chek_sync_at is None or (datetime.now(timezone.utc) - self.last_chek_sync_at) > stale_threshold
+        )
 
         if is_stale:
             # Trigger an asynchronous refresh.

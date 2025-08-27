@@ -12,6 +12,11 @@ BUSINESS_TIMEZONE = "America/Denver"  # Mountain Time for care day locking and b
 MAX_PAYMENT_AMOUNT_CENTS = 140000  # $1400 maximum per transaction
 MAX_ALLOCATION_AMOUNT_CENTS = 140000  # $1400 maximum per month allocation
 
+# --- Timezone Policy ---
+# All timestamps in the database should use UTC with timezone awareness
+# Use datetime.now(timezone.utc) for UTC timestamps, NOT datetime.utcnow()
+# Business logic (care day locking, etc) should use BUSINESS_TIMEZONE
+
 # --- Timing Constants ---
 PROVIDER_STATUS_STALE_SECONDS = 300  # 5 minutes - how long before provider status is considered stale
 PROVIDER_STATUS_STALE_MINUTES = 5  # Same as above, in minutes for timedelta usage

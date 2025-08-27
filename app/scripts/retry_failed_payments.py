@@ -11,7 +11,7 @@ Usage:
 
 import argparse
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from app import create_app
@@ -99,7 +99,7 @@ def retry_payment(payment_id):
             attempt_number=next_attempt_number,
             status=PaymentAttemptStatus.PENDING,
             payment_method=provider.payment_method,  # Use current provider payment method
-            attempted_at=datetime.utcnow(),
+            attempted_at=datetime.now(timezone.utc),
         )
         db.session.add(new_attempt)
         db.session.flush()

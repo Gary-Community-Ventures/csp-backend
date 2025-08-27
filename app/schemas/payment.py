@@ -91,3 +91,95 @@ class PaymentInitializationResponse(BaseModel):
                 "already_exists": False,
             }
         }
+
+
+class FamilyPaymentHistoryItem(BaseModel):
+    """Individual payment item in family payment history"""
+
+    payment_id: str = Field(..., description="Unique payment ID")
+    created_at: str = Field(..., description="ISO timestamp of when payment was created")
+    amount_cents: int = Field(..., description="Payment amount in cents")
+    status: str = Field(..., description="Payment status: 'success', 'failed', 'pending'")
+    provider_name: str = Field(..., description="Name of the provider who received payment")
+    provider_id: str = Field(..., description="Provider external ID")
+    child_name: str = Field(..., description="Name of the child")
+    child_id: str = Field(..., description="Child external ID")
+    month: str = Field(..., description="Month the payment was for (YYYY-MM)")
+    payment_type: str = Field(..., description="Type of payment: 'care_days' or 'lump_sum'")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "payment_id": "123e4567-e89b-12d3-a456-426614174000",
+                "created_at": "2024-01-15T10:30:00Z",
+                "amount_cents": 5000,
+                "status": "success",
+                "provider_name": "ABC Daycare",
+                "provider_id": "PROV123",
+                "child_name": "John Doe",
+                "child_id": "CHILD456",
+                "month": "2024-01",
+                "payment_type": "care_days",
+            }
+        }
+
+
+class FamilyPaymentHistoryResponse(BaseModel):
+    """Response for family payment history endpoint"""
+
+    payments: List[FamilyPaymentHistoryItem] = Field(..., description="List of payments ordered by newest first")
+    total_count: int = Field(..., description="Total number of payments")
+    total_amount_cents: int = Field(..., description="Total amount of all payments in cents")
+
+    class Config:
+        json_schema_extra = {"example": {"payments": [], "total_count": 5, "total_amount_cents": 25000}}
+
+
+class ProviderPaymentHistoryItem(BaseModel):
+    """Individual payment item in provider payment history"""
+
+    payment_id: str = Field(..., description="Unique payment ID")
+    created_at: str = Field(..., description="ISO timestamp of when payment was created")
+    amount_cents: int = Field(..., description="Payment amount in cents")
+    status: str = Field(..., description="Payment status: 'success', 'failed', 'pending'")
+    child_name: str = Field(..., description="Name of the child")
+    child_id: str = Field(..., description="Child external ID")
+    family_name: Optional[str] = Field(None, description="Name of the family")
+    month: str = Field(..., description="Month the payment was for (YYYY-MM)")
+    payment_method: str = Field(..., description="Payment method used: 'card' or 'ach'")
+    payment_type: str = Field(..., description="Type of payment: 'care_days' or 'lump_sum'")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "payment_id": "123e4567-e89b-12d3-a456-426614174000",
+                "created_at": "2024-01-15T10:30:00Z",
+                "amount_cents": 5000,
+                "status": "success",
+                "child_name": "John Doe",
+                "child_id": "CHILD456",
+                "family_name": "Doe Family",
+                "month": "2024-01",
+                "payment_method": "card",
+                "payment_type": "care_days",
+            }
+        }
+
+
+class ProviderPaymentHistoryResponse(BaseModel):
+    """Response for provider payment history endpoint"""
+
+    payments: List[ProviderPaymentHistoryItem] = Field(..., description="List of payments ordered by newest first")
+    total_count: int = Field(..., description="Total number of payments")
+    total_amount_cents: int = Field(..., description="Total amount of all payments in cents")
+    successful_payments_cents: int = Field(..., description="Total amount of successful payments in cents")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "payments": [],
+                "total_count": 10,
+                "total_amount_cents": 50000,
+                "successful_payments_cents": 45000,
+            }
+        }

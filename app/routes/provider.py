@@ -1,6 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from uuid import uuid4
 
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
@@ -210,7 +210,7 @@ def get_payment_settings():
     # Check if status is stale and needs refresh
     needs_refresh = False
     if provider.last_chek_sync_at:
-        time_since_sync = datetime.utcnow() - provider.last_chek_sync_at
+        time_since_sync = datetime.now(timezone.utc) - provider.last_chek_sync_at
         if time_since_sync.total_seconds() > PROVIDER_STATUS_STALE_SECONDS:
             needs_refresh = True
 
@@ -273,7 +273,7 @@ def update_payment_settings():
     # Update payment method
     old_payment_method = provider.payment_method
     provider.payment_method = new_payment_method
-    provider.payment_method_updated_at = datetime.utcnow()
+    provider.payment_method_updated_at = datetime.now(timezone.utc)
 
     # If switching methods, might want to refresh status
     if old_payment_method != new_payment_method:

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import sentry_sdk
@@ -274,8 +274,8 @@ class PaymentService:
 
             if allocated_lump_sums:
                 for lump_sum in allocated_lump_sums:
-                    lump_sum.submitted_at = datetime.utcnow()
-                    lump_sum.paid_at = datetime.utcnow()
+                    lump_sum.submitted_at = datetime.now(timezone.utc)
+                    lump_sum.paid_at = datetime.now(timezone.utc)
 
             db.session.commit()
             current_app.logger.info(f"Payment processed successfully for Provider {provider.id}.")
@@ -437,8 +437,8 @@ class PaymentService:
                 provider_settings.chek_card_id = str(card_response.id)
                 provider_settings.chek_card_status = "Active"
                 provider_settings.payment_method = PaymentMethod.CARD
-                provider_settings.payment_method_updated_at = datetime.utcnow()
-                provider_settings.last_chek_sync_at = datetime.utcnow()
+                provider_settings.payment_method_updated_at = datetime.now(timezone.utc)
+                provider_settings.last_chek_sync_at = datetime.now(timezone.utc)
                 db.session.commit()
 
                 result["message"] = "Virtual card created successfully"
@@ -474,8 +474,8 @@ class PaymentService:
                 provider_settings.chek_direct_pay_id = str(invite_response.id)
                 provider_settings.chek_direct_pay_status = invite_response.status
                 provider_settings.payment_method = PaymentMethod.ACH
-                provider_settings.payment_method_updated_at = datetime.utcnow()
-                provider_settings.last_chek_sync_at = datetime.utcnow()
+                provider_settings.payment_method_updated_at = datetime.now(timezone.utc)
+                provider_settings.last_chek_sync_at = datetime.now(timezone.utc)
                 db.session.commit()
 
                 result["message"] = "ACH invite sent successfully"

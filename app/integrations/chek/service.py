@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import sentry_sdk
@@ -150,7 +150,7 @@ class ChekService:
                 "direct_pay_status": None,
                 "card_id": None,
                 "card_status": None,
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc),
             }
 
             # Extract direct pay status
