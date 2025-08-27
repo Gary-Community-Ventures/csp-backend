@@ -15,7 +15,7 @@ class Address(BaseModel):
 
 
 class DirectPayInfo(BaseModel):
-    id: int
+    id: Optional[str] = None
     bank_name: Optional[str] = None
     last4: Optional[str] = None
     status: str
@@ -84,7 +84,7 @@ class CardCreateResponse(BaseModel):
 
 
 class DirectPayAccount(BaseModel):
-    id: int
+    id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     user: Dict[str, Any]  # Simplified for now
@@ -154,6 +154,32 @@ class TransferBalanceResponse(BaseModel):
     source: SourceDestination
     destination: SourceDestination
     transfer: TransferDetails
+
+
+# --- Program Models ---
+
+
+class ProgramParent(BaseModel):
+    object_type: str
+    display_string: str
+
+
+class Program(BaseModel):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    name: str
+    balance: int  # Balance in cents
+    parent: ProgramParent
+
+
+class ProgramListResponse(BaseModel):
+    next: Optional[str] = None
+    previous: Optional[str] = None
+    count: int
+    page_size: int
+    page_count: int
+    results: List[Program]
 
 
 # --- ACH Payment Models ---

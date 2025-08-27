@@ -496,16 +496,16 @@ class PaymentService:
                     return result
 
                 # Get program ID from config
-                from app.config import CHEK_PROGRAM_ID
+                chek_program_id = current_app.config.get("CHEK_PROGRAM_ID")
 
-                if not CHEK_PROGRAM_ID:
+                if not chek_program_id:
                     raise PaymentMethodNotConfiguredException("CHEK_PROGRAM_ID not configured")
 
                 # Create virtual card with wallet balance funding
                 card_request = CardCreateRequest(
-                    program_id=int(CHEK_PROGRAM_ID),
-                    funding_method="wallet_balance",
-                    amount=0,  # Initial amount in cents
+                    program_id=int(chek_program_id),
+                    funding_method="program_balance",
+                    amount=1000,  # Initial amount in cents
                 )
 
                 card_response = self.chek_service.create_card(int(provider_settings.chek_user_id), card_request)

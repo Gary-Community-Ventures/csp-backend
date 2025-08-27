@@ -22,8 +22,10 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
     chek_card_id = db.Column(db.String(64), nullable=True, index=True)
     chek_card_status = db.Column(db.String(32), nullable=True)  # Cached status
     payment_method = db.Column(db.Enum(PaymentMethod), nullable=True)
-    payment_method_updated_at = db.Column(db.DateTime, nullable=True)  # Timestamp of last payment method change
-    last_chek_sync_at = db.Column(db.DateTime, nullable=True)  # Timestamp of last sync
+    payment_method_updated_at = db.Column(
+        db.DateTime(timezone=True), nullable=True
+    )  # Timestamp of last payment method change
+    last_chek_sync_at = db.Column(db.DateTime(timezone=True), nullable=True)  # Timestamp of last sync
 
     def validate_payment_method_status(self) -> tuple[bool, str]:
         """
@@ -76,16 +78,21 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
 
     @property
     def is_payable(self):
-        # Check if status is stale
+        # Check if status is stale and trigger background refresh
         if self.is_status_stale():
-            # Trigger an asynchronous refresh.
-            # This would typically involve a background task queue (e.g., Celery, RQ).
-            # For now, we just log a warning. The explicit refresh for payment will handle blocking.
-            current_app.logger.warning(f"Provider {self.id} Chek status is stale. Consider refreshing.")
-            # In a real app, you'd enqueue a task here:
-            # current_app.job_manager.enqueue(refresh_chek_status_task, provider_id=self.id)
+            try:
+                # Import here to avoid circular imports
+                from app.jobs.refresh_provider_status_job import (
+                    enqueue_provider_status_refresh,
+                )
 
-        # Use detailed validation for payable status
+                current_app.logger.info(f"Provider {self.id} Chek status is stale. Enqueuing background refresh.")
+                enqueue_provider_status_refresh(self, from_info="is_payable_stale_check")
+            except Exception as e:
+                # Don't fail the property if job enqueue fails
+                current_app.logger.warning(f"Failed to enqueue status refresh for provider {self.id}: {e}")
+
+        # Use detailed validation for payable status (with current cached data)
         is_valid, _ = self.validate_payment_method_status()
         return is_valid
 

@@ -71,6 +71,7 @@ class ChekService:
         """
         card_data_dict = card_request.model_dump(exclude_none=True)
         card_json = self.client.create_card(user_id, card_data_dict)
+        current_app.logger.debug(f"Chek create_card response: {card_json}")
         return CardCreateResponse.model_validate(card_json)
 
     def get_card(self, card_id: int) -> Card:
@@ -88,6 +89,7 @@ class ChekService:
         invite_data_dict = invite_request.model_dump()
         # The API for this endpoint expects just the user_id in the body
         response_json = self.client.create_direct_pay_account_invite(invite_data_dict["user_id"])
+        current_app.logger.debug(f"DirectPay account invite response: {response_json}")
         return DirectPayAccount.model_validate(response_json)
 
     def get_direct_pay_account(self, account_id: int) -> DirectPayAccount:
@@ -104,6 +106,7 @@ class ChekService:
         endpoint = f"users/{user_id}/transfer_balance/"
         request_data = request.model_dump()
         response_json = self.client._request("POST", endpoint, json=request_data)
+        current_app.logger.debug(f"Chek transfer_balance response: {response_json}")
         return TransferBalanceResponse.model_validate(response_json)
 
     def pay_user(self, user_id: int, amount: int) -> bool:
@@ -134,6 +137,7 @@ class ChekService:
         endpoint = f"directpay_accounts/{direct_pay_account_id}/send_payment/"
         request_data = request.model_dump()
         response_json = self.client._request("POST", endpoint, json=request_data)
+        current_app.logger.debug(f"Chek send_ach_payment response: {response_json}")
         return DirectPayAccount.model_validate(response_json)
 
     def get_provider_chek_status(self, chek_user_id: int) -> dict:
@@ -144,6 +148,8 @@ class ChekService:
         try:
             # Fetch user details to get latest direct pay and card info
             user_details = self.get_user(chek_user_id)
+
+            current_app.logger.debug(f"Fetched user details for Chek user {chek_user_id}: {user_details}")
 
             status = {
                 "direct_pay_id": None,

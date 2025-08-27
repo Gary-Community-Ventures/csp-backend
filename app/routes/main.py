@@ -148,15 +148,15 @@ def test_chek():
         chek_service = current_app.chek_service
 
         # --- Test: Create Card ---
-        from app.config import CHEK_PROGRAM_ID
+        chek_program_id = current_app.config.get("CHEK_PROGRAM_ID")
 
-        if not CHEK_PROGRAM_ID:
+        if not chek_program_id:
             return jsonify({"error": "CHEK_PROGRAM_ID not configured"}), 400
         test_user_id = 750039  # As requested by the user
         test_amount = 0  # Initial amount in cents
 
         card_request = CardCreateRequest(
-            program_id=int(CHEK_PROGRAM_ID),
+            program_id=int(chek_program_id),
             funding_method="wallet_balance",
             amount=test_amount,
         )
