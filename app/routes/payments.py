@@ -133,7 +133,7 @@ def get_provider_payment_history():
 
     # Query payments for this provider, ordered by newest first
     payments = (
-        Payment.query.filter(Payment.provider_id == provider_settings.id).order_by(Payment.created_at.desc()).all()
+        Payment.query.filter(Payment.provider_payment_settings_id == provider_settings.id).order_by(Payment.created_at.desc()).all()
     )
 
     # Get child and family data for names

@@ -50,7 +50,7 @@ class PaymentService:
 
     def _create_payment_and_attempt(
         self,
-        provider: ProviderPaymentSettings,
+        provider_payment_settings: ProviderPaymentSettings,
         amount_cents: int,
         payment_method: PaymentMethod,
         month_allocation: MonthAllocation,
@@ -63,10 +63,10 @@ class PaymentService:
         Creates a new Payment record and an initial PaymentAttempt.
         """
         payment = Payment(
-            provider_id=provider.id,
-            chek_user_id=provider.chek_user_id,
-            chek_direct_pay_id=provider.chek_direct_pay_id,
-            chek_card_id=provider.chek_card_id,
+            provider_payment_settings_id=provider_payment_settings.id,
+            chek_user_id=provider_payment_settings.chek_user_id,
+            chek_direct_pay_id=provider_payment_settings.chek_direct_pay_id,
+            chek_card_id=provider_payment_settings.chek_card_id,
             amount_cents=amount_cents,
             payment_method=payment_method,
             month_allocation=month_allocation,
@@ -128,8 +128,10 @@ class PaymentService:
         """
         try:
             # 1. Look up provider payment settings
-            provider = ProviderPaymentSettings.query.filter_by(provider_external_id=external_provider_id).first()
-            if not provider:
+            provider_payment_settings = ProviderPaymentSettings.query.filter_by(
+                provider_external_id=external_provider_id
+            ).first()
+            if not provider_payment_settings:
                 error_msg = f"Provider with external ID {external_provider_id} not found in database"
                 current_app.logger.error(f"Payment failed: {error_msg}")
                 raise ProviderNotFoundException(error_msg)
@@ -148,14 +150,14 @@ class PaymentService:
                 unsubmitted_days = [day for day in allocated_care_days if day.last_submitted_at is None]
                 if unsubmitted_days:
                     error_msg = f"Cannot process payment: {len(unsubmitted_days)} care days are not submitted"
-                    current_app.logger.error(f"Payment failed for Provider {provider.id}: {error_msg}")
+                    current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
                     raise InvalidPaymentStateException(error_msg)
 
             if allocated_lump_sums:
                 unsubmitted_lumps = [lump for lump in allocated_lump_sums if lump.submitted_at is None]
                 if unsubmitted_lumps:
                     error_msg = f"Cannot process payment: {len(unsubmitted_lumps)} lump sums are not submitted"
-                    current_app.logger.error(f"Payment failed for Provider {provider.id}: {error_msg}")
+                    current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
                     raise InvalidPaymentStateException(error_msg)
 
             # 4. Validate payment doesn't exceed $1400 limit
@@ -164,7 +166,7 @@ class PaymentService:
                     f"Payment amount ${amount_cents / 100:.2f} exceeds maximum allowed payment "
                     f"of ${MAX_PAYMENT_AMOUNT_CENTS / 100:.2f}"
                 )
-                current_app.logger.error(f"Payment failed for Provider {provider.id}: {error_msg}")
+                current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
                 raise PaymentLimitExceededException(error_msg)
 
             # 5. Validate payment doesn't exceed remaining allocation
@@ -173,28 +175,30 @@ class PaymentService:
                     f"Payment amount {amount_cents} cents exceeds remaining allocation "
                     f"{month_allocation.remaining_to_pay_cents} cents for month {month_allocation.date.strftime('%Y-%m')}"
                 )
-                current_app.logger.error(f"Payment failed for Provider {provider.id}: {error_msg}")
+                current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
                 raise AllocationExceededException(error_msg)
 
             # 6. Ensure provider has a payment method configured
-            if not provider.payment_method:
+            if not provider_payment_settings.payment_method:
                 error_msg = f"Provider {external_provider_id} has no payment method configured"
-                current_app.logger.error(f"Payment failed for Provider {provider.id}: {error_msg}")
+                current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
                 raise PaymentMethodNotConfiguredException(error_msg)
 
             # 7. Refresh provider Chek status to ensure freshness
-            self.refresh_provider_status(provider)
+            self.refresh_provider_status(provider_payment_settings)
             db.session.flush()  # Ensure provider object is updated in session
 
             # 8. Validate payment method status with detailed error messages
-            is_valid, validation_error = provider.validate_payment_method_status()
+            is_valid, validation_error = provider_payment_settings.validate_payment_method_status()
             if not is_valid:
-                current_app.logger.warning(f"Payment skipped for Provider {provider.id}: {validation_error}")
+                current_app.logger.warning(
+                    f"Payment skipped for Provider {provider_payment_settings.id}: {validation_error}"
+                )
                 # Create a failed payment record
                 payment = self._create_payment_and_attempt(
-                    provider=provider,
+                    provider_payment_settings=provider_payment_settings,
                     amount_cents=amount_cents,
-                    payment_method=provider.payment_method,
+                    payment_method=provider_payment_settings.payment_method,
                     month_allocation=month_allocation,
                     external_provider_id=external_provider_id,
                     external_child_id=external_child_id,
@@ -209,9 +213,9 @@ class PaymentService:
 
             # 9. Create Payment and initial PaymentAttempt
             payment = self._create_payment_and_attempt(
-                provider=provider,
+                provider_payment_settings=provider_payment_settings,
                 amount_cents=amount_cents,
-                payment_method=provider.payment_method,
+                payment_method=provider_payment_settings.payment_method,
                 month_allocation=month_allocation,
                 external_provider_id=external_provider_id,
                 external_child_id=external_child_id,
@@ -250,29 +254,29 @@ class PaymentService:
                 metadata=metadata,
             )
             transfer_response = self.chek_service.transfer_balance(
-                user_id=int(provider.chek_user_id), request=transfer_request
+                user_id=int(provider_payment_settings.chek_user_id), request=transfer_request
             )
             # Store transfer ID but don't mark as success yet for ACH payments
             attempt.chek_transfer_id = str(transfer_response.transfer.id)
 
             # 11. If ACH, initiate ACH payment from wallet to bank account
-            if provider.payment_method == PaymentMethod.ACH:
+            if provider_payment_settings.payment_method == PaymentMethod.ACH:
                 ach_request = ACHPaymentRequest(
                     amount=amount_cents,
                     type=ACHPaymentType.SAME_DAY_ACH,
                     funding_source=ACHFundingSource.WALLET_BALANCE,
                 )
                 # Assuming chek_direct_pay_id is available and valid
-                if not provider.chek_direct_pay_id:
+                if not provider_payment_settings.chek_direct_pay_id:
                     raise PaymentMethodNotConfiguredException("Provider has no direct pay account ID for ACH payment")
 
                 ach_response = self.chek_service.send_ach_payment(
-                    direct_pay_account_id=int(provider.chek_direct_pay_id), request=ach_request
+                    direct_pay_account_id=int(provider_payment_settings.chek_direct_pay_id), request=ach_request
                 )
                 # Note: The ACH payment response is the DirectPayAccount object, not a separate transfer ID.
                 # We can log this or update the attempt with relevant info if needed.
                 current_app.logger.info(
-                    f"ACH payment initiated for provider {provider.id}. DirectPayAccount status: {ach_response.status}"
+                    f"ACH payment initiated for provider {provider_payment_settings.id}. DirectPayAccount status: {ach_response.status}"
                 )
 
                 # Mark as success only after both wallet transfer AND ACH payment complete
@@ -294,7 +298,7 @@ class PaymentService:
                     lump_sum.paid_at = datetime.now(timezone.utc)
 
             db.session.commit()
-            current_app.logger.info(f"Payment processed successfully for Provider {provider.id}.")
+            current_app.logger.info(f"Payment processed successfully for Provider {provider_payment_settings.id}.")
             return True
 
         except (
@@ -328,12 +332,12 @@ class PaymentService:
                 current_app.logger.error(f"Payment {payment_id} not found")
                 return False
 
-            provider = ProviderPaymentSettings.query.get(payment.provider_id)
-            if not provider:
+            provider_payment_settings = ProviderPaymentSettings.query.get(payment.provider_payment_settings_id)
+            if not provider_payment_settings:
                 current_app.logger.error(f"Provider not found for payment {payment_id}")
                 return False
 
-            if provider.payment_method != PaymentMethod.ACH:
+            if provider_payment_settings.payment_method != PaymentMethod.ACH:
                 current_app.logger.error(f"Payment {payment_id} is not an ACH payment")
                 return False
 
@@ -365,10 +369,10 @@ class PaymentService:
             db.session.flush()
 
             # Refresh provider status
-            self.refresh_provider_status(provider)
+            self.refresh_provider_status(provider_payment_settings)
 
             # Validate payment method status
-            is_valid, validation_error = provider.validate_payment_method_status()
+            is_valid, validation_error = provider_payment_settings.validate_payment_method_status()
             if not is_valid:
                 self._update_payment_attempt_status(
                     new_attempt,
@@ -385,11 +389,11 @@ class PaymentService:
                 funding_source=ACHFundingSource.WALLET_BALANCE,
             )
 
-            if not provider.chek_direct_pay_id:
+            if not provider_payment_settings.chek_direct_pay_id:
                 raise PaymentMethodNotConfiguredException("Provider has no direct pay account ID for ACH payment")
 
             ach_response = self.chek_service.send_ach_payment(
-                direct_pay_account_id=int(provider.chek_direct_pay_id), request=ach_request
+                direct_pay_account_id=int(provider_payment_settings.chek_direct_pay_id), request=ach_request
             )
 
             self._update_payment_attempt_status(new_attempt, PaymentAttemptStatus.SUCCESS)
@@ -526,32 +530,34 @@ class PaymentService:
             current_app.logger.error(f"Failed to initialize payment for provider {provider_external_id}: {e}")
             raise
 
-    def refresh_provider_status(self, provider: ProviderPaymentSettings):
+    def refresh_provider_status(self, provider_payment_settings: ProviderPaymentSettings):
         """
         Refreshes the Chek status of a provider and updates the database.
         """
-        if not provider.chek_user_id:
-            current_app.logger.warning(f"Provider {provider.id} has no chek_user_id. Cannot refresh status.")
+        if not provider_payment_settings.chek_user_id:
+            current_app.logger.warning(
+                f"Provider {provider_payment_settings.id} has no chek_user_id. Cannot refresh status."
+            )
             return
 
         try:
             # Get status from Chek API
-            status = self.chek_service.get_provider_chek_status(int(provider.chek_user_id))
+            status = self.chek_service.get_provider_chek_status(int(provider_payment_settings.chek_user_id))
 
             # Update provider with new status
-            provider.chek_direct_pay_id = status["direct_pay_id"]
-            provider.chek_direct_pay_status = status["direct_pay_status"]
-            provider.chek_card_id = status["card_id"]
-            provider.chek_card_status = status["card_status"]
-            provider.last_chek_sync_at = status["timestamp"]
+            provider_payment_settings.chek_direct_pay_id = status["direct_pay_id"]
+            provider_payment_settings.chek_direct_pay_status = status["direct_pay_status"]
+            provider_payment_settings.chek_card_id = status["card_id"]
+            provider_payment_settings.chek_card_status = status["card_status"]
+            provider_payment_settings.last_chek_sync_at = status["timestamp"]
 
-            db.session.add(provider)
+            db.session.add(provider_payment_settings)
             db.session.commit()
-            current_app.logger.info(f"Provider {provider.id} Chek status refreshed successfully.")
+            current_app.logger.info(f"Provider {provider_payment_settings.id} Chek status refreshed successfully.")
 
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Failed to refresh Chek status for provider {provider.id}: {e}")
+            current_app.logger.error(f"Failed to refresh Chek status for provider {provider_payment_settings.id}: {e}")
             sentry_sdk.capture_exception(e)
 
     def onboard_provider(self, provider_external_id: str) -> ProviderPaymentSettings:
@@ -565,15 +571,15 @@ class PaymentService:
 
         try:
             # Check if provider already exists
-            existing_provider = ProviderPaymentSettings.query.filter_by(
+            existing_provider_payment_settings = ProviderPaymentSettings.query.filter_by(
                 provider_external_id=provider_external_id
             ).first()
 
-            if existing_provider:
+            if existing_provider_payment_settings:
                 current_app.logger.info(
-                    f"Provider {provider_external_id} already exists with Chek user {existing_provider.chek_user_id}"
+                    f"Provider {provider_external_id} already exists with Chek user {existing_provider_payment_settings.chek_user_id}"
                 )
-                return existing_provider
+                return existing_provider_payment_settings
 
             # Get provider data from Google Sheets
             provider_rows = get_providers()
@@ -628,19 +634,19 @@ class PaymentService:
                 chek_user_id = str(chek_user_response.id)
 
             # Create ProviderPaymentSettings record
-            provider = ProviderPaymentSettings(
+            provider_payment_settings = ProviderPaymentSettings(
                 id=uuid.uuid4(),
                 provider_external_id=provider_external_id,
                 chek_user_id=chek_user_id,
                 payment_method=None,  # Provider chooses this later
             )
-            db.session.add(provider)
+            db.session.add(provider_payment_settings)
             db.session.commit()
 
             current_app.logger.info(
                 f"Successfully onboarded provider {provider_external_id} with Chek user {chek_user_id}"
             )
-            return provider
+            return provider_payment_settings
 
         except Exception as e:
             db.session.rollback()

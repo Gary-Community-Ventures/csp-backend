@@ -41,6 +41,10 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     # Provider info
     provider_google_sheets_id = db.Column(db.String(64), nullable=False, index=True)
 
+    # Payment tracking
+    payment_id = db.Column(db.UUID(as_uuid=True), db.ForeignKey("payment.id"), nullable=True)
+    payment = db.relationship("Payment", back_populates="allocated_care_days")
+
     # Status tracking
     payment_distribution_requested = db.Column(db.Boolean, default=False)
     last_submitted_at = db.Column(db.DateTime, nullable=True)

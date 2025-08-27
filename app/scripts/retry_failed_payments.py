@@ -44,13 +44,13 @@ def list_failed_payments(since_date=None):
     print("-" * 80)
 
     for payment in failed_payments:
-        provider = ProviderPaymentSettings.query.get(payment.provider_id)
+        provider_payment_settings = ProviderPaymentSettings.query.get(payment.provider_payment_settings_id)
         last_attempt = (
             PaymentAttempt.query.filter_by(payment_id=payment.id).order_by(PaymentAttempt.attempt_number.desc()).first()
         )
 
         print(f"Payment ID: {payment.id}")
-        print(f"Provider: {provider.provider_external_id if provider else 'Unknown'}")
+        print(f"Provider: {provider_payment_settings.provider_external_id if provider_payment_settings else 'Unknown'}")
         print(f"Amount: ${payment.amount_cents / 100:.2f}")
         print(f"Created: {payment.created_at}")
         print(f"Attempts: {last_attempt.attempt_number if last_attempt else 0}")
@@ -68,8 +68,8 @@ def retry_payment(payment_id):
             print(f"Error: Payment {payment_id} not found.")
             return False
 
-        provider = ProviderPaymentSettings.query.get(payment.provider_id)
-        if not provider:
+        provider_payment_settings = ProviderPaymentSettings.query.get(payment.provider_payment_settings_id)
+        if not provider_payment_settings:
             print(f"Error: Provider not found for payment {payment_id}.")
             return False
 
@@ -83,7 +83,7 @@ def retry_payment(payment_id):
             return True
 
         print(f"\nRetrying payment {payment_id}...")
-        print(f"Provider: {provider.provider_external_id}")
+        print(f"Provider: {provider_payment_settings.provider_external_id}")
         print(f"Amount: ${payment.amount_cents / 100:.2f}")
 
         # Get the last attempt number
@@ -98,7 +98,7 @@ def retry_payment(payment_id):
             payment_id=payment.id,
             attempt_number=next_attempt_number,
             status=PaymentAttemptStatus.PENDING,
-            payment_method=provider.payment_method,  # Use current provider payment method
+            payment_method=provider_payment_settings.payment_method,  # Use current provider payment method
             attempted_at=datetime.now(timezone.utc),
         )
         db.session.add(new_attempt)
@@ -109,12 +109,12 @@ def retry_payment(payment_id):
 
         try:
             # Refresh provider status first
-            payment_service.refresh_provider_status(provider)
+            payment_service.refresh_provider_status(provider_payment_settings)
 
             # Check if provider is payable
-            if not provider.payable:
+            if not provider_payment_settings.payable:
                 new_attempt.status = PaymentAttemptStatus.FAILED
-                new_attempt.error_message = f"Provider not payable. Payment method: {provider.payment_method}, DirectPay status: {provider.chek_direct_pay_status}, Card status: {provider.chek_card_status}"
+                new_attempt.error_message = f"Provider not payable. Payment method: {provider_payment_settings.payment_method}, DirectPay status: {provider_payment_settings.chek_direct_pay_status}, Card status: {provider_payment_settings.chek_card_status}"
                 db.session.commit()
                 print(f"Error: Provider is not in payable state.")
                 return False
@@ -129,7 +129,7 @@ def retry_payment(payment_id):
                 flow_direction=FlowDirection.PROGRAM_TO_WALLET,
                 program_id=payment_service.chek_service.program_id,
                 amount=payment.amount_cents,
-                description=f"Retry payment {payment_id} to provider {provider.provider_external_id}",
+                description=f"Retry payment {payment_id} to provider {provider_payment_settings.provider_external_id}",
                 metadata={
                     "provider_id": payment.external_provider_id,
                     "child_id": payment.external_child_id,
@@ -140,10 +140,10 @@ def retry_payment(payment_id):
             )
 
             # Process the payment based on payment method
-            if provider.payment_method == PaymentMethod.CARD:
+            if provider_payment_settings.payment_method == PaymentMethod.CARD:
                 # For virtual card, just do the transfer to wallet
                 transfer_response = payment_service.chek_service.transfer_balance(
-                    int(provider.chek_user_id), transfer_request
+                    int(provider_payment_settings.chek_user_id), transfer_request
                 )
 
                 if transfer_response:
@@ -153,10 +153,10 @@ def retry_payment(payment_id):
                 else:
                     raise Exception("Transfer to wallet failed")
 
-            elif provider.payment_method == PaymentMethod.ACH:
+            elif provider_payment_settings.payment_method == PaymentMethod.ACH:
                 # For ACH, do transfer then initiate ACH payment
                 transfer_response = payment_service.chek_service.transfer_balance(
-                    int(provider.chek_user_id), transfer_request
+                    int(provider_payment_settings.chek_user_id), transfer_request
                 )
 
                 if not transfer_response:
@@ -178,7 +178,7 @@ def retry_payment(payment_id):
                 )
 
                 ach_response = payment_service.chek_service.send_ach_payment(
-                    int(provider.chek_direct_pay_id), ach_request
+                    int(provider_payment_settings.chek_direct_pay_id), ach_request
                 )
 
                 if ach_response:
@@ -187,7 +187,7 @@ def retry_payment(payment_id):
                 else:
                     raise Exception("ACH payment initiation failed")
             else:
-                raise Exception(f"Unknown payment method: {provider.payment_method}")
+                raise Exception(f"Unknown payment method: {provider_payment_settings.payment_method}")
 
             db.session.commit()
             return True

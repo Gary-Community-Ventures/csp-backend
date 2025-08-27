@@ -183,9 +183,9 @@ def get_payment_settings():
     provider_id = user.user_data.provider_id
 
     # Get or create ProviderPaymentSettings record
-    provider = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
+    provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
 
-    if not provider:
+    if not provider_payment_settings:
         # Onboard provider to Chek when first accessing payment settings
         try:
             payment_service = current_app.payment_service
@@ -209,19 +209,19 @@ def get_payment_settings():
 
     # Check if status is stale and needs refresh
     needs_refresh = False
-    if provider.last_chek_sync_at:
-        time_since_sync = datetime.now(timezone.utc) - provider.last_chek_sync_at
+    if provider_payment_settings.last_chek_sync_at:
+        time_since_sync = datetime.now(timezone.utc) - provider_payment_settings.last_chek_sync_at
         if time_since_sync.total_seconds() > PROVIDER_STATUS_STALE_SECONDS:
             needs_refresh = True
 
     payment_settings = PaymentSettingsResponse(
         provider_id=provider_id,
-        chek_user_id=provider.chek_user_id,
-        payment_method=provider.payment_method.value if provider.payment_method else None,
+        chek_user_id=provider_payment_settings.chek_user_id,
+        payment_method=provider_payment_settings.payment_method.value if provider_payment_settings.payment_method else None,
         payment_method_updated_at=(
-            provider.payment_method_updated_at.isoformat() if provider.payment_method_updated_at else None
+            provider_payment_settings.payment_method_updated_at.isoformat() if provider_payment_settings.payment_method_updated_at else None
         ),
-        payable=provider.payable,
+        payable=provider_payment_settings.payable,
         needs_refresh=needs_refresh,
         last_sync=provider.last_chek_sync_at.isoformat() if provider.last_chek_sync_at else None,
         card={
@@ -262,29 +262,31 @@ def update_payment_settings():
         return jsonify({"error": f"Invalid payment method. Must be one of: {[e.value for e in PaymentMethod]}"}), 400
 
     # Get provider payment settings record
-    provider = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
+    existing_provider_payment_settings = ProviderPaymentSettings.query.filter_by(
+        provider_external_id=provider_id
+    ).first()
 
-    if not provider:
+    if not existing_provider_payment_settings:
         abort(404, description="Provider payment settings not found. Please complete onboarding first.")
 
     # Check if the payment method is available
-    if new_payment_method == PaymentMethod.CARD and not provider.chek_card_id:
+    if new_payment_method == PaymentMethod.CARD and not existing_provider_payment_settings.chek_card_id:
         abort(400, description="Virtual card not available. Please set up a virtual card first.")
 
-    if new_payment_method == PaymentMethod.ACH and not provider.chek_direct_pay_id:
+    if new_payment_method == PaymentMethod.ACH and not existing_provider_payment_settings.chek_direct_pay_id:
         abort(400, description="ACH not available. Please set up ACH payment first.")
 
     # Update payment method
-    old_payment_method = provider.payment_method
-    provider.payment_method = new_payment_method
-    provider.payment_method_updated_at = datetime.now(timezone.utc)
+    old_payment_method = existing_provider_payment_settings.payment_method
+    existing_provider_payment_settings.payment_method = new_payment_method
+    existing_provider_payment_settings.payment_method_updated_at = datetime.now(timezone.utc)
 
     # If switching methods, might want to refresh status
     if old_payment_method != new_payment_method:
         # Trigger a status refresh for the new payment method
         try:
             payment_service = current_app.payment_service
-            payment_service.refresh_provider_status(provider)
+            payment_service.refresh_provider_status(existing_provider_payment_settings)
         except Exception as e:
             current_app.logger.warning(f"Failed to refresh provider status during payment method update: {e}")
             # Don't fail the request if refresh fails
@@ -294,9 +296,9 @@ def update_payment_settings():
     response = PaymentMethodUpdateResponse(
         message="Payment method updated successfully",
         provider_id=provider_id,
-        payment_method=provider.payment_method.value,
-        payment_method_updated_at=provider.payment_method_updated_at.isoformat(),
-        payable=provider.payable,
+        payment_method=existing_provider_payment_settings.payment_method.value,
+        payment_method_updated_at=existing_provider_payment_settings.payment_method_updated_at.isoformat(),
+        payable=existing_provider_payment_settings.payable,
     )
 
     return response.model_dump_json(), 200, {"Content-Type": "application/json"}

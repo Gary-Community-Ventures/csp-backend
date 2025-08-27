@@ -144,7 +144,7 @@ def family_data(child_id: Optional[str] = None):
     for c in provider_data:
         provider_id = c.get(ProviderColumnNames.ID)
         # Look up the ProviderPaymentSettings to get payable status
-        provider_orm = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
+        provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
 
         providers.append(
             {
@@ -152,7 +152,7 @@ def family_data(child_id: Optional[str] = None):
                 "name": c.get(ProviderColumnNames.NAME),
                 "status": c.get(ProviderColumnNames.STATUS).lower(),
                 "type": c.get(ProviderColumnNames.TYPE).lower(),
-                "payable": provider_orm.payable if provider_orm else False,
+                "payable": provider_payment_settings.payable if provider_payment_settings else False,
             }
         )
 

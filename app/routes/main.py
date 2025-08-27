@@ -12,7 +12,6 @@ from app.integrations.chek.schemas import (
     ACHPaymentRequest,
     ACHPaymentType,
     CardCreateRequest,
-    CardDetails,
     FlowDirection,
     TransferBalanceRequest,
 )
@@ -149,17 +148,19 @@ def test_chek():
         chek_service = current_app.chek_service
 
         # --- Test: Create Card ---
+        from app.config import CHEK_PROGRAM_ID
+        if not CHEK_PROGRAM_ID:
+            return jsonify({"error": "CHEK_PROGRAM_ID not configured"}), 400
         test_user_id = 750039  # As requested by the user
-        test_amount = 0  # 10.00 USD in cents
+        test_amount = 0  # Initial amount in cents
 
-        card_details = CardDetails(
-            funding_method="wallet",  # Default from docs
-            source_id=test_user_id,  # Assuming source_id is user_id for wallet funding
+        card_request = CardCreateRequest(
+            program_id=int(CHEK_PROGRAM_ID),
+            funding_method="wallet_balance",
             amount=test_amount,
         )
-        card_request = CardCreateRequest(user_id=test_user_id, card_details=card_details)
 
-        new_card = chek_service.create_card(card_request)
+        new_card = chek_service.create_card(test_user_id, card_request)
 
         return jsonify(
             {"message": f"Successfully created a card for user ID {test_user_id}.", "card": new_card.model_dump()}

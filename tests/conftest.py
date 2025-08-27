@@ -17,7 +17,16 @@ def db_session(app):
 
 @pytest.fixture(autouse=True)
 def mock_send_submission_notification(mocker: MockerFixture):
-    mock = mocker.patch("app.routes.child.send_submission_notification")
+    # Mock the email notification that's sent after payment processing
+    mock = mocker.patch("app.routes.child.send_care_days_payment_request_email")
+    return mock
+
+
+@pytest.fixture(autouse=True)
+def mock_payment_service(mocker: MockerFixture):
+    # Mock the payment service process_payment method
+    mock = mocker.patch("app.routes.child.current_app.payment_service.process_payment")
+    mock.return_value = True  # Assume payment succeeds by default
     return mock
 
 

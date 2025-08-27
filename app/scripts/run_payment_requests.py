@@ -72,8 +72,8 @@ def run_payment_requests():
             continue
 
         # Retrieve the ProviderPaymentSettings object
-        provider_orm = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
-        if not provider_orm:
+        provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
+        if not provider_payment_settings:
             app.logger.warning(
                 f"run_payment_requests: Skipping payment for provider ID {provider_id}: Provider not found in database."
             )
