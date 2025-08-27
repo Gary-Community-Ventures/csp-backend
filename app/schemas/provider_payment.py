@@ -33,6 +33,7 @@ class PaymentSettingsResponse(BaseModel):
     last_sync: Optional[str] = Field(None, description="ISO timestamp of last sync with Chek")
     card: dict = Field(..., description="Virtual card information and status")
     ach: dict = Field(..., description="ACH/DirectPay information and status")
+    validation: dict = Field(..., description="Detailed payment method validation status and message")
 
     class Config:
         json_schema_extra = {
@@ -46,6 +47,7 @@ class PaymentSettingsResponse(BaseModel):
                 "last_sync": "2024-01-15T10:30:00Z",
                 "card": {"available": True, "status": "Active", "id": "card_67890"},
                 "ach": {"available": True, "status": "Active", "id": "dp_54321"},
+                "validation": {"is_valid": True, "message": "Payment method is valid and active"},
             }
         }
 

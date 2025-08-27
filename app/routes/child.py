@@ -6,7 +6,6 @@ from app.auth.decorators import (
     ClerkUserType,
     auth_required,
 )
-from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation
 from app.schemas.care_day import AllocatedCareDayResponse
 from app.schemas.month_allocation import (

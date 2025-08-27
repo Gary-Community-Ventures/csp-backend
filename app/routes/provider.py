@@ -234,6 +234,10 @@ def get_payment_settings():
             "status": provider.chek_direct_pay_status,
             "id": provider.chek_direct_pay_id,
         },
+        validation={
+            "is_valid": provider.validate_payment_method_status()[0],
+            "message": provider.validate_payment_method_status()[1],
+        },
     )
 
     return payment_settings.model_dump_json(), 200, {"Content-Type": "application/json"}

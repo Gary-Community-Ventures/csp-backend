@@ -25,15 +25,59 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
     payment_method_updated_at = db.Column(db.DateTime, nullable=True)  # Timestamp of last payment method change
     last_chek_sync_at = db.Column(db.DateTime, nullable=True)  # Timestamp of last sync
 
+    def validate_payment_method_status(self) -> tuple[bool, str]:
+        """
+        Validate payment method status with detailed error messages.
+
+        Returns:
+            tuple: (is_valid, error_message)
+        """
+        if not self.payment_method:
+            return False, "No payment method configured"
+
+        if self.payment_method == PaymentMethod.ACH:
+            if not self.chek_direct_pay_id:
+                return False, "ACH payment method selected but no direct pay account configured"
+
+            if not self.chek_direct_pay_status:
+                return False, "ACH direct pay account has no status information"
+
+            if self.chek_direct_pay_status == "Pending":
+                return False, "ACH direct pay account is still pending setup"
+
+            if self.chek_direct_pay_status == "Inactive":
+                return False, "ACH direct pay account is inactive"
+
+            if self.chek_direct_pay_status != "Active":
+                return False, f"ACH direct pay account has invalid status: {self.chek_direct_pay_status}"
+
+        elif self.payment_method == PaymentMethod.CARD:
+            if not self.chek_card_id:
+                return False, "Card payment method selected but no virtual card configured"
+
+            if not self.chek_card_status:
+                return False, "Virtual card has no status information"
+
+            if self.chek_card_status == "Pending":
+                return False, "Virtual card is still pending setup"
+
+            if self.chek_card_status == "Inactive":
+                return False, "Virtual card is inactive"
+
+            if self.chek_card_status != "Active":
+                return False, f"Virtual card has invalid status: {self.chek_card_status}"
+
+        return True, "Payment method is valid and active"
+
+    def is_status_stale(self) -> bool:
+        """Check if the provider's Chek status information is stale."""
+        stale_threshold = timedelta(minutes=PROVIDER_STATUS_STALE_MINUTES)
+        return self.last_chek_sync_at is None or (datetime.now(timezone.utc) - self.last_chek_sync_at) > stale_threshold
+
     @property
     def payable(self):
         # Check if status is stale
-        stale_threshold = timedelta(minutes=PROVIDER_STATUS_STALE_MINUTES)
-        is_stale = (
-            self.last_chek_sync_at is None or (datetime.now(timezone.utc) - self.last_chek_sync_at) > stale_threshold
-        )
-
-        if is_stale:
+        if self.is_status_stale():
             # Trigger an asynchronous refresh.
             # This would typically involve a background task queue (e.g., Celery, RQ).
             # For now, we just log a warning. The explicit refresh for payment will handle blocking.
@@ -41,10 +85,9 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
             # In a real app, you'd enqueue a task here:
             # current_app.job_manager.enqueue(refresh_chek_status_task, provider_id=self.id)
 
-        # Return payable status based on cached data
-        return (self.chek_direct_pay_status == "Active" and self.payment_method == PaymentMethod.ACH) or (
-            self.chek_card_status == "Active" and self.payment_method == PaymentMethod.CARD
-        )
+        # Use detailed validation for payable status
+        is_valid, _ = self.validate_payment_method_status()
+        return is_valid
 
     def __repr__(self):
         return f"<ProviderPaymentSettings {self.id} - External ID: {self.provider_external_id}>"

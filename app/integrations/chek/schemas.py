@@ -75,16 +75,12 @@ class Card(BaseModel):
 
 
 class CardCreateResponse(BaseModel):
-    id: int
-    card_type: str
-    status: str
-    balance: int
-    last4: str
-    preset: Any = None
-    created_at: datetime
-    user: Dict[str, Any]  # Simplified for now
-    program: Dict[str, Any]
-    card_art: Dict[str, Any]
+    """Response from the new card creation endpoint"""
+
+    user: Dict[str, Any] = Field(description="User details including balance")
+    program: Dict[str, Any] = Field(description="Program details including balance")
+    card: Dict[str, Any] = Field(description="Card details including id, last4, status, type, created")
+    transfer: Dict[str, Any] = Field(description="Transfer details including id, amount, created, type")
 
 
 class DirectPayAccount(BaseModel):
@@ -113,15 +109,12 @@ class UserCreateRequest(BaseModel):
     address: Address
 
 
-class CardDetails(BaseModel):
-    funding_method: str = "wallet"
-    source_id: int
-    amount: int  # In cents
-
-
 class CardCreateRequest(BaseModel):
-    user_id: int
-    card_details: CardDetails
+    """Request for creating a card using the new endpoint"""
+
+    program_id: int
+    funding_method: str = Field(default="wallet_balance", description="Either 'wallet_balance' or 'program_balance'")
+    amount: int = Field(description="Amount in cents to fund the card")
 
 
 class DirectPayAccountInviteRequest(BaseModel):

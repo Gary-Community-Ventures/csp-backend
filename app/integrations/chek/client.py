@@ -190,11 +190,13 @@ class ChekClient:
         """
         return self._request("GET", f"users/{user_id}/")
 
-    def create_card(self, card_data):
+    def create_card(self, user_id, card_data):
         """
-        Creates a new card for a user.
+        Creates a new card for a user using the new endpoint.
+        POST api/v1/accounts/{account_id}/users/{user_id}/create_card/
         """
-        return self._request("POST", "cards/", json=card_data)
+        endpoint = f"accounts/{self.account_id}/users/{user_id}/create_card/"
+        return self._request("POST", endpoint, json=card_data)
 
     def get_card(self, card_id):
         """

@@ -65,12 +65,12 @@ class ChekService:
         user_json = self.client.get_user(user_id)
         return User.model_validate(user_json)
 
-    def create_card(self, card_request: CardCreateRequest) -> CardCreateResponse:
+    def create_card(self, user_id: int, card_request: CardCreateRequest) -> CardCreateResponse:
         """
-        Creates a virtual card for a user.
+        Creates a virtual card for a user using the new endpoint.
         """
         card_data_dict = card_request.model_dump(exclude_none=True)
-        card_json = self.client.create_card(card_data_dict)
+        card_json = self.client.create_card(user_id, card_data_dict)
         return CardCreateResponse.model_validate(card_json)
 
     def get_card(self, card_id: int) -> Card:

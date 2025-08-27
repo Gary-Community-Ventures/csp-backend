@@ -131,6 +131,8 @@ class MonthAllocation(db.Model, TimestampMixin):
     @staticmethod
     def get_or_create_for_month(child_id: str, month_date: date):
         """Get existing allocation or create with default values"""
+        from sqlalchemy.exc import IntegrityError
+
         # Normalize to first of month
         month_start = month_date.replace(day=1)
 
@@ -149,9 +151,14 @@ class MonthAllocation(db.Model, TimestampMixin):
         if month_start > next_month_start:
             raise ValueError(f"Cannot create allocation for a month more than one month in the future.")
 
+        # First, try to get existing allocation
         allocation = MonthAllocation.query.filter_by(google_sheets_child_id=child_id, date=month_start).first()
 
-        if not allocation:
+        if allocation:
+            return allocation
+
+        # Try to create new allocation, handling race conditions with database constraints
+        try:
             # Get allocation amount from child data
             allocation_cents = get_allocation_amount(child_id)
 
@@ -169,8 +176,19 @@ class MonthAllocation(db.Model, TimestampMixin):
             )
             db.session.add(allocation)
             db.session.commit()
+            return allocation
 
-        return allocation
+        except IntegrityError:
+            # Another process created the allocation, rollback and fetch it
+            db.session.rollback()
+            allocation = MonthAllocation.query.filter_by(google_sheets_child_id=child_id, date=month_start).first()
+            if allocation:
+                return allocation
+            else:
+                # This should be very rare - constraint violation but no record found
+                raise RuntimeError(
+                    f"Race condition detected but could not retrieve allocation for child {child_id} and month {month_start}"
+                )
 
     @staticmethod
     def get_for_month(child_id: str, month_date: date):

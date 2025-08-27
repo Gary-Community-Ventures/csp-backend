@@ -9,9 +9,6 @@ from app.enums.payment_attempt_status import PaymentAttemptStatus
 from app.enums.payment_method import PaymentMethod
 from app.exceptions import (
     AllocationExceededException,
-    ChekACHException,
-    ChekServiceException,
-    ChekTransferException,
     DataNotFoundException,
     InvalidPaymentStateException,
     PaymentLimitExceededException,
@@ -189,9 +186,10 @@ class PaymentService:
             self.refresh_provider_status(provider)
             db.session.flush()  # Ensure provider object is updated in session
 
-            # 8. Check if provider is payable after refresh
-            if not provider.payable:
-                current_app.logger.warning(f"Payment skipped for Provider {provider.id}: Not payable after refresh.")
+            # 8. Validate payment method status with detailed error messages
+            is_valid, validation_error = provider.validate_payment_method_status()
+            if not is_valid:
+                current_app.logger.warning(f"Payment skipped for Provider {provider.id}: {validation_error}")
                 # Create a failed payment record
                 payment = self._create_payment_and_attempt(
                     provider=provider,
@@ -204,7 +202,7 @@ class PaymentService:
                     allocated_lump_sums=allocated_lump_sums,
                 )
                 self._update_payment_attempt_status(
-                    payment.attempts[0], PaymentAttemptStatus.FAILED, error_message="Provider not payable"
+                    payment.attempts[0], PaymentAttemptStatus.FAILED, error_message=validation_error
                 )
                 db.session.commit()
                 return False
@@ -369,11 +367,13 @@ class PaymentService:
             # Refresh provider status
             self.refresh_provider_status(provider)
 
-            if not provider.payable:
+            # Validate payment method status
+            is_valid, validation_error = provider.validate_payment_method_status()
+            if not is_valid:
                 self._update_payment_attempt_status(
                     new_attempt,
                     PaymentAttemptStatus.FAILED,
-                    error_message=f"Provider not payable. DirectPay status: {provider.chek_direct_pay_status}",
+                    error_message=validation_error,
                 )
                 db.session.commit()
                 return False
@@ -420,7 +420,6 @@ class PaymentService:
         """
         from app.integrations.chek.schemas import (
             CardCreateRequest,
-            CardDetails,
             DirectPayAccountInviteRequest,
         )
         from app.sheets.mappings import ProviderColumnNames, get_provider, get_providers
@@ -453,28 +452,34 @@ class PaymentService:
                     result["already_exists"] = True
                     return result
 
-                # Create virtual card
+                # Get program ID from config
+                from app.config import CHEK_PROGRAM_ID
+
+                if not CHEK_PROGRAM_ID:
+                    raise PaymentMethodNotConfiguredException("CHEK_PROGRAM_ID not configured")
+
+                # Create virtual card with wallet balance funding
                 card_request = CardCreateRequest(
-                    user_id=int(provider_settings.chek_user_id),
-                    card_details=CardDetails(
-                        funding_method="wallet",
-                        source_id=int(provider_settings.chek_user_id),
-                        amount=0,  # Initial amount
-                    ),
+                    program_id=int(CHEK_PROGRAM_ID),
+                    funding_method="wallet_balance",
+                    amount=0,  # Initial amount in cents
                 )
 
-                card_response = self.chek_service.create_card(card_request)
+                card_response = self.chek_service.create_card(int(provider_settings.chek_user_id), card_request)
 
+                # Extract card ID from the response
+                card_id = card_response.card.get("id")
+                card_status = card_response.card.get("status", "Active")
                 # Update provider settings with card info
-                provider_settings.chek_card_id = str(card_response.id)
-                provider_settings.chek_card_status = "Active"
+                provider_settings.chek_card_id = str(card_id)
+                provider_settings.chek_card_status = card_status
                 provider_settings.payment_method = PaymentMethod.CARD
                 provider_settings.payment_method_updated_at = datetime.now(timezone.utc)
                 provider_settings.last_chek_sync_at = datetime.now(timezone.utc)
                 db.session.commit()
 
                 result["message"] = "Virtual card created successfully"
-                result["card_id"] = card_response.id
+                result["card_id"] = card_id
 
             else:  # ACH
                 # Check if ACH already exists
