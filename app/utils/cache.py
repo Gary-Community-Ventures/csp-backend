@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from app.config import ENV_TESTING
 
@@ -28,12 +28,12 @@ class KeyCache:
         if key not in self._cache:
             raise self.NotFound(f"Cache key {key} not found.")
 
-        expired = self._cache[key].expires_at < datetime.now(timezone.utc) and not self._cache[key].is_refreshing
+        expired = self._cache[key].expires_at < datetime.now() and not self._cache[key].is_refreshing
 
         return self._cache[key].data, expired
 
     def set(self, key, value):
-        self._cache[key] = CacheValue(datetime.now(timezone.utc) + timedelta(seconds=self.refresh_time), value)
+        self._cache[key] = CacheValue(datetime.now() + timedelta(seconds=self.refresh_time), value)
 
     def set_refreshing(self, key):
         if key not in self._cache:
@@ -54,20 +54,20 @@ class Cache:
 
         self._cache = func()
         self._expiration_time = expiration_time
-        self._expires_at = datetime.now(timezone.utc) + timedelta(seconds=self._expiration_time)
+        self._expires_at = datetime.now() + timedelta(seconds=self._expiration_time)
         self._updating = False
 
     def get(self):
         if self._updating:
             return self._cache
 
-        if self._expires_at < datetime.now(timezone.utc):
+        if self._expires_at < datetime.now():
             if self._dont_run:
                 return
 
             self._updating = True
             self._cache = self._func()
-            self._expires_at = datetime.now(timezone.utc) + timedelta(seconds=self._expiration_time)
+            self._expires_at = datetime.now() + timedelta(seconds=self._expiration_time)
             self._updating = False
 
         return self._cache
