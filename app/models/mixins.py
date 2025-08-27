@@ -6,7 +6,7 @@ class TimestampMixin:
 
     __abstract__ = True  # This is an abstract mixin, not a standalone model
 
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=db.func.current_timestamp(), nullable=False)
     updated_at = db.Column(
-        db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp(), nullable=False
+        db.DateTime(timezone=True), default=db.func.current_timestamp(), onupdate=db.func.current_timestamp(), nullable=False
     )

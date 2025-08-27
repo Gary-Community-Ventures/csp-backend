@@ -1,8 +1,10 @@
+import zoneinfo
 from datetime import date, datetime
 from datetime import time as dt_time
 from datetime import timedelta, timezone
 from decimal import Decimal
 
+from ..config import BUSINESS_TIMEZONE
 from ..enums.care_day_type import CareDayType
 from ..extensions import db
 from .mixins import TimestampMixin
@@ -41,12 +43,12 @@ class AllocatedCareDay(db.Model, TimestampMixin):
 
     # Status tracking
     payment_distribution_requested = db.Column(db.Boolean, default=False)
-    last_submitted_at = db.Column(db.DateTime, nullable=True)
+    last_submitted_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     # Soft delete
-    deleted_at = db.Column(db.DateTime, nullable=True)
+    deleted_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
-    locked_date = db.Column(db.DateTime, nullable=False)
+    locked_date = db.Column(db.DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         # Prevent duplicate care days for same allocation/provider/date (including soft deleted)
@@ -78,7 +80,23 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     @property
     def is_locked(self):
         """Check if this care day is locked"""
-        return datetime.now() > self.locked_date
+        if not self.locked_date:
+            return False
+            
+        # Use business timezone for logic
+        business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
+        now_business = datetime.now(business_tz)
+        
+        # Handle both timezone-aware and timezone-naive locked_date
+        if self.locked_date.tzinfo:
+            # If locked_date is timezone-aware, convert to business timezone
+            locked_date_business = self.locked_date.astimezone(business_tz)
+        else:
+            # If locked_date is timezone-naive, assume it's UTC and convert
+            locked_date_utc = self.locked_date.replace(tzinfo=timezone.utc)
+            locked_date_business = locked_date_utc.astimezone(business_tz)
+            
+        return now_business > locked_date_business
 
     @property
     def is_deleted(self):
@@ -107,8 +125,10 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         day_type: CareDayType,
     ):
         """Create a new care day with proper validation"""
-        # Prevent creating care days in the past
-        if care_date < date.today():
+        # Prevent creating care days in the past (using business timezone)
+        business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
+        today_business = datetime.now(business_tz).date()
+        if care_date < today_business:
             raise ValueError("Cannot create a care day in the past.")
 
         # Check if allocation can handle this care day
@@ -153,10 +173,14 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         # Calculate and set locked_date
         days_since_monday = care_date.weekday()
         monday = care_date - timedelta(days=days_since_monday)
-        calculated_locked_date = datetime.combine(monday, dt_time(23, 59, 59))
+        
+        # Create timezone-aware locked_date in business timezone
+        business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
+        calculated_locked_date = datetime.combine(monday, dt_time(23, 59, 59), tzinfo=business_tz)
 
-        # Prevent creating a care day that would be locked
-        if datetime.now() > calculated_locked_date:
+        # Prevent creating a care day that would be locked (using business timezone)
+        now_business = datetime.now(business_tz)
+        if now_business > calculated_locked_date:
             raise ValueError("Cannot create a care day that would be locked.")
 
         # Create new care day
