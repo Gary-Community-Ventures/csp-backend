@@ -13,12 +13,10 @@ from app.auth.decorators import (
 )
 from app.auth.helpers import get_current_user, get_family_user, get_provider_user
 from app.constants import MAX_CHILDREN_PER_PROVIDER
-from app.data.providers.mappings import ProviderListColumnNames
 from app.extensions import db
 from app.models.attendance import Attendance
 from app.models.provider_invitation import ProviderInvitation
 from app.sheets.helpers import KeyMap, format_name, get_row
-from app.sheets.integration import get_csv_data
 from app.sheets.mappings import (
     ChildColumnNames,
     FamilyColumnNames,
@@ -41,7 +39,6 @@ from app.sheets.mappings import (
 from app.utils.email_service import (
     get_from_email_internal,
     html_link,
-    send_add_licensed_provider_email,
     send_email,
     send_provider_invite_accept_email,
 )
@@ -194,90 +191,6 @@ def family_data(child_id: Optional[str] = None):
             "is_also_provider": ClerkUserType.PROVIDER.value in user.user_data.types,
         }
     )
-
-
-@bp.get("/family/licensed-providers")
-@auth_required(ClerkUserType.FAMILY)
-def licensed_providers():
-    data = get_csv_data("app/data/providers/list.csv")
-
-    providers = []
-    for row in data:
-        providers.append(
-            {
-                "license_number": row.get(ProviderListColumnNames.LICENSE_NUMBER),
-                "name": row.get(ProviderListColumnNames.PROVIDER_NAME),
-                "address": {
-                    "street_address": row.get(ProviderListColumnNames.STREET_ADDRESS),
-                    "city": row.get(ProviderListColumnNames.CITY),
-                    "state": row.get(ProviderListColumnNames.STATE),
-                    "zip": row.get(ProviderListColumnNames.ZIP),
-                    "county": row.get(ProviderListColumnNames.COUNTY),
-                },
-                "rating": row.get(ProviderListColumnNames.QUALITY_RATING),
-            }
-        )
-
-    return jsonify({"providers": providers})
-
-
-@bp.post("/family/licensed-providers")
-@auth_required(ClerkUserType.FAMILY)
-def add_licensed_provider():
-    data = request.json
-
-    # Validate required fields
-    if "license_number" not in data:
-        abort(400, description="Missing required field: license_number")
-    if "child_ids" not in data:
-        abort(400, description="Missing required field: child_ids")
-    if type(data["child_ids"]) != list:
-        abort(400, description="child_ids must be a list of child IDs")
-
-    user = get_family_user()
-
-    family_id = user.user_data.family_id
-
-    child_rows = get_children()
-    family_rows = get_families()
-
-    licensed_provideer_rows = get_csv_data("app/data/providers/list.csv")
-
-    provider = get_row(
-        licensed_provideer_rows,
-        data["license_number"],
-        id_key=ProviderListColumnNames.LICENSE_NUMBER,
-    )
-    if provider is None:
-        abort(
-            404,
-            description=f"Provider with license number {data['license_number']} not found.",
-        )
-
-    family = get_family(family_id, family_rows)
-    if family is None:
-        abort(404, description=f"Family with ID {family_id} not found.")
-
-    family_children = get_family_children(family_id, child_rows)
-
-    children: list[KeyMap] = []
-    for child_id in data["child_ids"]:
-        child = get_child(child_id, family_children)
-
-        if child is None:
-            abort(404, description=f"Child with ID {child_id} not found.")
-
-        children.append(child)
-
-    send_add_licensed_provider_email(
-        license_number=provider.get(ProviderListColumnNames.LICENSE_NUMBER),
-        provider_name=provider.get(ProviderListColumnNames.PROVIDER_NAME),
-        parent_name=format_name(family),
-        parent_id=family.get(FamilyColumnNames.ID),
-        children=children,
-    )
-
-    return jsonify({"message": "Success"}, 201)
 
 
 @dataclass
