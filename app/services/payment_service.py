@@ -266,7 +266,7 @@ class PaymentService:
                 )
                 # Assuming chek_direct_pay_id is available and valid
                 if not provider.chek_direct_pay_id:
-                    raise ValueError("Provider has no direct pay account ID for ACH payment.")
+                    raise PaymentMethodNotConfiguredException("Provider has no direct pay account ID for ACH payment")
 
                 ach_response = self.chek_service.send_ach_payment(
                     direct_pay_account_id=int(provider.chek_direct_pay_id), request=ach_request
@@ -437,7 +437,7 @@ class PaymentService:
                 current_app.logger.info(f"Onboarded provider {provider_external_id} to Chek")
 
             if not provider_settings.chek_user_id:
-                raise ValueError("Provider has no Chek user ID")
+                raise PaymentMethodNotConfiguredException("Provider has no Chek user ID")
 
             result = {
                 "provider_id": provider_external_id,
@@ -489,11 +489,11 @@ class PaymentService:
                 provider_data = get_provider(provider_external_id, provider_rows)
 
                 if not provider_data:
-                    raise ValueError(f"Provider {provider_external_id} not found in Google Sheets")
+                    raise ProviderNotFoundException(f"Provider {provider_external_id} not found in Google Sheets")
 
                 provider_email = provider_data.get(ProviderColumnNames.EMAIL)
                 if not provider_email:
-                    raise ValueError(f"Provider {provider_external_id} has no email address")
+                    raise DataNotFoundException(f"Provider {provider_external_id} has no email address")
 
                 # Send ACH invite
                 invite_request = DirectPayAccountInviteRequest(
@@ -575,7 +575,7 @@ class PaymentService:
             provider_data = get_provider(provider_external_id, provider_rows)
 
             if not provider_data:
-                raise ValueError(f"Provider {provider_external_id} not found in Google Sheets")
+                raise ProviderNotFoundException(f"Provider {provider_external_id} not found in Google Sheets")
 
             # Extract provider information
             provider_email = provider_data.get(ProviderColumnNames.EMAIL)
@@ -589,7 +589,7 @@ class PaymentService:
             country_code = provider_data.get(ProviderColumnNames.COUNTRY_CODE, "US")
 
             if not provider_email:
-                raise ValueError(f"Provider {provider_external_id} has no email in Google Sheets")
+                raise DataNotFoundException(f"Provider {provider_external_id} has no email in Google Sheets")
 
             # Check if Chek user already exists with this email
             existing_chek_user = self.chek_service.get_user_by_email(provider_email)
