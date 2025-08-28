@@ -24,7 +24,7 @@ class Key(Generic[T]):
         try:
             return self._converter(value)
         except ValueError:
-            current_app.logger.error(f"Failed to convert value {value} to type {self._converter}")
+            current_app.logger.error(f"Failed to convert value '{value}' to type '{self._converter}'")
             return self.default
 
     def __str__(self):
