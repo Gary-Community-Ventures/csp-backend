@@ -85,7 +85,7 @@ def submit_care_days(child_id, provider_id, month, year):
         return jsonify({"error": "Child not found"}), 404
 
     if not child_data.get(ChildColumnNames.PAYMENT_ENABLED):
-        return jsonify({"error": "Cannot submit: family payment not enabled"}), 400
+        return jsonify({"error": "Cannot submit: child payment not enabled"}), 400
 
     provider_data = get_provider(provider_id, get_providers())
     if not provider_data:
