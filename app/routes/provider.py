@@ -44,6 +44,7 @@ from app.utils.email_service import (
     html_link,
     send_email,
     send_family_invite_accept_email,
+    send_family_invited_email,
 )
 from app.utils.sms_service import send_sms
 
@@ -259,6 +260,8 @@ def invite_family():
                 invitation.record_sms_sent()
     finally:
         db.session.commit()
+
+    send_family_invited_email(format_name(provider), provider.get(ProviderColumnNames.ID), invitation.public_id)
 
     return jsonify({"message": "Success"}, 201)
 
