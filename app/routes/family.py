@@ -134,6 +134,7 @@ def family_data(child_id: Optional[str] = None):
         "balance": child_data.get(ChildColumnNames.BALANCE),
         "monthly_allocation": child_data.get(ChildColumnNames.MONTHLY_ALLOCATION),
         "prorated_first_month_allocation": child_data.get(ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION),
+        "is_payment_enabled": child_data.get(ChildColumnNames.PAYMENT_ENABLED),
     }
 
     providers = [
@@ -142,6 +143,7 @@ def family_data(child_id: Optional[str] = None):
             "name": c.get(ProviderColumnNames.NAME),
             "status": c.get(ProviderColumnNames.STATUS).lower(),
             "type": c.get(ProviderColumnNames.TYPE).lower(),
+            "is_payment_enabled": c.get(ProviderColumnNames.PAYMENT_ENABLED),
         }
         for c in provider_data
     ]
