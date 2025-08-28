@@ -48,8 +48,6 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     # Soft delete
     deleted_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
-    locked_date = db.Column(db.DateTime(timezone=True), nullable=False)
-
     __table_args__ = (
         # Prevent duplicate care days for same allocation/provider/date (including soft deleted)
         db.UniqueConstraint(
@@ -78,6 +76,20 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         return self.last_submitted_at is None
 
     @property
+    def locked_date(self):
+        """Calculate the locked date for this care day"""
+        if not self.date:
+            return None
+
+        # Calculate Monday of the week containing this care day
+        days_since_monday = self.date.weekday()
+        monday = self.date - timedelta(days=days_since_monday)
+
+        # Create timezone-aware locked_date in business timezone (Monday at 23:59:59)
+        business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
+        return datetime.combine(monday, dt_time(23, 59, 59), tzinfo=business_tz)
+
+    @property
     def is_locked(self):
         """Check if this care day is locked"""
         if not self.locked_date:
@@ -87,10 +99,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
         now_business = datetime.now(business_tz)
 
-        # Convert locked_date to business timezone for comparison
-        locked_date_business = self.locked_date.astimezone(business_tz)
-
-        return now_business > locked_date_business
+        return now_business > self.locked_date
 
     @property
     def is_deleted(self):
@@ -164,19 +173,6 @@ class AllocatedCareDay(db.Model, TimestampMixin):
                 child_id=allocation.google_sheets_child_id,
             ),
         )
-        # Calculate and set locked_date
-        days_since_monday = care_date.weekday()
-        monday = care_date - timedelta(days=days_since_monday)
-
-        # Create timezone-aware locked_date in business timezone
-        business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
-        calculated_locked_date = datetime.combine(monday, dt_time(23, 59, 59), tzinfo=business_tz)
-
-        # Prevent creating a care day that would be locked (using business timezone)
-        now_business = datetime.now(business_tz)
-        if now_business > calculated_locked_date:
-            raise ValueError("Cannot create a care day that would be locked.")
-
         # Create new care day
         care_day = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
@@ -188,8 +184,13 @@ class AllocatedCareDay(db.Model, TimestampMixin):
                 provider_id=provider_id,
                 child_id=allocation.google_sheets_child_id,
             ),
-            locked_date=calculated_locked_date,
         )
+
+        # Prevent creating a care day that would be locked (using business timezone)
+        business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
+        now_business = datetime.now(business_tz)
+        if now_business > care_day.locked_date:
+            raise ValueError("Cannot create a care day that would be locked.")
 
         db.session.add(care_day)
         db.session.commit()

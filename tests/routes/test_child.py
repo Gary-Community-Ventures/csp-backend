@@ -62,7 +62,6 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
             date=date.today() + timedelta(days=7),  # Set date to a week in the future
-            locked_date=datetime.now(timezone.utc) + timedelta(days=20),
             type="Full Day",
             amount_cents=6000,
             last_submitted_at=None,
@@ -74,7 +73,6 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
             date=date.today() + timedelta(days=1),  # Set date to tomorrow
-            locked_date=datetime.now(timezone.utc) + timedelta(days=20),
             type="Half Day",
             amount_cents=4000,
             last_submitted_at=datetime.now(timezone.utc) - timedelta(days=5),  # Submitted 5 days ago
@@ -89,7 +87,6 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
             date=date.today() + timedelta(days=2),  # Set date to two days from now
-            locked_date=datetime.now(timezone.utc) + timedelta(days=20),
             type="Full Day",
             amount_cents=6000,
             last_submitted_at=datetime.now(timezone.utc) - timedelta(days=10),  # Submitted 10 days ago
@@ -103,7 +100,6 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
             date=locked_date_past.date(),  # Ensure it's locked
-            locked_date=locked_date_past,
             type="Full Day",
             amount_cents=6000,
             last_submitted_at=datetime.now(timezone.utc) - timedelta(days=10),  # Submitted 10 days ago
@@ -118,7 +114,6 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
             date=date.today() + timedelta(days=3),  # Set date to three days from now
-            locked_date=datetime.now(timezone.utc) + timedelta(days=20),
             type="Full Day",
             amount_cents=6000,
             deleted_at=datetime.now(timezone.utc),

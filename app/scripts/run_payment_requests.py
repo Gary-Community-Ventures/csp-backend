@@ -1,5 +1,4 @@
 from collections import defaultdict
-from datetime import datetime, timezone
 
 from app import create_app
 from app.extensions import db
@@ -23,16 +22,20 @@ def run_payment_requests():
     app.logger.info("run_payment_requests: Starting payment request processing...")
 
     # Query for submitted and unprocessed care days
+    # We need to check if care days are locked by checking their dates
+    # A care day is locked if current time > Monday 23:59:59 of the week containing the care day
     care_days_to_process = (
         AllocatedCareDay.query.join(MonthAllocation)
         .filter(
             AllocatedCareDay.last_submitted_at.isnot(None),
             AllocatedCareDay.payment_distribution_requested.is_(False),
             AllocatedCareDay.deleted_at.is_(None),
-            AllocatedCareDay.locked_date <= datetime.now(timezone.utc),
         )
         .all()
     )
+
+    # Filter out care days that are not yet locked
+    care_days_to_process = [cd for cd in care_days_to_process if cd.is_locked]
 
     if not care_days_to_process:
         app.logger.warning("run_payment_requests: No submitted and unprocessed care days found.")
