@@ -22,8 +22,6 @@ def run_payment_requests():
     app.logger.info("run_payment_requests: Starting payment request processing...")
 
     # Query for submitted and unprocessed care days
-    # We need to check if care days are locked by checking their dates
-    # A care day is locked if current time > Monday 23:59:59 of the week containing the care day
     care_days_to_process = (
         AllocatedCareDay.query.join(MonthAllocation)
         .filter(
