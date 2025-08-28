@@ -11,12 +11,9 @@ from app.schemas.payment import (
 )
 from app.sheets.mappings import (
     ChildColumnNames,
-    FamilyColumnNames,
     ProviderColumnNames,
     get_child,
     get_children,
-    get_families,
-    get_family,
     get_family_children,
     get_provider,
     get_providers,
@@ -140,7 +137,6 @@ def get_provider_payment_history():
 
     # Get child and family data for names
     all_children_data = get_children()
-    all_families_data = get_families()
 
     # Build response
     payment_items = []

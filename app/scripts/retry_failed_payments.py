@@ -11,12 +11,12 @@ Usage:
 
 import argparse
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 from uuid import UUID
 
 from app import create_app
 from app.extensions import db
-from app.models import PaymentAttempt, PaymentIntent, ProviderPaymentSettings
+from app.models import PaymentAttempt, PaymentIntent
 from app.services.payment_service import PaymentService
 
 # Create Flask app context
@@ -50,7 +50,6 @@ def list_failed_payment_intents(since_date=None):
     print("-" * 80)
 
     for intent in failed_intents:
-        provider_payment_settings = intent.provider_payment_settings
         last_attempt = intent.latest_attempt
 
         print(f"Intent ID: {intent.id}")
