@@ -19,6 +19,7 @@ from app.sheets.mappings import (
     get_families,
     get_family,
     get_family_children,
+    get_provider,
     get_provider_child_mappings,
     get_providers,
 )
@@ -76,7 +77,7 @@ def create_lump_sum():
     if not provider_found:
         return jsonify({"error": "Provider not associated with the specified child."}), 403
 
-    provider_data = provider
+    provider_data = get_provider(provider_id, provider_rows)
     if not provider_data.get(ProviderColumnNames.PAYMENT_ENABLED):
         return jsonify({"error": "Cannot submit: provider payment not enabled"}), 400
 
