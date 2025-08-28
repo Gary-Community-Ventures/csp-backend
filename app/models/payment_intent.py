@@ -2,7 +2,6 @@ import uuid
 from typing import List, Optional
 
 from sqlalchemy.dialects.postgresql import JSON, UUID
-from sqlalchemy.orm import relationship
 
 from ..extensions import db
 from .mixins import TimestampMixin
@@ -24,7 +23,7 @@ class PaymentIntent(db.Model, TimestampMixin):
     month_allocation_id = db.Column(
         db.Integer, db.ForeignKey("month_allocation.id", name="fk_payment_intent_month_allocation_id"), nullable=False
     )
-    month_allocation = relationship("MonthAllocation", backref="payment_intents")
+    month_allocation = db.relationship("MonthAllocation", backref="payment_intents")
 
     # Amount to pay (computed from care days + lump sums)
     amount_cents = db.Column(db.Integer, nullable=False)
@@ -39,11 +38,11 @@ class PaymentIntent(db.Model, TimestampMixin):
         db.ForeignKey("provider_payment_settings.id", name="fk_payment_intent_provider_settings_id"),
         nullable=False,
     )
-    provider_payment_settings = relationship("ProviderPaymentSettings", backref="payment_intents")
+    provider_payment_settings = db.relationship("ProviderPaymentSettings", backref="payment_intents")
 
     # Relationships
-    attempts = relationship("PaymentAttempt", back_populates="intent", order_by="PaymentAttempt.attempt_number")
-    payment = relationship("Payment", back_populates="intent", uselist=False)  # One-to-one when successful
+    attempts = db.relationship("PaymentAttempt", back_populates="intent", order_by="PaymentAttempt.attempt_number")
+    payment = db.relationship("Payment", back_populates="intent", uselist=False)  # One-to-one when successful
 
     # Metadata
     description = db.Column(db.Text, nullable=True)  # Human-readable description

@@ -40,6 +40,7 @@ class User(BaseModel):
     directpay: Optional[DirectPayInfo] = None
     b2b_pay: Any = None  # Or a more specific model if needed
     cards: List[CardInfo]
+    balance: int  # In cents
 
 
 class UserCreateResponse(BaseModel):

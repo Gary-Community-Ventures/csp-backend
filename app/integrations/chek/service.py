@@ -109,7 +109,9 @@ class ChekService:
         current_app.logger.debug(f"Chek transfer_balance response: {response_json}")
         return TransferBalanceResponse.model_validate(response_json)
 
-    def send_ach_payment(self, direct_pay_account_id: str, request: ACHPaymentRequest) -> DirectPayAccount:
+    def send_ach_payment(
+        self, user_id: int, direct_pay_account_id: str, request: ACHPaymentRequest
+    ) -> DirectPayAccount:
         """
         Initiates a Same-Day ACH transfer to a recipient's linked bank account.
         Requires the DirectPay account to be Active.
@@ -121,7 +123,7 @@ class ChekService:
         #         f"DirectPay account {direct_pay_account_id} is not Active. Current status: {direct_pay_account.status}"
         #     )
 
-        endpoint = f"directpay_accounts/{direct_pay_account_id}/send_payment/"
+        endpoint = f"directpay_accounts/{direct_pay_account_id}/{user_id}/send_payment/"
         request_data = request.model_dump()
         response_json = self.client._request("POST", endpoint, json=request_data)
         current_app.logger.debug(f"Chek send_ach_payment response: {response_json}")

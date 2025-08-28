@@ -848,6 +848,7 @@ class PaymentService:
 
             # Check if Chek user already exists with this email
             existing_chek_user = self.chek_service.get_user_by_email(provider_email)
+            balance = existing_chek_user.balance if existing_chek_user else 0
 
             if existing_chek_user:
                 # User already exists in Chek, just create the ProviderPaymentSettings
@@ -877,6 +878,7 @@ class PaymentService:
                     f"Created Chek user {chek_user_response.id} for provider {provider_external_id}"
                 )
                 chek_user_id = str(chek_user_response.id)
+                balance = chek_user_response.balance
 
             # Create ProviderPaymentSettings record
             provider_payment_settings = ProviderPaymentSettings(
@@ -884,7 +886,7 @@ class PaymentService:
                 provider_external_id=provider_external_id,
                 chek_user_id=chek_user_id,
                 payment_method=None,  # Provider chooses this later
-                chek_wallet_balance=chek_user_response.balance,
+                chek_wallet_balance=balance,
             )
             db.session.add(provider_payment_settings)
             db.session.commit()

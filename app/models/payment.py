@@ -1,7 +1,6 @@
 import uuid
 
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
 
 from ..enums.payment_method import PaymentMethod
@@ -16,13 +15,13 @@ class Payment(db.Model, TimestampMixin):
     payment_intent_id = db.Column(
         UUID(as_uuid=True), ForeignKey("payment_intent.id", name="fk_payment_intent_id"), nullable=False, unique=True
     )
-    intent = relationship("PaymentIntent", back_populates="payment")
+    intent = db.relationship("PaymentIntent", back_populates="payment")
 
     # Link to the successful attempt
     successful_attempt_id = db.Column(
         UUID(as_uuid=True), ForeignKey("payment_attempt.id", name="fk_payment_successful_attempt_id"), nullable=False
     )
-    successful_attempt = relationship("PaymentAttempt", foreign_keys=[successful_attempt_id])
+    successful_attempt = db.relationship("PaymentAttempt", foreign_keys=[successful_attempt_id])
 
     external_provider_id = db.Column(db.String(64), nullable=False, index=True)  # Google Sheets ID
     external_child_id = db.Column(db.String(64), nullable=True, index=True)  # Google Sheets ID
@@ -32,7 +31,7 @@ class Payment(db.Model, TimestampMixin):
         ForeignKey("provider_payment_settings.id", name="fk_payment_provider_settings_id"),
         nullable=False,
     )
-    provider_payment_settings = relationship("ProviderPaymentSettings", backref="payments")
+    provider_payment_settings = db.relationship("ProviderPaymentSettings", backref="payments")
 
     chek_user_id = db.Column(db.String(64), nullable=True, index=True)
     chek_direct_pay_id = db.Column(db.String(64), nullable=True, index=True)
@@ -43,15 +42,15 @@ class Payment(db.Model, TimestampMixin):
     payment_method = db.Column(db.Enum(PaymentMethod), nullable=False)
 
     # Relationships
-    attempts = relationship("PaymentAttempt", foreign_keys="PaymentAttempt.payment_id", back_populates="payment")
+    attempts = db.relationship("PaymentAttempt", foreign_keys="PaymentAttempt.payment_id", back_populates="payment")
 
     # Relationships to allocations
     month_allocation_id = db.Column(
         db.Integer, ForeignKey("month_allocation.id", name="fk_payment_month_allocation_id"), nullable=True
     )
-    month_allocation = relationship("MonthAllocation", backref="payments")
+    month_allocation = db.relationship("MonthAllocation", backref="payments")
     allocated_care_days = db.relationship("AllocatedCareDay", back_populates="payment")
-    allocated_lump_sums = relationship("AllocatedLumpSum", backref="payment")
+    allocated_lump_sums = db.relationship("AllocatedLumpSum", backref="payment")
 
     @property
     def has_successful_attempt(self):
