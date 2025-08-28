@@ -1,4 +1,5 @@
 from typing import Optional
+
 from ..extensions import db
 from .mixins import TimestampMixin
 
