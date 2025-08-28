@@ -16,7 +16,7 @@ from uuid import UUID
 
 from app import create_app
 from app.extensions import db
-from app.models import PaymentIntent, PaymentAttempt, ProviderPaymentSettings
+from app.models import PaymentAttempt, PaymentIntent, ProviderPaymentSettings
 from app.services.payment_service import PaymentService
 
 # Create Flask app context
@@ -32,7 +32,7 @@ def list_failed_payment_intents(since_date=None):
         .join(PaymentAttempt)
         .filter(
             PaymentAttempt.error_message.isnot(None),  # Has failed attempts
-            PaymentIntent.payment.is_(None)  # No successful payment created
+            PaymentIntent.payment.is_(None),  # No successful payment created
         )
     )
 
@@ -87,7 +87,7 @@ def retry_payment_intent(intent_id):
         payment_service = PaymentService(app)
 
         success = payment_service.retry_payment_intent(str(intent_id))
-        
+
         if success:
             print(f"✓ Payment Intent {intent_id} retry successful")
             return True

@@ -46,9 +46,7 @@ def create_monthly_allocations(from_info: str = "scheduler", **kwargs) -> Dict[s
         # Process each child
         for child_data in all_children:
             child_id = child_data.get(ChildColumnNames.ID)
-            child_name = (
-                f"{child_data.get(ChildColumnNames.FIRST_NAME)} {child_data.get(ChildColumnNames.LAST_NAME)}"
-            )
+            child_name = f"{child_data.get(ChildColumnNames.FIRST_NAME)} {child_data.get(ChildColumnNames.LAST_NAME)}"
 
             if not child_id:
                 current_app.logger.warning(f"Skipping child with missing ID: {child_name}")

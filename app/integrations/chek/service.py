@@ -144,6 +144,7 @@ class ChekService:
                 "card_id": None,
                 "card_status": None,
                 "timestamp": datetime.now(timezone.utc),
+                "wallet_balance": user_details.balance,
             }
 
             # Extract direct pay status

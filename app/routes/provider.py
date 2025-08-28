@@ -298,7 +298,7 @@ def update_payment_settings():
         # Trigger a status refresh for the new payment method
         try:
             payment_service = current_app.payment_service
-            payment_service.refresh_provider_status(existing_provider_payment_settings)
+            payment_service.refresh_provider_settings(existing_provider_payment_settings)
         except Exception as e:
             current_app.logger.warning(f"Failed to refresh provider status during payment method update: {e}")
             # Don't fail the request if refresh fails
@@ -391,7 +391,9 @@ def refresh_my_payment_status():
 
     try:
         # Import here to avoid circular imports
-        from app.jobs.refresh_provider_status_job import enqueue_provider_status_refresh
+        from app.jobs.refresh_provider_settings_job import (
+            enqueue_provider_status_refresh,
+        )
 
         job = enqueue_provider_status_refresh(provider_payment_settings, from_info="manual_refresh")
 

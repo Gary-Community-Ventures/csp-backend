@@ -26,7 +26,9 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
     provider_google_sheets_id = db.Column(db.String(64), nullable=False, index=True)
 
     # Payment tracking
-    payment_id = db.Column(db.UUID(as_uuid=True), db.ForeignKey("payment.id", name="fk_allocated_lump_sum_payment_id"), nullable=True)
+    payment_id = db.Column(
+        db.UUID(as_uuid=True), db.ForeignKey("payment.id", name="fk_allocated_lump_sum_payment_id"), nullable=True
+    )
     paid_at = db.Column(db.DateTime, nullable=True)
     submitted_at = db.Column(db.DateTime, nullable=True)
 

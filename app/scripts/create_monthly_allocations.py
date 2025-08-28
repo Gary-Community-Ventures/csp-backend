@@ -4,7 +4,7 @@ Manual monthly allocation creation script.
 
 Usage:
     python app/scripts/create_monthly_allocations.py                    # Create for current month
-    python app/scripts/create_monthly_allocations.py --month 2024-03   # Create for specific month  
+    python app/scripts/create_monthly_allocations.py --month 2024-03   # Create for specific month
     python app/scripts/create_monthly_allocations.py --next-month      # Create for next month
     python app/scripts/create_monthly_allocations.py --dry-run         # Show what would be created
 """
@@ -16,7 +16,7 @@ from datetime import date, datetime, timedelta
 from typing import Any, Dict
 
 # Add the project root to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from app import create_app
 from app.config import DAYS_TO_NEXT_MONTH
@@ -32,18 +32,18 @@ app.app_context().push()
 def create_allocations_for_month(target_month: date, dry_run: bool = False) -> Dict[str, Any]:
     """
     Create monthly allocations for all children for a specific month.
-    
+
     Args:
         target_month: Date representing the first day of the target month
         dry_run: If True, show what would be created without actually creating
-        
+
     Returns:
         Dict with results: created_count, skipped_count, error_count, etc.
     """
     try:
         # Ensure target_month is first day of month
         target_month = target_month.replace(day=1)
-        
+
         print(f"\n{'[DRY RUN] ' if dry_run else ''}Creating monthly allocations for {target_month.strftime('%B %Y')}")
         print("-" * 60)
 
@@ -68,9 +68,7 @@ def create_allocations_for_month(target_month: date, dry_run: bool = False) -> D
         # Process each child
         for child_data in all_children:
             child_id = child_data.get(ChildColumnNames.ID)
-            child_name = (
-                f"{child_data.get(ChildColumnNames.FIRST_NAME)} {child_data.get(ChildColumnNames.LAST_NAME)}"
-            )
+            child_name = f"{child_data.get(ChildColumnNames.FIRST_NAME)} {child_data.get(ChildColumnNames.LAST_NAME)}"
 
             if not child_id:
                 print(f"⚠️  Skipping child with missing ID: {child_name}")
@@ -85,7 +83,9 @@ def create_allocations_for_month(target_month: date, dry_run: bool = False) -> D
                 ).first()
 
                 if existing_allocation:
-                    print(f"⏭️  {child_name} ({child_id}) - Already exists (${existing_allocation.allocation_cents / 100:.2f})")
+                    print(
+                        f"⏭️  {child_name} ({child_id}) - Already exists (${existing_allocation.allocation_cents / 100:.2f})"
+                    )
                     skipped_count += 1
                     continue
 
@@ -94,6 +94,7 @@ def create_allocations_for_month(target_month: date, dry_run: bool = False) -> D
                     try:
                         # Get allocation amount that would be created
                         from app.models.month_allocation import get_allocation_amount
+
                         allocation_cents = get_allocation_amount(child_id)
                         print(f"✨ {child_name} ({child_id}) - Would create ${allocation_cents / 100:.2f}")
                         created_count += 1
@@ -205,12 +206,12 @@ Examples:
             except ValueError:
                 print(f"❌ Invalid month format: {args.month}. Use YYYY-MM (e.g., 2024-03)")
                 sys.exit(1)
-                
+
             result = create_allocations_for_month(target_month, args.dry_run)
-            
+
         elif args.next_month:
             result = create_allocations_for_next_month(args.dry_run)
-            
+
         else:
             # Default: create for current month
             result = create_allocations_for_current_month(args.dry_run)

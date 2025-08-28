@@ -21,6 +21,7 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
     chek_direct_pay_status = db.Column(db.String(32), nullable=True)  # Cached status
     chek_card_id = db.Column(db.String(64), nullable=True, index=True)
     chek_card_status = db.Column(db.String(32), nullable=True)  # Cached status
+    chek_wallet_balance = db.Column(db.Integer, nullable=True)  # Cached wallet balance
     payment_method = db.Column(db.Enum(PaymentMethod), nullable=True)
     payment_method_updated_at = db.Column(
         db.DateTime(timezone=True), nullable=True
@@ -82,7 +83,7 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
         if self.is_status_stale():
             try:
                 # Import here to avoid circular imports
-                from app.jobs.refresh_provider_status_job import (
+                from app.jobs.refresh_provider_settings_job import (
                     enqueue_provider_status_refresh,
                 )
 

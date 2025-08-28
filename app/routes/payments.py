@@ -83,7 +83,9 @@ def get_family_payment_history():
         month_str = month_allocation.date.strftime("%Y-%m") if month_allocation else "Unknown"
 
         # Determine payment type
-        payment_type = "care_days" if payment.allocated_care_days else "lump_sum" if payment.allocated_lump_sums else "other"
+        payment_type = (
+            "care_days" if payment.allocated_care_days else "lump_sum" if payment.allocated_lump_sums else "other"
+        )
 
         payment_items.append(
             FamilyPaymentHistoryItem(
@@ -175,7 +177,9 @@ def get_provider_payment_history():
             )
 
         # Determine payment type
-        payment_type = "care_days" if payment.allocated_care_days else "lump_sum" if payment.allocated_lump_sums else "other"
+        payment_type = (
+            "care_days" if payment.allocated_care_days else "lump_sum" if payment.allocated_lump_sums else "other"
+        )
 
         payment_items.append(
             ProviderPaymentHistoryItem(

@@ -114,7 +114,7 @@ class MonthAllocation(db.Model, TimestampMixin):
     @property
     def used_cents(self):
         """Calculate total cents used (DEPRECATED: use paid_cents for actual usage)"""
-        # Keep for backward compatibility  
+        # Keep for backward compatibility
         return self.promised_cents
 
     @property

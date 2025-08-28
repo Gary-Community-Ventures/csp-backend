@@ -9,7 +9,7 @@ from . import job_manager
 
 
 @job_manager.job
-def refresh_provider_status_job(provider_payment_settings_id: str, from_info: str = "unknown"):
+def refresh_provider_settings_job(provider_payment_settings_id: str, from_info: str = "unknown"):
     """
     Background job to refresh provider status from Chek API.
 
@@ -29,7 +29,7 @@ def refresh_provider_status_job(provider_payment_settings_id: str, from_info: st
 
         # Use the payment service to refresh the status
         payment_service = current_app.payment_service
-        payment_service.refresh_provider_status(provider_payment_settings)
+        payment_service.refresh_provider_settings(provider_payment_settings)
 
         # Update last sync time
         provider_payment_settings.last_chek_sync_at = datetime.now(timezone.utc)
@@ -57,6 +57,6 @@ def enqueue_provider_status_refresh(provider_payment_settings: ProviderPaymentSe
         provider_payment_settings: ProviderPaymentSettings object to refresh
         from_info: Source that triggered this refresh
     """
-    return refresh_provider_status_job.delay(
+    return refresh_provider_settings_job.delay(
         provider_payment_settings_id=str(provider_payment_settings.id), from_info=from_info
     )
