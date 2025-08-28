@@ -160,4 +160,4 @@ class JobManager:
 job_manager = JobManager()
 
 # Import all job modules so they're available to workers
-from . import example_job, refresh_provider_settings_job
+# from . import example_job, refresh_provider_settings_job

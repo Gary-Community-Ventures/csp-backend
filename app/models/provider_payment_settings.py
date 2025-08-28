@@ -83,7 +83,7 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
         if self.is_status_stale():
             try:
                 # Import here to avoid circular imports
-                from app.jobs.refresh_provider_settings_job import (
+                from app.jobs.refresh_provider_status_job import (
                     enqueue_provider_status_refresh,
                 )
 

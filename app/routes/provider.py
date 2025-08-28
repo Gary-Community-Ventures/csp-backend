@@ -391,7 +391,7 @@ def refresh_my_payment_status():
 
     try:
         # Import here to avoid circular imports
-        from app.jobs.refresh_provider_settings_job import (
+        from app.jobs.refresh_provider_status_job import (
             enqueue_provider_status_refresh,
         )
 

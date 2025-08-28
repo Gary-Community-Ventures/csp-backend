@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 from uuid import uuid4
-from datatime import datetime
+from datetime import datetime
 
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, current_app, jsonify, request
