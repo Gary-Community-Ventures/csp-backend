@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 from uuid import uuid4
+from datatime import datetime
 
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, current_app, jsonify, request
@@ -14,6 +15,7 @@ from app.auth.decorators import (
 from app.auth.helpers import get_current_user, get_family_user, get_provider_user
 from app.constants import MAX_CHILDREN_PER_PROVIDER
 from app.extensions import db
+from app.models.month_allocation import MonthAllocation
 from app.models.attendance import Attendance
 from app.models.provider_invitation import ProviderInvitation
 from app.models.provider_payment_settings import ProviderPaymentSettings
@@ -53,12 +55,29 @@ bp = Blueprint("family", __name__)
 def new_family():
     data = request.json
 
+    google_sheet_id = data.get("google_sheet_id")
+
+    # TODO should we replace this with getting from the google sheet?
+    email = data.get("email")
+
     # Validate required fields
     if "google_sheet_id" not in data:
         abort(400, description="Missing required fields: google_sheet_id")
 
     if "email" not in data:
         abort(400, description="Missing required field: email")
+
+    all_children_data = get_children()
+    family_children = get_family_children(google_sheet_id, all_children_data)
+
+    for child in family_children:
+        # Create a new MonthAllocation for each child
+        MonthAllocation.get_or_create_for_month(
+            child.get(ChildColumnNames.ID),
+            datetime.today().replace(day=1),
+        )
+
+    db.session.commit()
 
     # send clerk invite
     clerk: Clerk = current_app.clerk_client
@@ -70,7 +89,7 @@ def new_family():
 
     clerk.invitations.create(
         request=CreateInvitationRequestBody(
-            email_address=data["email"],
+            email_address=email,
             redirect_url=f"{fe_domain}/auth/sign-up",
             public_metadata=meta_data,
         )
