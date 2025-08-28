@@ -1,3 +1,4 @@
+from typing import Optional
 from ..extensions import db
 from .mixins import TimestampMixin
 
@@ -23,7 +24,7 @@ class PaymentRate(db.Model, TimestampMixin):
     )
 
     @staticmethod
-    def get(provider_id: str, child_id: str):
+    def get(provider_id: str, child_id: str) -> Optional["PaymentRate"]:
         """Get existing rate or create a new one"""
         rate = PaymentRate.query.filter_by(
             google_sheets_provider_id=provider_id, google_sheets_child_id=child_id
@@ -43,8 +44,6 @@ class PaymentRate(db.Model, TimestampMixin):
             half_day_rate_cents=half_day_rate,
             full_day_rate_cents=full_day_rate,
         )
-        db.session.add(rate)
-        db.session.commit()
         return rate
 
     def __repr__(self):
