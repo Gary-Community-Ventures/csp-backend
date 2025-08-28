@@ -94,6 +94,7 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
 
         # Use detailed validation for payable status (with current cached data)
         is_valid, _ = self.validate_payment_method_status()
+        current_app.logger.debug(f"Provider {self.id} payment method validation: {is_valid}")
         return is_valid
 
     def __repr__(self):

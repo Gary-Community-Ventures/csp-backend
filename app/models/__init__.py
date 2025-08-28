@@ -9,6 +9,7 @@ from .payment_rate import PaymentRate
 from .payment_request import PaymentRequest
 from .provider_invitation import ProviderInvitation
 from .provider_payment_settings import ProviderPaymentSettings
+from .payment_intent import PaymentIntent
 
 __all__ = [
     "PaymentRequest",
@@ -22,4 +23,5 @@ __all__ = [
     "Payment",
     "PaymentAttempt",
     "ProviderPaymentSettings",
+    "PaymentIntent",
 ]

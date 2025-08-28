@@ -6,7 +6,6 @@ import sentry_sdk
 from flask import current_app
 
 from app.config import CARE_DAYS_SAMPLE_SIZE, MAX_PAYMENT_AMOUNT_CENTS
-from app.enums.payment_attempt_status import PaymentAttemptStatus
 from app.enums.payment_method import PaymentMethod
 from app.exceptions import (
     AllocationExceededException,
@@ -87,66 +86,234 @@ class PaymentService:
         self.chek_service = ChekIntegrationService(app)
         self.app = app
 
-    def _create_payment_and_attempt(
+    def _create_payment_intent(
         self,
         provider_payment_settings: ProviderPaymentSettings,
         amount_cents: int,
-        payment_method: PaymentMethod,
         month_allocation: MonthAllocation,
         external_provider_id: str,
         external_child_id: str,
         allocated_care_days: Optional[list[AllocatedCareDay]] = None,
         allocated_lump_sums: Optional[list[AllocatedLumpSum]] = None,
-    ) -> Payment:
+    ) -> "PaymentIntent":
         """
-        Creates a new Payment record and an initial PaymentAttempt.
+        Creates a PaymentIntent capturing what we're trying to pay for.
         """
-        payment = Payment(
-            provider_payment_settings_id=provider_payment_settings.id,
-            chek_user_id=provider_payment_settings.chek_user_id,
-            chek_direct_pay_id=provider_payment_settings.chek_direct_pay_id,
-            chek_card_id=provider_payment_settings.chek_card_id,
+        from app.models.payment_intent import PaymentIntent
+        
+        # Extract IDs for storage
+        care_day_ids = [day.id for day in (allocated_care_days or [])]
+        lump_sum_ids = [lump.id for lump in (allocated_lump_sums or [])]
+        
+        # Build description
+        payment_type = "care_days" if allocated_care_days else "lump_sum" if allocated_lump_sums else "other"
+        description = f"Payment to provider {external_provider_id} for {payment_type}"
+        
+        intent = PaymentIntent(
+            provider_external_id=external_provider_id,
+            child_external_id=external_child_id,
+            month_allocation_id=month_allocation.id,
             amount_cents=amount_cents,
-            payment_method=payment_method,
-            month_allocation=month_allocation,
-            external_provider_id=external_provider_id,
-            external_child_id=external_child_id,
+            care_day_ids=care_day_ids,
+            lump_sum_ids=lump_sum_ids,
+            provider_payment_settings_id=provider_payment_settings.id,
+            description=description,
         )
-        db.session.add(payment)
-        db.session.flush()  # Assigns an ID to the payment before creating attempt
-
-        # Link care days/lump sums to payment (if provided)
-        if allocated_care_days:
-            for day in allocated_care_days:
-                day.payment = payment
-        if allocated_lump_sums:
-            for lump_sum in allocated_lump_sums:
-                lump_sum.payment = payment
-
+        db.session.add(intent)
+        db.session.flush()
+        return intent
+    
+    def _create_payment_attempt(
+        self,
+        intent: "PaymentIntent",
+        payment_method: PaymentMethod,
+        attempt_number: int = None,
+    ) -> PaymentAttempt:
+        """
+        Creates a new PaymentAttempt for a PaymentIntent.
+        """
+        if attempt_number is None:
+            attempt_number = len(intent.attempts) + 1
+            
         attempt = PaymentAttempt(
-            payment=payment,
-            attempt_number=1,
-            status=PaymentAttemptStatus.PENDING,
+            payment_intent_id=intent.id,
+            attempt_number=attempt_number,
             payment_method=payment_method,
         )
         db.session.add(attempt)
         db.session.flush()
-
+        return attempt
+    
+    def _create_payment_on_success(
+        self,
+        intent: "PaymentIntent",
+        attempt: PaymentAttempt,
+    ) -> Payment:
+        """
+        Creates a Payment record ONLY when payment succeeds.
+        Links to the intent and successful attempt, marks items as paid.
+        """
+        provider_payment_settings = intent.provider_payment_settings
+        
+        payment = Payment(
+            payment_intent_id=intent.id,
+            successful_attempt_id=attempt.id,
+            provider_payment_settings_id=provider_payment_settings.id,
+            chek_user_id=provider_payment_settings.chek_user_id,
+            chek_direct_pay_id=provider_payment_settings.chek_direct_pay_id,
+            chek_card_id=provider_payment_settings.chek_card_id,
+            amount_cents=intent.amount_cents,
+            payment_method=attempt.payment_method,
+            month_allocation_id=intent.month_allocation_id,
+            external_provider_id=intent.provider_external_id,
+            external_child_id=intent.child_external_id,
+            chek_transfer_id=attempt.wallet_transfer_id,  # Store the successful transfer ID
+        )
+        db.session.add(payment)
+        db.session.flush()
+        
+        # Link the successful attempt to the payment
+        attempt.payment = payment
+        
+        # Get and mark care days/lump sums as paid
+        allocated_care_days = intent.get_care_days()
+        allocated_lump_sums = intent.get_lump_sums()
+        
+        if allocated_care_days:
+            for day in allocated_care_days:
+                day.payment = payment
+                day.last_submitted_at = datetime.now(timezone.utc)
+                day.payment_distribution_requested = True
+                
+        if allocated_lump_sums:
+            for lump_sum in allocated_lump_sums:
+                lump_sum.payment = payment
+                lump_sum.submitted_at = datetime.now(timezone.utc)
+                lump_sum.paid_at = datetime.now(timezone.utc)
+        
         return payment
 
-    def _update_payment_attempt_status(
+    def _execute_payment_flow(
         self,
         attempt: PaymentAttempt,
-        status: str,
-        chek_transfer_id: Optional[str] = None,
+        intent: "PaymentIntent", 
+        provider_payment_settings: "ProviderPaymentSettings",
+    ) -> bool:
+        """
+        Execute the payment flow: Program->Wallet transfer, then optionally ACH.
+        Returns True if successful (including partial success for ACH with wallet funded).
+        """
+        from app.integrations.chek.schemas import (
+            ACHPaymentRequest,
+            ACHPaymentType,
+            ACHFundingSource,
+            FlowDirection,
+            TransferBalanceRequest,
+        )
+        
+        # Get care days and lump sums for metadata
+        allocated_care_days = intent.get_care_days() 
+        allocated_lump_sums = intent.get_lump_sums()
+        
+        # Build description and metadata for tracking
+        payment_type = "care_days" if allocated_care_days else "lump_sum" if allocated_lump_sums else "other"
+        description = f"Payment to provider {intent.provider_external_id} for {payment_type}"
+
+        metadata = {
+            "provider_id": intent.provider_external_id,
+            "child_id": intent.child_external_id,
+            "payment_type": payment_type,
+            "intent_id": str(intent.id),
+        }
+
+        # Add month/date info based on payment type
+        if allocated_care_days:
+            dates = [
+                day.date.isoformat() for day in allocated_care_days[:5]  # First 5 dates as sample
+            ]
+            metadata["care_dates_sample"] = dates
+            metadata["care_days_count"] = len(allocated_care_days)
+        if intent.month_allocation:
+            metadata["allocation_month"] = intent.month_allocation.date.strftime("%Y-%m")
+
+        # 1. Initiate Chek transfer (Program to Wallet)
+        transfer_request = TransferBalanceRequest(
+            flow_direction=FlowDirection.PROGRAM_TO_WALLET.value,
+            program_id=self.chek_service.program_id,
+            counterparty_id=self.chek_service.program_id,
+            amount=intent.amount_cents,
+            description=description,
+            metadata=metadata,
+        )
+        transfer_response = self.chek_service.transfer_balance(
+            user_id=int(provider_payment_settings.chek_user_id), request=transfer_request
+        )
+        
+        # Record successful wallet funding
+        self._update_payment_attempt_facts(
+            attempt, wallet_transfer_id=str(transfer_response.transfer.id)
+        )
+
+        # 2. If ACH, initiate ACH payment from wallet to bank account
+        if provider_payment_settings.payment_method == PaymentMethod.ACH:
+            if not provider_payment_settings.chek_direct_pay_id:
+                raise PaymentMethodNotConfiguredException("Provider has no direct pay account ID for ACH payment")
+
+            ach_request = ACHPaymentRequest(
+                amount=intent.amount_cents,
+                type=ACHPaymentType.SAME_DAY_ACH,
+                funding_source=ACHFundingSource.WALLET_BALANCE,
+            )
+            
+            ach_response = self.chek_service.send_ach_payment(
+                direct_pay_account_id=provider_payment_settings.chek_direct_pay_id, request=ach_request
+            )
+            
+            # Record successful ACH payment
+            self._update_payment_attempt_facts(
+                attempt, ach_payment_id=str(ach_response.id) if hasattr(ach_response, 'id') else 'ach_completed'
+            )
+            
+            current_app.logger.info(
+                f"ACH payment initiated for provider {provider_payment_settings.id}. DirectPayAccount status: {ach_response.status}"
+            )
+
+        # 3. Create Payment record ONLY if attempt is successful
+        if attempt.is_successful:
+            # NOW create the Payment record since payment succeeded
+            payment = self._create_payment_on_success(
+                intent=intent,
+                attempt=attempt,
+            )
+            
+            db.session.commit()
+            current_app.logger.info(f"Payment {payment.id} processed successfully for Intent {intent.id}.")
+            return True
+        else:
+            # For ACH payments that only completed wallet transfer (partial success)
+            # NO Payment record created yet - will be created when ACH completes via retry
+            db.session.commit()
+            current_app.logger.info(f"Payment Intent {intent.id} partially completed - wallet funded, ACH pending.")
+            return True  # Still considered success since wallet is funded
+
+    def _update_payment_attempt_facts(
+        self,
+        attempt: PaymentAttempt,
+        wallet_transfer_id: Optional[str] = None,
+        ach_payment_id: Optional[str] = None,
         error_message: Optional[str] = None,
     ):
         """
-        Updates the status of a PaymentAttempt.
+        Updates the facts of what happened in a PaymentAttempt.
         """
-        attempt.status = status
-        attempt.chek_transfer_id = chek_transfer_id
-        attempt.error_message = error_message
+        if wallet_transfer_id:
+            attempt.wallet_transfer_id = wallet_transfer_id
+            attempt.wallet_transfer_at = datetime.now(timezone.utc)
+        if ach_payment_id:
+            attempt.ach_payment_id = ach_payment_id
+            attempt.ach_payment_at = datetime.now(timezone.utc)
+        if error_message:
+            attempt.error_message = error_message
         db.session.add(attempt)
 
     def process_payment(
@@ -227,118 +394,60 @@ class PaymentService:
             self.refresh_provider_status(provider_payment_settings)
             db.session.flush()  # Ensure provider object is updated in session
 
-            # 8. Validate payment method status with detailed error messages
-            is_valid, validation_error = provider_payment_settings.validate_payment_method_status()
-            if not is_valid:
-                current_app.logger.warning(
-                    f"Payment skipped for Provider {provider_payment_settings.id}: {validation_error}"
-                )
-                # Create a failed payment record
-                payment = self._create_payment_and_attempt(
-                    provider_payment_settings=provider_payment_settings,
-                    amount_cents=amount_cents,
-                    payment_method=provider_payment_settings.payment_method,
-                    month_allocation=month_allocation,
-                    external_provider_id=external_provider_id,
-                    external_child_id=external_child_id,
-                    allocated_care_days=allocated_care_days,
-                    allocated_lump_sums=allocated_lump_sums,
-                )
-                self._update_payment_attempt_status(
-                    payment.attempts[0], PaymentAttemptStatus.FAILED, error_message=validation_error
-                )
-                db.session.commit()
-                return False
-
-            # 9. Create Payment and initial PaymentAttempt
-            payment = self._create_payment_and_attempt(
+            # 8. Create PaymentIntent to capture what we're trying to pay for
+            intent = self._create_payment_intent(
                 provider_payment_settings=provider_payment_settings,
                 amount_cents=amount_cents,
-                payment_method=provider_payment_settings.payment_method,
                 month_allocation=month_allocation,
                 external_provider_id=external_provider_id,
                 external_child_id=external_child_id,
                 allocated_care_days=allocated_care_days,
                 allocated_lump_sums=allocated_lump_sums,
             )
-            attempt = payment.attempts[0]
+            
+            # 9. Validate payment method status with detailed error messages
+            is_valid, validation_error = provider_payment_settings.validate_payment_method_status()
+            if not is_valid:
+                current_app.logger.warning(
+                    f"Payment skipped for Provider {provider_payment_settings.id}: {validation_error}"
+                )
+                # Create a failed attempt for the intent
+                attempt = self._create_payment_attempt(
+                    intent=intent,
+                    payment_method=provider_payment_settings.payment_method,
+                )
+                self._update_payment_attempt_facts(
+                    attempt, error_message=validation_error
+                )
+                db.session.commit()
+                return False
 
-            # 10. Initiate Chek transfer (Program to Wallet)
-            # Build description and metadata for tracking
-            payment_type = "care_days" if allocated_care_days else "lump_sum" if allocated_lump_sums else "other"
-            description = f"Payment to provider {external_provider_id} for {payment_type}"
-
-            metadata = {
-                "provider_id": external_provider_id,
-                "child_id": external_child_id,
-                "payment_type": payment_type,
-                "payment_id": str(payment.id),
-            }
-
-            # Add month/date info based on payment type
-            if allocated_care_days and allocated_care_days:
-                dates = [
-                    day.date.isoformat() for day in allocated_care_days[:CARE_DAYS_SAMPLE_SIZE]
-                ]  # First few dates as sample
-                metadata["care_dates_sample"] = dates
-                metadata["care_days_count"] = len(allocated_care_days)
-            elif month_allocation:
-                metadata["allocation_month"] = month_allocation.date.strftime("%Y-%m")
-
-            transfer_request = TransferBalanceRequest(
-                flow_direction=FlowDirection.PROGRAM_TO_WALLET,
-                program_id=self.chek_service.program_id,
-                amount=amount_cents,
-                description=description,
-                metadata=metadata,
+            # 10. Create PaymentAttempt for this intent
+            attempt = self._create_payment_attempt(
+                intent=intent,
+                payment_method=provider_payment_settings.payment_method,
             )
-            transfer_response = self.chek_service.transfer_balance(
-                user_id=int(provider_payment_settings.chek_user_id), request=transfer_request
-            )
-            # Store transfer ID but don't mark as success yet for ACH payments
-            attempt.chek_transfer_id = str(transfer_response.transfer.id)
 
-            # 11. If ACH, initiate ACH payment from wallet to bank account
-            if provider_payment_settings.payment_method == PaymentMethod.ACH:
-                ach_request = ACHPaymentRequest(
-                    amount=amount_cents,
-                    type=ACHPaymentType.SAME_DAY_ACH,
-                    funding_source=ACHFundingSource.WALLET_BALANCE,
+            try:
+                # Execute payment flow
+                success = self._execute_payment_flow(
+                    attempt=attempt,
+                    intent=intent,
+                    provider_payment_settings=provider_payment_settings,
                 )
-                # Assuming chek_direct_pay_id is available and valid
-                if not provider_payment_settings.chek_direct_pay_id:
-                    raise PaymentMethodNotConfiguredException("Provider has no direct pay account ID for ACH payment")
-
-                ach_response = self.chek_service.send_ach_payment(
-                    direct_pay_account_id=int(provider_payment_settings.chek_direct_pay_id), request=ach_request
-                )
-                # Note: The ACH payment response is the DirectPayAccount object, not a separate transfer ID.
-                # We can log this or update the attempt with relevant info if needed.
-                current_app.logger.info(
-                    f"ACH payment initiated for provider {provider_payment_settings.id}. DirectPayAccount status: {ach_response.status}"
-                )
-
-                # Mark as success only after both wallet transfer AND ACH payment complete
-                self._update_payment_attempt_status(attempt, PaymentAttemptStatus.SUCCESS)
-            else:
-                # For virtual card, wallet transfer is the final step
-                self._update_payment_attempt_status(attempt, PaymentAttemptStatus.SUCCESS)
-
-            # 12. Mark care days and lump sums as submitted only after successful payment
-            # This ensures they are only marked as paid if payment actually succeeded
-            if allocated_care_days:
-                for day in allocated_care_days:
-                    day.mark_as_submitted()
-                    day.payment_distribution_requested = True  # Flag to prevent batch script reprocessing
-
-            if allocated_lump_sums:
-                for lump_sum in allocated_lump_sums:
-                    lump_sum.submitted_at = datetime.now(timezone.utc)
-                    lump_sum.paid_at = datetime.now(timezone.utc)
-
-            db.session.commit()
-            current_app.logger.info(f"Payment processed successfully for Provider {provider_payment_settings.id}.")
-            return True
+                
+                if success:
+                    return True
+                else:
+                    return False
+                    
+            except Exception as payment_execution_error:
+                # Record the error in the attempt
+                self._update_payment_attempt_facts(attempt, error_message=str(payment_execution_error))
+                db.session.commit()  # Always save the attempt record
+                current_app.logger.error(f"Payment execution failed for Provider {provider_payment_settings.id}: {payment_execution_error}")
+                sentry_sdk.capture_exception(payment_execution_error)
+                return False
 
         except (
             ProviderNotFoundException,
@@ -360,94 +469,178 @@ class PaymentService:
             sentry_sdk.capture_exception(e)
             return False
 
-    def retry_ach_payment(self, payment_id: str) -> bool:
+    def retry_payment_intent(self, intent_id: str) -> bool:
         """
-        Retry ACH payment for payments where wallet transfer succeeded but ACH failed.
-        This handles the specific case where money is in the provider's wallet but ACH didn't complete.
+        Retry a payment for a PaymentIntent.
+        Handles both full retries and ACH-only retries (where wallet is already funded).
         """
+        from app.models.payment_intent import PaymentIntent
+        
         try:
-            payment = Payment.query.get(payment_id)
-            if not payment:
-                current_app.logger.error(f"Payment {payment_id} not found")
+            # Get the intent
+            intent = PaymentIntent.query.get(intent_id)
+            if not intent:
+                current_app.logger.error(f"PaymentIntent {intent_id} not found")
                 return False
-
-            provider_payment_settings = ProviderPaymentSettings.query.get(payment.provider_payment_settings_id)
-            if not provider_payment_settings:
-                current_app.logger.error(f"Provider not found for payment {payment_id}")
+            
+            # Check if already paid
+            if intent.is_paid:
+                current_app.logger.info(f"PaymentIntent {intent_id} is already paid")
+                return True
+            
+            # Check if we can retry
+            if not intent.can_retry:
+                current_app.logger.error(f"PaymentIntent {intent_id} cannot be retried")
                 return False
-
-            if provider_payment_settings.payment_method != PaymentMethod.ACH:
-                current_app.logger.error(f"Payment {payment_id} is not an ACH payment")
-                return False
-
-            # Find the latest attempt that has a transfer ID but failed
-            last_attempt = (
-                PaymentAttempt.query.filter_by(payment_id=payment.id)
-                .filter(PaymentAttempt.chek_transfer_id.isnot(None))
-                .filter(PaymentAttempt.status == PaymentAttemptStatus.FAILED)
-                .order_by(PaymentAttempt.attempt_number.desc())
-                .first()
-            )
-
-            if not last_attempt:
-                current_app.logger.error(f"No failed attempt with transfer ID found for payment {payment_id}")
-                return False
-
-            current_app.logger.info(f"Retrying ACH payment {payment_id} (wallet transfer already completed)")
-
-            # Create new attempt for ACH retry
-            next_attempt_number = last_attempt.attempt_number + 1
-            new_attempt = PaymentAttempt(
-                payment=payment,
-                attempt_number=next_attempt_number,
-                status=PaymentAttemptStatus.PENDING,
-                payment_method=PaymentMethod.ACH,  # This method is specifically for ACH retries
-                chek_transfer_id=last_attempt.chek_transfer_id,  # Reuse existing transfer ID
-            )
-            db.session.add(new_attempt)
-            db.session.flush()
-
-            # Refresh provider status
-            self.refresh_provider_status(provider_payment_settings)
-
-            # Validate payment method status
-            is_valid, validation_error = provider_payment_settings.validate_payment_method_status()
-            if not is_valid:
-                self._update_payment_attempt_status(
-                    new_attempt,
-                    PaymentAttemptStatus.FAILED,
-                    error_message=validation_error,
+            
+            provider_payment_settings = intent.provider_payment_settings
+            
+            # Find the latest attempt to determine retry strategy
+            last_attempt = intent.latest_attempt
+            
+            # Determine if we need full payment or just ACH completion
+            if last_attempt and last_attempt.payment_method == PaymentMethod.ACH and last_attempt.wallet_transfer_id and not last_attempt.ach_payment_id:
+                # Wallet funded but ACH incomplete - just retry ACH
+                current_app.logger.info(f"Retrying ACH completion for Intent {intent_id} (wallet already funded)")
+                
+                # Create new attempt that continues from the wallet-funded state
+                new_attempt = self._create_payment_attempt(
+                    intent=intent,
+                    payment_method=PaymentMethod.ACH,
                 )
+                
+                # Copy wallet funding info from previous attempt
+                new_attempt.wallet_transfer_id = last_attempt.wallet_transfer_id
+                new_attempt.wallet_transfer_at = last_attempt.wallet_transfer_at
+                
+                try:
+                    # Just do the ACH part
+                    ach_request = ACHPaymentRequest(
+                        amount=intent.amount_cents,
+                        type=ACHPaymentType.SAME_DAY_ACH,
+                        funding_source=ACHFundingSource.WALLET_BALANCE,
+                    )
+                    
+                    if not provider_payment_settings.chek_direct_pay_id:
+                        raise PaymentMethodNotConfiguredException("Provider has no direct pay account ID for ACH payment")
+                    
+                    ach_response = self.chek_service.send_ach_payment(
+                        direct_pay_account_id=provider_payment_settings.chek_direct_pay_id, 
+                        request=ach_request
+                    )
+                    
+                    # Record successful ACH
+                    self._update_payment_attempt_facts(
+                        new_attempt, 
+                        ach_payment_id=str(ach_response.id) if hasattr(ach_response, 'id') else 'ach_completed'
+                    )
+                    
+                    # Create Payment record since now it's complete
+                    payment = self._create_payment_on_success(
+                        intent=intent,
+                        attempt=new_attempt,
+                    )
+                    
+                    db.session.commit()
+                    current_app.logger.info(f"ACH retry successful for Intent {intent_id}, Payment {payment.id} created")
+                    return True
+                    
+                except Exception as e:
+                    self._update_payment_attempt_facts(new_attempt, error_message=str(e))
+                    db.session.commit()
+                    current_app.logger.error(f"ACH retry failed for Intent {intent_id}: {e}")
+                    sentry_sdk.capture_exception(e)
+                    return False
+                    
+            else:
+                # Need full payment retry (start from scratch)
+                current_app.logger.info(f"Retrying full payment for Intent {intent_id}")
+                
+                # Create new attempt
+                new_attempt = self._create_payment_attempt(
+                    intent=intent,
+                    payment_method=provider_payment_settings.payment_method,
+                )
+
+                # Refresh provider status
+                try:
+                    self.refresh_provider_status(provider_payment_settings)
+                except Exception as e:
+                    current_app.logger.warning(f"Failed to refresh provider status during retry: {e}")
+                    # Continue with retry anyway
+
+                # Validate payment method status
+                is_valid, validation_error = provider_payment_settings.validate_payment_method_status()
+                if not is_valid:
+                    self._update_payment_attempt_facts(
+                        new_attempt,
+                        error_message=validation_error,
+                    )
+                    db.session.commit()
+                    return False
+
+                # Execute full payment flow
+                try:
+                    success = self._execute_payment_flow(
+                        attempt=new_attempt,
+                        intent=intent,
+                        provider_payment_settings=provider_payment_settings,
+                    )
+                    
+                    if success:
+                        current_app.logger.info(f"Full payment retry successful for Intent {intent_id}")
+                        return True
+                    else:
+                        current_app.logger.warning(f"Full payment retry failed for Intent {intent_id}")
+                        return False
+                        
+                except Exception as payment_error:
+                    self._update_payment_attempt_facts(new_attempt, error_message=str(payment_error))
+                    db.session.commit()
+                    current_app.logger.error(f"Full payment retry failed for Intent {intent_id}: {payment_error}")
+                    sentry_sdk.capture_exception(payment_error)
+                    return False
+
+            # Handle ACH-only retry (wallet already funded)
+            try:
+                ach_request = ACHPaymentRequest(
+                    amount=intent.amount_cents,
+                    type=ACHPaymentType.SAME_DAY_ACH,
+                    funding_source=ACHFundingSource.WALLET_BALANCE,
+                )
+
+                if not provider_payment_settings.chek_direct_pay_id:
+                    raise PaymentMethodNotConfiguredException("Provider has no direct pay account ID for ACH payment")
+
+                ach_response = self.chek_service.send_ach_payment(
+                    direct_pay_account_id=provider_payment_settings.chek_direct_pay_id, request=ach_request
+                )
+
+                # Record successful ACH payment
+                self._update_payment_attempt_facts(
+                    ach_retry_attempt, 
+                    ach_payment_id=str(ach_response.id) if hasattr(ach_response, 'id') else 'ach_completed'
+                )
+                
+                # Create Payment record on success
+                self._create_payment_on_success(intent, ach_retry_attempt)
+                
                 db.session.commit()
+                current_app.logger.info(f"ACH payment retry successful for Intent {intent_id}")
+                return True
+                
+            except Exception as ach_error:
+                # Record the ACH failure
+                self._update_payment_attempt_facts(ach_retry_attempt, error_message=str(ach_error))
+                db.session.commit()
+                current_app.logger.error(f"ACH retry failed for Intent {intent_id}: {ach_error}")
+                sentry_sdk.capture_exception(ach_error)
                 return False
-
-            # Retry ACH payment (wallet transfer already completed)
-            ach_request = ACHPaymentRequest(
-                amount=payment.amount_cents,
-                type=ACHPaymentType.SAME_DAY_ACH,
-                funding_source=ACHFundingSource.WALLET_BALANCE,
-            )
-
-            if not provider_payment_settings.chek_direct_pay_id:
-                raise PaymentMethodNotConfiguredException("Provider has no direct pay account ID for ACH payment")
-
-            ach_response = self.chek_service.send_ach_payment(
-                direct_pay_account_id=int(provider_payment_settings.chek_direct_pay_id), request=ach_request
-            )
-
-            self._update_payment_attempt_status(new_attempt, PaymentAttemptStatus.SUCCESS)
-            db.session.commit()
-
-            current_app.logger.info(f"ACH payment retry successful for {payment_id}")
-            return True
 
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Error retrying ACH payment {payment_id}: {e}")
+            current_app.logger.error(f"Error retrying payment for Intent {intent_id}: {e}")
             sentry_sdk.capture_exception(e)
-            if "new_attempt" in locals():
-                self._update_payment_attempt_status(new_attempt, PaymentAttemptStatus.FAILED, error_message=str(e))
-                db.session.commit()
             return False
 
     def initialize_provider_payment(self, provider_external_id: str, payment_method: str) -> dict:
@@ -545,21 +738,22 @@ class PaymentService:
 
                 # Send ACH invite
                 invite_request = DirectPayAccountInviteRequest(
-                    user_id=int(provider_settings.chek_user_id), email=provider_email
+                    user_id=int(provider_settings.chek_user_id)
                 )
 
                 invite_response = self.chek_service.invite_direct_pay_account(invite_request)
 
+                # The API returns a string message, not an object
                 # Update provider settings with pending ACH info
-                provider_settings.chek_direct_pay_id = str(invite_response.id)
-                provider_settings.chek_direct_pay_status = invite_response.status
+                provider_settings.chek_direct_pay_id = None  # Will be set when user completes setup
+                provider_settings.chek_direct_pay_status = "Pending"  # Invite sent but not completed
                 provider_settings.payment_method = PaymentMethod.ACH
                 provider_settings.payment_method_updated_at = datetime.now(timezone.utc)
                 provider_settings.last_chek_sync_at = datetime.now(timezone.utc)
                 db.session.commit()
 
                 result["message"] = "ACH invite sent successfully"
-                result["direct_pay_id"] = invite_response.id
+                result["invite_response"] = invite_response
                 result["invite_sent_to"] = provider_email
 
             return result

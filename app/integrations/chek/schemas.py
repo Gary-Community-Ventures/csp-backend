@@ -133,6 +133,7 @@ class FlowDirection(str, Enum):
 class TransferBalanceRequest(BaseModel):
     flow_direction: FlowDirection
     program_id: str
+    counterparty_id: str
     amount: int  # In cents
     description: Optional[str] = None  # Optional description for the transfer
     metadata: Optional[dict] = None  # Optional metadata for tracking

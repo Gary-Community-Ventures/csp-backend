@@ -6,6 +6,10 @@ from app.models import (
     PaymentRate,
     PaymentRequest,
     ProviderInvitation,
+    ProviderPaymentSettings,
+    Payment,
+    PaymentAttempt,
+    PaymentIntent,
 )
 
 
@@ -24,4 +28,8 @@ ADMIN_MODELS = [
     ModelAdminConfig(PaymentRequest, "Payment Requests", "Financial"),
     ModelAdminConfig(ProviderInvitation, "Provider Invitations", "Users"),
     ModelAdminConfig(FamilyInvitation, "Family Invitations", "Users"),
+    ModelAdminConfig(ProviderPaymentSettings, "Provider Payment Settings", "Financial"),
+    ModelAdminConfig(Payment, "Payments", "Financial"),
+    ModelAdminConfig(PaymentAttempt, "Payment Attempts", "Financial"),
+    ModelAdminConfig(PaymentIntent, "Payment Intents", "Financial"),
 ]

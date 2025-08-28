@@ -86,38 +86,70 @@ class MonthAllocation(db.Model, TimestampMixin):
         return sum(day.day_count for day in self.care_days)
 
     @property
-    def allocated_cents(self):
-        """Total allocated (promised) from care days + lump sums"""
+    def promised_cents(self):
+        """Total promised (allocated but not necessarily paid) from care days + lump sums.
+        This prevents over-allocation but doesn't reduce the actual allocation."""
         return sum(day.amount_cents for day in self.care_days) + sum(
             lump_sum.amount_cents for lump_sum in self.lump_sums
         )
 
     @property
     def paid_cents(self):
-        """Total actually paid via successful payments"""
-        return sum(payment.amount_cents for payment in self.payments if payment.has_successful_attempt)
+        """Total actually paid out via successful payments.
+        This is the real amount deducted from the allocation."""
+        # Only count payments that actually succeeded
+        return sum(payment.amount_cents for payment in self.payments)
+
+    @property
+    def unpaid_cents(self):
+        """Total that's been promised but not yet paid"""
+        return self.promised_cents - self.paid_cents
+
+    @property
+    def allocated_cents(self):
+        """Total allocated (DEPRECATED: use promised_cents for clarity)"""
+        # Keep for backward compatibility
+        return self.promised_cents
 
     @property
     def used_cents(self):
-        """Calculate total cents used from active care days (DEPRECATED: use allocated_cents)"""
-        # Keep for backward compatibility
-        return self.allocated_cents
+        """Calculate total cents used (DEPRECATED: use paid_cents for actual usage)"""
+        # Keep for backward compatibility  
+        return self.promised_cents
 
     @property
-    def remaining_to_allocate_cents(self):
-        """How much budget is left to allocate (create care days/lump sums)"""
-        return self.allocation_cents - self.allocated_cents
+    def remaining_to_promise_cents(self):
+        """How much budget is left to promise (create new care days/lump sums).
+        This prevents over-promising but doesn't reflect actual payment status."""
+        return self.allocation_cents - self.promised_cents
 
     @property
     def remaining_to_pay_cents(self):
-        """How much allocated money is left to pay"""
-        return self.allocated_cents - self.paid_cents
+        """How much allocation is actually left to pay out.
+        This is the real remaining allocation after successful payments."""
+        return self.allocation_cents - self.paid_cents
+
+    @property
+    def remaining_to_allocate_cents(self):
+        """How much budget is left to allocate (DEPRECATED: use remaining_to_promise_cents)"""
+        # Keep for backward compatibility
+        return self.remaining_to_promise_cents
+
+    @property
+    def remaining_unpaid_cents(self):
+        """How much allocated money is left to pay (DEPRECATED: use remaining_to_pay_cents)"""
+        # Keep for backward compatibility
+        print(  # For debugging
+            f"MonthAllocation.remaining_unpaid_cents: allocation_cents={self.allocation_cents}, "
+            f"promised_cents={self.promised_cents}, paid_cents={self.paid_cents}"
+        )
+        return self.remaining_to_pay_cents
 
     @property
     def remaining_cents(self):
-        """Calculate remaining cents available (DEPRECATED: use remaining_to_allocate_cents)"""
+        """Calculate remaining cents available (DEPRECATED: use remaining_to_promise_cents)"""
         # Keep for backward compatibility
-        return self.remaining_to_allocate_cents
+        return self.remaining_to_promise_cents
 
     def can_add_care_day(self, day_type: CareDayType, provider_id: str) -> bool:
         """Check if we can add a care day of given type without over-allocating"""

@@ -22,10 +22,10 @@ from app.sheets.mappings import (
     get_providers,
 )
 
-bp = Blueprint("payments", __name__, url_prefix="/payments")
+bp = Blueprint("payments", __name__)
 
 
-@bp.get("/family/history")
+@bp.get("/family/payments")
 @auth_required(ClerkUserType.FAMILY)
 def get_family_payment_history():
     """Get payment history for the authenticated family's children."""
@@ -68,14 +68,12 @@ def get_family_payment_history():
 
         # Get provider name
         provider_data = get_provider(payment.external_provider_id, all_providers_data)
-        provider_name = (
-            provider_data.get(ProviderColumnNames.NAME, "Unknown Provider") if provider_data else "Unknown Provider"
-        )
+        provider_name = provider_data.get(ProviderColumnNames.NAME) if provider_data else "Unknown Provider"
 
         # Get child name
         child_data = next((c for c in family_children if c.get(ChildColumnNames.ID) == payment.external_child_id), None)
         child_name = (
-            f"{child_data.get(ChildColumnNames.FIRST_NAME, '')} {child_data.get(ChildColumnNames.LAST_NAME, '')}".strip()
+            f"{child_data.get(ChildColumnNames.FIRST_NAME)} {child_data.get(ChildColumnNames.LAST_NAME)}".strip()
             if child_data
             else "Unknown Child"
         )
@@ -85,7 +83,7 @@ def get_family_payment_history():
         month_str = month_allocation.date.strftime("%Y-%m") if month_allocation else "Unknown"
 
         # Determine payment type
-        payment_type = "care_days" if payment.care_days else "lump_sum" if payment.lump_sums else "other"
+        payment_type = "care_days" if payment.allocated_care_days else "lump_sum" if payment.allocated_lump_sums else "other"
 
         payment_items.append(
             FamilyPaymentHistoryItem(
@@ -111,7 +109,7 @@ def get_family_payment_history():
     return response.model_dump_json(), 200, {"Content-Type": "application/json"}
 
 
-@bp.get("/provider/history")
+@bp.get("/provider/payments")
 @auth_required(ClerkUserType.PROVIDER)
 def get_provider_payment_history():
     """Get payment history for the authenticated provider."""
@@ -159,19 +157,10 @@ def get_provider_payment_history():
         # Get child name
         child_data = get_child(payment.external_child_id, all_children_data)
         child_name = (
-            f"{child_data.get(ChildColumnNames.FIRST_NAME, '')} {child_data.get(ChildColumnNames.LAST_NAME, '')}".strip()
+            f"{child_data.get(ChildColumnNames.FIRST_NAME)} {child_data.get(ChildColumnNames.LAST_NAME)}".strip()
             if child_data
             else "Unknown Child"
         )
-
-        # Get family name if available
-        family_name = None
-        if child_data:
-            family_id = child_data.get(ChildColumnNames.FAMILY_ID)
-            if family_id:
-                family_data = get_family(family_id, all_families_data)
-                if family_data:
-                    family_name = family_data.get(FamilyColumnNames.NAME, None)
 
         # Get month from allocation
         month_allocation = MonthAllocation.query.get(payment.month_allocation_id)
@@ -186,7 +175,7 @@ def get_provider_payment_history():
             )
 
         # Determine payment type
-        payment_type = "care_days" if payment.care_days else "lump_sum" if payment.lump_sums else "other"
+        payment_type = "care_days" if payment.allocated_care_days else "lump_sum" if payment.allocated_lump_sums else "other"
 
         payment_items.append(
             ProviderPaymentHistoryItem(
@@ -196,7 +185,6 @@ def get_provider_payment_history():
                 status=payment_status,
                 child_name=child_name,
                 child_id=payment.external_child_id,
-                family_name=family_name,
                 month=month_str,
                 payment_method=payment_method,
                 payment_type=payment_type,

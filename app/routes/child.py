@@ -33,6 +33,9 @@ def get_month_allocation(child_id, month, year):
         allocation = MonthAllocation.get_for_month(child_id, month_date)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    
+    if not allocation:
+        return jsonify({"error": "Allocation not found"}), 400
 
     if provider_id:
         care_days_query = AllocatedCareDay.query.filter_by(

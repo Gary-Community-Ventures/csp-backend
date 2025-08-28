@@ -223,6 +223,7 @@ def test_transfer():
         transfer_request = TransferBalanceRequest(
             flow_direction=FlowDirection.PROGRAM_TO_WALLET,
             program_id=test_program_id,
+            counterparty_id=test_program_id,
             amount=transfer_amount,
         )
 

@@ -144,7 +144,6 @@ class ProviderPaymentHistoryItem(BaseModel):
     status: str = Field(..., description="Payment status: 'success', 'failed', 'pending'")
     child_name: str = Field(..., description="Name of the child")
     child_id: str = Field(..., description="Child external ID")
-    family_name: Optional[str] = Field(None, description="Name of the family")
     month: str = Field(..., description="Month the payment was for (YYYY-MM)")
     payment_method: str = Field(..., description="Payment method used: 'card' or 'ach'")
     payment_type: str = Field(..., description="Type of payment: 'care_days' or 'lump_sum'")
@@ -158,7 +157,6 @@ class ProviderPaymentHistoryItem(BaseModel):
                 "status": "success",
                 "child_name": "John Doe",
                 "child_id": "CHILD456",
-                "family_name": "Doe Family",
                 "month": "2024-01",
                 "payment_method": "card",
                 "payment_type": "care_days",

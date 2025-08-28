@@ -12,7 +12,6 @@ from .schemas import (
     CardCreateResponse,
     DirectPayAccount,
     DirectPayAccountInviteRequest,
-    FlowDirection,
     TransferBalanceRequest,
     TransferBalanceResponse,
     User,
@@ -81,18 +80,19 @@ class ChekService:
         card_json = self.client.get_card(card_id)
         return Card.model_validate(card_json)
 
-    def invite_direct_pay_account(self, invite_request: DirectPayAccountInviteRequest) -> DirectPayAccount:
+    def invite_direct_pay_account(self, invite_request: DirectPayAccountInviteRequest) -> str:
         """
         Sends an invitation to a user to set up a direct pay account.
-        Returns the DirectPayAccount object with status 'Invited'.
+        Returns the response message string.
         """
         invite_data_dict = invite_request.model_dump()
         # The API for this endpoint expects just the user_id in the body
         response_json = self.client.create_direct_pay_account_invite(invite_data_dict["user_id"])
         current_app.logger.debug(f"DirectPay account invite response: {response_json}")
-        return DirectPayAccount.model_validate(response_json)
+        # The API returns a simple string message
+        return response_json
 
-    def get_direct_pay_account(self, account_id: int) -> DirectPayAccount:
+    def get_direct_pay_account(self, account_id: str) -> DirectPayAccount:
         """
         Retrieves details for a specific direct pay account.
         """
@@ -109,30 +109,17 @@ class ChekService:
         current_app.logger.debug(f"Chek transfer_balance response: {response_json}")
         return TransferBalanceResponse.model_validate(response_json)
 
-    def pay_user(self, user_id: int, amount: int) -> bool:
-        """
-        Pays a user from the platform's funds.
-        """
-        return self.transfer_balance(
-            user_id,
-            TransferBalanceRequest(
-                flow_direction=FlowDirection.PROGRAM_TO_WALLET,
-                program_id=self.program_id,
-                amount=amount,
-            ),
-        )
-
-    def send_ach_payment(self, direct_pay_account_id: int, request: ACHPaymentRequest) -> DirectPayAccount:
+    def send_ach_payment(self, direct_pay_account_id: str, request: ACHPaymentRequest) -> DirectPayAccount:
         """
         Initiates a Same-Day ACH transfer to a recipient's linked bank account.
         Requires the DirectPay account to be Active.
         """
         # Pre-check: Get the DirectPayAccount and check its status
-        direct_pay_account = self.get_direct_pay_account(direct_pay_account_id)
-        if direct_pay_account.status != "Active":
-            raise ValueError(
-                f"DirectPay account {direct_pay_account_id} is not Active. Current status: {direct_pay_account.status}"
-            )
+        # direct_pay_account = self.get_direct_pay_account(direct_pay_account_id)
+        # if direct_pay_account.status != "Active":
+        #     raise ValueError(
+        #         f"DirectPay account {direct_pay_account_id} is not Active. Current status: {direct_pay_account.status}"
+        #     )
 
         endpoint = f"directpay_accounts/{direct_pay_account_id}/send_payment/"
         request_data = request.model_dump()

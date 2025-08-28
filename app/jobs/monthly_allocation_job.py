@@ -47,7 +47,7 @@ def create_monthly_allocations(from_info: str = "scheduler", **kwargs) -> Dict[s
         for child_data in all_children:
             child_id = child_data.get(ChildColumnNames.ID)
             child_name = (
-                f"{child_data.get(ChildColumnNames.FIRST_NAME, '')} {child_data.get(ChildColumnNames.LAST_NAME, '')}"
+                f"{child_data.get(ChildColumnNames.FIRST_NAME)} {child_data.get(ChildColumnNames.LAST_NAME)}"
             )
 
             if not child_id:
