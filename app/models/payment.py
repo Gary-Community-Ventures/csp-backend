@@ -4,7 +4,6 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import ForeignKey
 
-from ..enums.payment_attempt_status import PaymentAttemptStatus
 from ..enums.payment_method import PaymentMethod
 from ..extensions import db
 from .mixins import TimestampMixin
@@ -46,13 +45,13 @@ class Payment(db.Model, TimestampMixin):
     # Relationships
     attempts = relationship("PaymentAttempt", foreign_keys="PaymentAttempt.payment_id", back_populates="payment")
 
-    # Relationships to allocations (assuming these are separate models)
+    # Relationships to allocations
     month_allocation_id = db.Column(
         db.Integer, ForeignKey("month_allocation.id", name="fk_payment_month_allocation_id"), nullable=True
     )
     month_allocation = relationship("MonthAllocation", backref="payments")
     allocated_care_days = db.relationship("AllocatedCareDay", back_populates="payment")
-    allocated_lump_sums = relationship("AllocatedLumpSum", backref="payments")
+    allocated_lump_sums = relationship("AllocatedLumpSum", backref="payment")
 
     @property
     def has_successful_attempt(self):

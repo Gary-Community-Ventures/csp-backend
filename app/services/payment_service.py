@@ -21,8 +21,6 @@ from app.integrations.chek.schemas import (
     ACHFundingSource,
     ACHPaymentRequest,
     ACHPaymentType,
-    FlowDirection,
-    TransferBalanceRequest,
 )
 from app.integrations.chek.service import (
     ChekService as ChekIntegrationService,  # Avoid name collision

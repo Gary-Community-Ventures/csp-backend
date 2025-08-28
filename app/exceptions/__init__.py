@@ -1,5 +1,5 @@
 """
-Custom exceptions for the CSP Backend application.
+Custom exceptions for the CAP Backend application.
 These provide consistent error handling across the application.
 """
 

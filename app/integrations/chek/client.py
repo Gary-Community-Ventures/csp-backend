@@ -193,7 +193,6 @@ class ChekClient:
     def create_card(self, user_id, card_data):
         """
         Creates a new card for a user using the new endpoint.
-        POST api/v1/account/{account_id}/users/{user_id}/create_card/
         """
         endpoint = f"users/{user_id}/create_card/"
         return self._request("POST", endpoint, json=card_data)
@@ -201,7 +200,6 @@ class ChekClient:
     def list_programs(self):
         """
         Lists all programs for the account.
-        GET api/v1/accounts/{account_id}/programs/
         """
         endpoint = f"programs/"
         return self._request("GET", endpoint)
