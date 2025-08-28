@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date
 
 import pytest
 
@@ -20,7 +20,6 @@ def seed_db(app):
         care_day1_1 = AllocatedCareDay(
             care_month_allocation_id=allocation1.id,
             date=date(2024, 1, 15),
-            locked_date=datetime.now() + timedelta(days=20),
             type="Full Day",
             amount_cents=6000,
             provider_google_sheets_id=1,
@@ -28,7 +27,6 @@ def seed_db(app):
         care_day1_2 = AllocatedCareDay(
             care_month_allocation_id=allocation1.id,
             date=date(2024, 1, 20),
-            locked_date=datetime.now() + timedelta(days=20),
             type="Half Day",
             amount_cents=4000,
             provider_google_sheets_id=1,
@@ -40,7 +38,6 @@ def seed_db(app):
         care_day2_1 = AllocatedCareDay(
             care_month_allocation_id=allocation2.id,
             date=date(2024, 2, 10),
-            locked_date=datetime.now() + timedelta(days=20),
             type="Full Day",
             amount_cents=6000,
             provider_google_sheets_id=1,
@@ -51,7 +48,6 @@ def seed_db(app):
         care_day_other_provider = AllocatedCareDay(
             care_month_allocation_id=allocation1.id,
             date=date(2024, 1, 25),
-            locked_date=datetime.now() + timedelta(days=20),
             type="Full Day",
             amount_cents=6000,
             provider_google_sheets_id=2,

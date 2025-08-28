@@ -16,7 +16,6 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - FLASK_ENV=development
       - DEBUG=True
-      - TZ=America/Denver
       # Google Sheets variables
       - GOOGLE_SPREADSHEET_ID=${GOOGLE_SPREADSHEET_ID}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}

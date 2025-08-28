@@ -7,6 +7,10 @@ ENV_PRODUCTION = "production"
 ENV_TESTING = "testing"
 # --- End Environment Constants ---
 
+# --- Timezone Constants ---
+BUSINESS_TIMEZONE = "America/Denver"  # Mountain Time for care day locking and business rules
+# --- End Timezone Constants ---
+
 
 class Config:
     """Base configuration."""
