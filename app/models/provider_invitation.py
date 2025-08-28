@@ -12,7 +12,7 @@ class ProviderInvitation(db.Model, TimestampMixin):
     email_sent = db.Column(db.Boolean(), default=False, nullable=False)
     sms_sent = db.Column(db.Boolean(), default=False, nullable=False)
     accepted = db.Column(db.Boolean(), default=False, nullable=False)
-    opened_at = db.Column(db.DateTime, nullable=True)
+    opened_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     def __repr__(self):
         return f"<ProviderInvitation {self.id} - Child Sheet ID: {self.child_google_sheet_id}>"

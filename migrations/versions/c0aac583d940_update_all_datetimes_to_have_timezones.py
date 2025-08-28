@@ -1,8 +1,8 @@
-"""Make datetime timezone aware
+"""Update all datetimes to have timezones
 
-Revision ID: 0b8649b16bf4
+Revision ID: c0aac583d940
 Revises: 031eaafe7671
-Create Date: 2025-08-27 11:50:12.663405
+Create Date: 2025-08-28 19:49:55.432208
 
 """
 
@@ -11,7 +11,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = "0b8649b16bf4"
+revision = "c0aac583d940"
 down_revision = "031eaafe7671"
 branch_labels = None
 depends_on = None
@@ -50,6 +50,15 @@ def upgrade():
 
     with op.batch_alter_table("allocated_lump_sum", schema=None) as batch_op:
         batch_op.alter_column(
+            "paid_at", existing_type=postgresql.TIMESTAMP(), type_=sa.DateTime(timezone=True), existing_nullable=True
+        )
+        batch_op.alter_column(
+            "submitted_at",
+            existing_type=postgresql.TIMESTAMP(),
+            type_=sa.DateTime(timezone=True),
+            existing_nullable=True,
+        )
+        batch_op.alter_column(
             "created_at",
             existing_type=postgresql.TIMESTAMP(),
             type_=sa.DateTime(timezone=True),
@@ -64,6 +73,30 @@ def upgrade():
 
     with op.batch_alter_table("attendance", schema=None) as batch_op:
         batch_op.alter_column(
+            "family_entered_at",
+            existing_type=postgresql.TIMESTAMP(),
+            type_=sa.DateTime(timezone=True),
+            existing_nullable=True,
+        )
+        batch_op.alter_column(
+            "provider_entered_at",
+            existing_type=postgresql.TIMESTAMP(),
+            type_=sa.DateTime(timezone=True),
+            existing_nullable=True,
+        )
+        batch_op.alter_column(
+            "family_opened_at",
+            existing_type=postgresql.TIMESTAMP(),
+            type_=sa.DateTime(timezone=True),
+            existing_nullable=True,
+        )
+        batch_op.alter_column(
+            "provider_opened_at",
+            existing_type=postgresql.TIMESTAMP(),
+            type_=sa.DateTime(timezone=True),
+            existing_nullable=True,
+        )
+        batch_op.alter_column(
             "created_at",
             existing_type=postgresql.TIMESTAMP(),
             type_=sa.DateTime(timezone=True),
@@ -77,6 +110,9 @@ def upgrade():
         )
 
     with op.batch_alter_table("family_invitation", schema=None) as batch_op:
+        batch_op.alter_column(
+            "opened_at", existing_type=postgresql.TIMESTAMP(), type_=sa.DateTime(timezone=True), existing_nullable=True
+        )
         batch_op.alter_column(
             "created_at",
             existing_type=postgresql.TIMESTAMP(),
@@ -133,6 +169,9 @@ def upgrade():
         )
 
     with op.batch_alter_table("provider_invitation", schema=None) as batch_op:
+        batch_op.alter_column(
+            "opened_at", existing_type=postgresql.TIMESTAMP(), type_=sa.DateTime(timezone=True), existing_nullable=True
+        )
         batch_op.alter_column(
             "created_at",
             existing_type=postgresql.TIMESTAMP(),
@@ -164,6 +203,9 @@ def downgrade():
             type_=postgresql.TIMESTAMP(),
             existing_nullable=False,
         )
+        batch_op.alter_column(
+            "opened_at", existing_type=sa.DateTime(timezone=True), type_=postgresql.TIMESTAMP(), existing_nullable=True
+        )
 
     with op.batch_alter_table("payment_request", schema=None) as batch_op:
         batch_op.alter_column(
@@ -220,6 +262,9 @@ def downgrade():
             type_=postgresql.TIMESTAMP(),
             existing_nullable=False,
         )
+        batch_op.alter_column(
+            "opened_at", existing_type=sa.DateTime(timezone=True), type_=postgresql.TIMESTAMP(), existing_nullable=True
+        )
 
     with op.batch_alter_table("attendance", schema=None) as batch_op:
         batch_op.alter_column(
@@ -234,6 +279,30 @@ def downgrade():
             type_=postgresql.TIMESTAMP(),
             existing_nullable=False,
         )
+        batch_op.alter_column(
+            "provider_opened_at",
+            existing_type=sa.DateTime(timezone=True),
+            type_=postgresql.TIMESTAMP(),
+            existing_nullable=True,
+        )
+        batch_op.alter_column(
+            "family_opened_at",
+            existing_type=sa.DateTime(timezone=True),
+            type_=postgresql.TIMESTAMP(),
+            existing_nullable=True,
+        )
+        batch_op.alter_column(
+            "provider_entered_at",
+            existing_type=sa.DateTime(timezone=True),
+            type_=postgresql.TIMESTAMP(),
+            existing_nullable=True,
+        )
+        batch_op.alter_column(
+            "family_entered_at",
+            existing_type=sa.DateTime(timezone=True),
+            type_=postgresql.TIMESTAMP(),
+            existing_nullable=True,
+        )
 
     with op.batch_alter_table("allocated_lump_sum", schema=None) as batch_op:
         batch_op.alter_column(
@@ -247,6 +316,15 @@ def downgrade():
             existing_type=sa.DateTime(timezone=True),
             type_=postgresql.TIMESTAMP(),
             existing_nullable=False,
+        )
+        batch_op.alter_column(
+            "submitted_at",
+            existing_type=sa.DateTime(timezone=True),
+            type_=postgresql.TIMESTAMP(),
+            existing_nullable=True,
+        )
+        batch_op.alter_column(
+            "paid_at", existing_type=sa.DateTime(timezone=True), type_=postgresql.TIMESTAMP(), existing_nullable=True
         )
 
     with op.batch_alter_table("allocated_care_day", schema=None) as batch_op:
