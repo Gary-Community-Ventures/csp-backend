@@ -12,6 +12,57 @@ from .month_allocation import MonthAllocation
 from .utils import get_care_day_cost
 
 
+def calculate_week_lock_date(date_in_week):
+    """Calculate the lock date for any date in a week.
+
+    Returns Monday at 23:59:59 (business timezone) of the week containing the given date.
+    Care days are locked after this time passes.
+
+    Args:
+        date_in_week: Any date object within the week
+
+    Returns:
+        datetime: Monday at 23:59:59 of that week in business timezone
+    """
+    if not date_in_week:
+        return None
+
+    # Calculate Monday of the week containing this date
+    days_since_monday = date_in_week.weekday()
+    monday = date_in_week - timedelta(days=days_since_monday)
+
+    # Create timezone-aware locked_date in business timezone (Monday at 23:59:59)
+    business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
+    return datetime.combine(monday, dt_time(23, 59, 59), tzinfo=business_tz)
+
+
+def get_locked_until_date():
+    """Calculate the last date (inclusive) for which newly created care days would be immediately locked.
+
+    This uses business timezone to determine whether we've passed the current week's lock time.
+
+    Returns:
+        date: Sunday of previous week if before Monday 23:59:59,
+              Sunday of current week if after Monday 23:59:59
+    """
+    business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
+    now_business = datetime.now(business_tz)
+    today_business = now_business.date()
+
+    # Get the lock date for the current week
+    current_week_lock_date = calculate_week_lock_date(today_business)
+
+    # Calculate current Monday
+    current_monday = today_business - timedelta(days=today_business.weekday())
+
+    if now_business > current_week_lock_date:
+        # Past Monday 23:59:59 - all days in current week are locked
+        return current_monday + timedelta(days=6)  # Sunday of current week
+    else:
+        # Before Monday 23:59:59 - days up to previous Sunday are locked
+        return current_monday - timedelta(days=1)  # Sunday of previous week
+
+
 class AllocatedCareDay(db.Model, TimestampMixin):
     """Individual allocated care day"""
 
@@ -78,16 +129,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     @property
     def locked_date(self):
         """Calculate the locked date for this care day"""
-        if not self.date:
-            return None
-
-        # Calculate Monday of the week containing this care day
-        days_since_monday = self.date.weekday()
-        monday = self.date - timedelta(days=days_since_monday)
-
-        # Create timezone-aware locked_date in business timezone (Monday at 23:59:59)
-        business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
-        return datetime.combine(monday, dt_time(23, 59, 59), tzinfo=business_tz)
+        return calculate_week_lock_date(self.date)
 
     @property
     def is_locked(self):

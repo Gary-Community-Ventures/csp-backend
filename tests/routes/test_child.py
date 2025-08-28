@@ -356,12 +356,19 @@ def test_get_month_allocation_future_month_creation_fails(client):
 
 def test_month_allocation_locked_until_date(client, seed_db):
     allocation, _, _, _, _, _ = seed_db
-    # Calculate expected locked_until_date based on current date
-    today = date.today()
-    current_monday = today - timedelta(days=today.weekday())
-    current_monday_eod = datetime.combine(current_monday, time(23, 59, 59))
+    # Import business timezone config
+    import zoneinfo
 
-    if datetime.now(timezone.utc) > current_monday_eod.replace(tzinfo=timezone.utc):
+    from app.config import BUSINESS_TIMEZONE
+
+    # Calculate expected locked_until_date based on current date in business timezone
+    business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
+    now_business = datetime.now(business_tz)
+    today = now_business.date()
+    current_monday = today - timedelta(days=today.weekday())
+    current_monday_eod = datetime.combine(current_monday, time(23, 59, 59), tzinfo=business_tz)
+
+    if now_business > current_monday_eod:
         expected_locked_until_date = current_monday + timedelta(days=6)  # Sunday of current week
     else:
         expected_locked_until_date = current_monday - timedelta(days=1)  # Sunday of previous week
