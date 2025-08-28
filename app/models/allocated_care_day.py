@@ -1,8 +1,9 @@
 import zoneinfo
-from datetime import datetime
+from datetime import date, datetime
 from datetime import time as dt_time
 from datetime import timedelta, timezone
 from decimal import Decimal
+from typing import Optional
 
 from ..config import BUSINESS_TIMEZONE
 from ..enums.care_day_type import CareDayType
@@ -12,20 +13,32 @@ from .month_allocation import MonthAllocation
 from .utils import get_care_day_cost
 
 
-def calculate_week_lock_date(date_in_week):
+def calculate_week_lock_date(date_in_week: Optional[date]) -> Optional[datetime]:
     """Calculate the lock date for any date in a week.
 
     Returns Monday at 23:59:59 (business timezone) of the week containing the given date.
     Care days are locked after this time passes.
 
     Args:
-        date_in_week: Any date object within the week
+        date_in_week: Any date object within the week (must be date, not datetime)
 
     Returns:
         datetime: Monday at 23:59:59 of that week in business timezone
+
+    Raises:
+        TypeError: If date_in_week is a datetime object instead of a date
     """
     if not date_in_week:
         return None
+
+    # Ensure we're working with a date object, not a datetime
+    # Note: datetime is a subclass of date, so we check for datetime first
+    if isinstance(date_in_week, datetime):
+        raise TypeError(
+            f"calculate_week_lock_date expects a date object, not datetime. "
+            f"Got {type(date_in_week).__name__}. "
+            f"Use .date() to extract the date from a datetime object."
+        )
 
     # Calculate Monday of the week containing this date
     days_since_monday = date_in_week.weekday()
@@ -36,7 +49,7 @@ def calculate_week_lock_date(date_in_week):
     return datetime.combine(monday, dt_time(23, 59, 59), tzinfo=business_tz)
 
 
-def get_locked_until_date():
+def get_locked_until_date() -> date:
     """Calculate the last date (inclusive) for which newly created care days would be immediately locked.
 
     This uses business timezone to determine whether we've passed the current week's lock time.
