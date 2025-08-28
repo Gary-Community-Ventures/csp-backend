@@ -12,11 +12,11 @@ class Attendance(db.Model, TimestampMixin):
     child_google_sheet_id = db.Column(db.String(64), index=True)
     provider_google_sheet_id = db.Column(db.String(64), index=True)
     family_entered_hours = db.Column(db.Integer, nullable=True)
-    family_entered_at = db.Column(db.DateTime, nullable=True)
+    family_entered_at = db.Column(db.DateTime(timezone=True), nullable=True)
     provider_entered_hours = db.Column(db.Integer, nullable=True)
-    provider_entered_at = db.Column(db.DateTime, nullable=True)
-    family_opened_at = db.Column(db.DateTime, nullable=True)
-    provider_opened_at = db.Column(db.DateTime, nullable=True)
+    provider_entered_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    family_opened_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    provider_opened_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     def __repr__(self):
         return (

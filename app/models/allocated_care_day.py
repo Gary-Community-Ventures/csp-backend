@@ -1,8 +1,9 @@
 import zoneinfo
-from datetime import datetime
+from datetime import date, datetime
 from datetime import time as dt_time
 from datetime import timedelta, timezone
 from decimal import Decimal
+from typing import Optional
 
 from ..config import BUSINESS_TIMEZONE
 from ..enums.care_day_type import CareDayType
@@ -10,6 +11,69 @@ from ..extensions import db
 from .mixins import TimestampMixin
 from .month_allocation import MonthAllocation
 from .utils import get_care_day_cost
+
+
+def calculate_week_lock_date(date_in_week: Optional[date]) -> Optional[datetime]:
+    """Calculate the lock date for any date in a week.
+
+    Returns Monday at 23:59:59 (business timezone) of the week containing the given date.
+    Care days are locked after this time passes.
+
+    Args:
+        date_in_week: Any date object within the week (must be date, not datetime)
+
+    Returns:
+        datetime: Monday at 23:59:59 of that week in business timezone
+
+    Raises:
+        TypeError: If date_in_week is a datetime object instead of a date
+    """
+    if not date_in_week:
+        return None
+
+    # Ensure we're working with a date object, not a datetime
+    # Note: datetime is a subclass of date, so we check for datetime first
+    if isinstance(date_in_week, datetime):
+        raise TypeError(
+            f"calculate_week_lock_date expects a date object, not datetime. "
+            f"Got {type(date_in_week).__name__}. "
+            f"Use .date() to extract the date from a datetime object."
+        )
+
+    # Calculate Monday of the week containing this date
+    days_since_monday = date_in_week.weekday()
+    monday = date_in_week - timedelta(days=days_since_monday)
+
+    # Create timezone-aware locked_date in business timezone (Monday at 23:59:59)
+    business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
+    return datetime.combine(monday, dt_time(23, 59, 59), tzinfo=business_tz)
+
+
+def get_locked_until_date() -> date:
+    """Calculate the last date (inclusive) for which newly created care days would be immediately locked.
+
+    This uses business timezone to determine whether we've passed the current week's lock time.
+
+    Returns:
+        date: Sunday of previous week if before Monday 23:59:59,
+              Sunday of current week if after Monday 23:59:59
+    """
+    business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
+    now_business = datetime.now(business_tz)
+    today_business = now_business.date()
+
+    # Get the lock date for the current week
+    current_week_lock_date = calculate_week_lock_date(today_business)
+
+    # Calculate current Monday
+    current_monday = today_business - timedelta(days=today_business.weekday())
+
+    if now_business > current_week_lock_date:
+        # Past Monday 23:59:59 - all days in current week are locked
+        return current_monday + timedelta(days=6)  # Sunday of current week
+    else:
+        # Before Monday 23:59:59 - days up to previous Sunday are locked
+        return current_monday - timedelta(days=1)  # Sunday of previous week
 
 
 class AllocatedCareDay(db.Model, TimestampMixin):
@@ -54,8 +118,6 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     # Soft delete
     deleted_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
-    locked_date = db.Column(db.DateTime(timezone=True), nullable=False)
-
     __table_args__ = (
         # Prevent duplicate care days for same allocation/provider/date (including soft deleted)
         db.UniqueConstraint(
@@ -97,6 +159,11 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         return self.payment_distribution_requested
 
     @property
+    def locked_date(self):
+        """Calculate the locked date for this care day"""
+        return calculate_week_lock_date(self.date)
+
+    @property
     def is_locked(self):
         """Check if this care day is locked"""
         if not self.locked_date:
@@ -106,10 +173,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
         now_business = datetime.now(business_tz)
 
-        # Convert locked_date to business timezone for comparison
-        locked_date_business = self.locked_date.astimezone(business_tz)
-
-        return now_business > locked_date_business
+        return now_business > self.locked_date
 
     @property
     def is_deleted(self):
@@ -183,19 +247,6 @@ class AllocatedCareDay(db.Model, TimestampMixin):
                 child_id=allocation.google_sheets_child_id,
             ),
         )
-        # Calculate and set locked_date
-        days_since_monday = care_date.weekday()
-        monday = care_date - timedelta(days=days_since_monday)
-
-        # Create timezone-aware locked_date in business timezone
-        business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
-        calculated_locked_date = datetime.combine(monday, dt_time(23, 59, 59), tzinfo=business_tz)
-
-        # Prevent creating a care day that would be locked (using business timezone)
-        now_business = datetime.now(business_tz)
-        if now_business > calculated_locked_date:
-            raise ValueError("Cannot create a care day that would be locked.")
-
         # Create new care day
         care_day = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
@@ -207,8 +258,13 @@ class AllocatedCareDay(db.Model, TimestampMixin):
                 provider_id=provider_id,
                 child_id=allocation.google_sheets_child_id,
             ),
-            locked_date=calculated_locked_date,
         )
+
+        # Prevent creating a care day that would be locked (using business timezone)
+        business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
+        now_business = datetime.now(business_tz)
+        if now_business > care_day.locked_date:
+            raise ValueError("Cannot create a care day that would be locked.")
 
         db.session.add(care_day)
         db.session.commit()

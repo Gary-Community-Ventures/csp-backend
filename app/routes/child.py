@@ -12,7 +12,14 @@ from app.schemas.month_allocation import (
     MonthAllocationResponse,
 )
 from app.schemas.payment import PaymentErrorResponse, PaymentProcessedResponse
-from app.sheets.mappings import get_child, get_children, get_provider, get_providers
+from app.sheets.mappings import (
+    ChildColumnNames,
+    ProviderColumnNames,
+    get_child,
+    get_children,
+    get_provider,
+    get_providers,
+)
 from app.utils.email_service import (
     send_care_days_payment_request_email,
 )
@@ -76,6 +83,21 @@ def submit_care_days(child_id, provider_id, month, year):
 
     if allocation.over_allocation:
         return jsonify({"error": "Cannot submit: allocation exceeded"}), 400
+
+    # Get child data to find the family ID
+    child_data = get_child(child_id, get_children())
+    if not child_data:
+        return jsonify({"error": "Child not found"}), 404
+
+    if not child_data.get(ChildColumnNames.PAYMENT_ENABLED):
+        return jsonify({"error": "Cannot submit: child payment not enabled"}), 400
+
+    provider_data = get_provider(provider_id, get_providers())
+    if not provider_data:
+        return jsonify({"error": "Provider not found"}), 404
+
+    if not provider_data.get(ProviderColumnNames.PAYMENT_ENABLED):
+        return jsonify({"error": "Cannot submit: provider payment not enabled"}), 400
 
     care_days_to_submit = AllocatedCareDay.query.filter(
         AllocatedCareDay.care_month_allocation_id == allocation.id,

@@ -24,7 +24,7 @@ class Key(Generic[T]):
         try:
             return self._converter(value)
         except ValueError:
-            current_app.logger.error(f"Failed to convert value {value} to type {self._converter}")
+            current_app.logger.error(f"Failed to convert value '{value}' to type '{self._converter}'")
             return self.default
 
     def __str__(self):
@@ -73,6 +73,10 @@ def filter_rows_by_value(data: list[KeyMap], value: T, key: Key[T]) -> list[KeyM
 
 def money_to_float(money: str = "0") -> float:
     return float(money.replace("$", "").replace(",", ""))
+
+
+def boolean_from_str(value: str) -> bool:
+    return value.strip().lower() == "true"
 
 
 FIRST_NAME_KEY = Key("First Name", str)

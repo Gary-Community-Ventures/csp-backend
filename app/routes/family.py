@@ -1,7 +1,7 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional
 from uuid import uuid4
-from datetime import datetime
 
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, current_app, jsonify, request
@@ -15,8 +15,8 @@ from app.auth.decorators import (
 from app.auth.helpers import get_current_user, get_family_user, get_provider_user
 from app.constants import MAX_CHILDREN_PER_PROVIDER
 from app.extensions import db
-from app.models.month_allocation import MonthAllocation
 from app.models.attendance import Attendance
+from app.models.month_allocation import MonthAllocation
 from app.models.provider_invitation import ProviderInvitation
 from app.models.provider_payment_settings import ProviderPaymentSettings
 from app.sheets.helpers import KeyMap, format_name, get_row
@@ -44,6 +44,7 @@ from app.utils.email_service import (
     html_link,
     send_email,
     send_provider_invite_accept_email,
+    send_provider_invited_email,
 )
 from app.utils.sms_service import send_sms
 
@@ -154,6 +155,7 @@ def family_data(child_id: Optional[str] = None):
         "balance": child_data.get(ChildColumnNames.BALANCE),
         "monthly_allocation": child_data.get(ChildColumnNames.MONTHLY_ALLOCATION),
         "prorated_first_month_allocation": child_data.get(ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION),
+        "is_payment_enabled": child_data.get(ChildColumnNames.PAYMENT_ENABLED),
     }
 
     providers = []
@@ -170,6 +172,7 @@ def family_data(child_id: Optional[str] = None):
                 "status": c.get(ProviderColumnNames.STATUS).lower(),
                 "type": c.get(ProviderColumnNames.TYPE).lower(),
                 "is_payable": provider_payment_settings.is_payable if provider_payment_settings else False,
+                "is_payment_enabled": c.get(ProviderColumnNames.PAYMENT_ENABLED),
             }
         )
 
@@ -283,6 +286,7 @@ def invite_provider():
 
         children.append(child)
 
+    invitations: list[ProviderInvitation] = []
     for child in children:
         try:
             child_id = child.get(ChildColumnNames.ID)
@@ -290,6 +294,7 @@ def invite_provider():
 
             invitation = ProviderInvitation.new(id, data["provider_email"], child_id)
             db.session.add(invitation)
+            invitations.append(invitation)
 
             domain = current_app.config.get("FRONTEND_DOMAIN")
             link = f"{domain}/invite/provider/{id}"
@@ -315,6 +320,10 @@ def invite_provider():
             current_app.logger.error(f"Failed to send provider invite for child ID {child_id}: {e}")
         finally:
             db.session.commit()
+
+    send_provider_invited_email(
+        format_name(family), family.get(FamilyColumnNames.ID), [i.public_id for i in invitations]
+    )
 
     return jsonify({"message": "Success"}, 201)
 

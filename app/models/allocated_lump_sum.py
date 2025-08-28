@@ -29,8 +29,8 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
     payment_id = db.Column(
         db.UUID(as_uuid=True), db.ForeignKey("payment.id", name="fk_allocated_lump_sum_payment_id"), nullable=True
     )
-    paid_at = db.Column(db.DateTime, nullable=True)
-    submitted_at = db.Column(db.DateTime, nullable=True)
+    paid_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    submitted_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     @property
     def is_paid(self) -> bool:

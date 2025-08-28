@@ -1,7 +1,4 @@
-import zoneinfo
-from datetime import datetime
-from datetime import time as dt_time
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from app.config import (
     BUSINESS_TIMEZONE,
@@ -233,23 +230,14 @@ class MonthAllocation(db.Model, TimestampMixin):
 
     @property
     def locked_until_date(self) -> date:
-        """Returns the last date (inclusive) for which a newly created care day would be immediately locked."""
-        # Use business timezone for logic
-        business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
-        now_business = datetime.now(business_tz)
-        today_business = now_business.date()
+        """Returns the last date (inclusive) for which a newly created care day would be immediately locked.
 
-        # Calculate the Monday of the current week (in business timezone)
-        current_monday = today_business - timedelta(days=today_business.weekday())
-        # Calculate the end of day for the current Monday (in business timezone)
-        current_monday_eod = datetime.combine(current_monday, dt_time(23, 59, 59), tzinfo=business_tz)
+        Uses business timezone to determine the current lock status.
+        """
+        # Import here to avoid circular dependency
+        from .allocated_care_day import get_locked_until_date
 
-        if now_business > current_monday_eod:
-            # If current time is past Monday EOD (business time), all days in current week are locked
-            return current_monday + timedelta(days=SUNDAY_OFFSET)  # Sunday of current week
-        else:
-            # If current time is not yet past Monday EOD (business time), days up to previous Sunday are locked
-            return current_monday - timedelta(days=1)  # Sunday of previous week
+        return get_locked_until_date()
 
     def __repr__(self):
         return f"<MonthAllocation Child:{self.google_sheets_child_id} {self.date.strftime('%Y-%m')}"
