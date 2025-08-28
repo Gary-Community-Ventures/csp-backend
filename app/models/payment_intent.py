@@ -21,7 +21,7 @@ class PaymentIntent(db.Model, TimestampMixin):
     # Who and what we're paying for
     provider_external_id = db.Column(db.String(64), nullable=False, index=True)
     child_external_id = db.Column(db.String(64), nullable=True, index=True)
-    month_allocation_id = db.Column(db.Integer, db.ForeignKey("month_allocation.id"), nullable=False)
+    month_allocation_id = db.Column(db.Integer, db.ForeignKey("month_allocation.id", name="fk_payment_intent_month_allocation_id"), nullable=False)
     month_allocation = relationship("MonthAllocation", backref="payment_intents")
     
     # Amount to pay (computed from care days + lump sums)
@@ -34,7 +34,7 @@ class PaymentIntent(db.Model, TimestampMixin):
     # Provider payment settings at time of intent creation
     provider_payment_settings_id = db.Column(
         UUID(as_uuid=True), 
-        db.ForeignKey("provider_payment_settings.id"), 
+        db.ForeignKey("provider_payment_settings.id", name="fk_payment_intent_provider_settings_id"), 
         nullable=False
     )
     provider_payment_settings = relationship("ProviderPaymentSettings", backref="payment_intents")

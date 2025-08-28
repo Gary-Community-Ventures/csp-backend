@@ -14,11 +14,11 @@ class PaymentAttempt(db.Model, TimestampMixin):
     id = db.Column(UUID(as_uuid=True), index=True, primary_key=True, default=uuid.uuid4)
     
     # Link to PaymentIntent (required - every attempt is for an intent)
-    payment_intent_id = db.Column(UUID(as_uuid=True), ForeignKey("payment_intent.id"), nullable=False)
+    payment_intent_id = db.Column(UUID(as_uuid=True), ForeignKey("payment_intent.id", name="fk_payment_attempt_intent_id"), nullable=False)
     intent = relationship("PaymentIntent", back_populates="attempts")
     
     # Payment link - only set when this attempt succeeds and Payment is created
-    payment_id = db.Column(UUID(as_uuid=True), ForeignKey("payment.id"), nullable=True)
+    payment_id = db.Column(UUID(as_uuid=True), ForeignKey("payment.id", name="fk_payment_attempt_payment_id"), nullable=True)
     payment = relationship("Payment", foreign_keys=[payment_id], back_populates="attempts")
     
     # Attempt details

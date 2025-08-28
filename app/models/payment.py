@@ -14,18 +14,18 @@ class Payment(db.Model, TimestampMixin):
     id = db.Column(UUID(as_uuid=True), index=True, primary_key=True, default=uuid.uuid4)
     
     # Link to PaymentIntent (required - payment fulfills an intent)
-    payment_intent_id = db.Column(UUID(as_uuid=True), ForeignKey("payment_intent.id"), nullable=False, unique=True)
+    payment_intent_id = db.Column(UUID(as_uuid=True), ForeignKey("payment_intent.id", name="fk_payment_intent_id"), nullable=False, unique=True)
     intent = relationship("PaymentIntent", back_populates="payment")
     
     # Link to the successful attempt
-    successful_attempt_id = db.Column(UUID(as_uuid=True), ForeignKey("payment_attempt.id"), nullable=False)
+    successful_attempt_id = db.Column(UUID(as_uuid=True), ForeignKey("payment_attempt.id", name="fk_payment_successful_attempt_id"), nullable=False)
     successful_attempt = relationship("PaymentAttempt", foreign_keys=[successful_attempt_id])
     
     external_provider_id = db.Column(db.String(64), nullable=False, index=True)  # Google Sheets ID
     external_child_id = db.Column(db.String(64), nullable=True, index=True)  # Google Sheets ID
 
     provider_payment_settings_id = db.Column(
-        UUID(as_uuid=True), ForeignKey("provider_payment_settings.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("provider_payment_settings.id", name="fk_payment_provider_settings_id"), nullable=False
     )
     provider_payment_settings = relationship("ProviderPaymentSettings", backref="payments")
 
@@ -41,7 +41,7 @@ class Payment(db.Model, TimestampMixin):
     attempts = relationship("PaymentAttempt", foreign_keys="PaymentAttempt.payment_id", back_populates="payment")
     
     # Relationships to allocations (assuming these are separate models)
-    month_allocation_id = db.Column(db.Integer, ForeignKey("month_allocation.id"), nullable=True)
+    month_allocation_id = db.Column(db.Integer, ForeignKey("month_allocation.id", name="fk_payment_month_allocation_id"), nullable=True)
     month_allocation = relationship("MonthAllocation", backref="payments")
     allocated_care_days = db.relationship("AllocatedCareDay", back_populates="payment")
     allocated_lump_sums = relationship("AllocatedLumpSum", backref="payments")
