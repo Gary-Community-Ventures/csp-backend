@@ -203,7 +203,6 @@ def test_submit_care_days_success(client, seed_db, mock_send_submission_notifica
     # Mock the child, provider and family data with payment enabled
     from app.sheets.mappings import (
         ChildColumnNames,
-        FamilyColumnNames,
         ProviderColumnNames,
     )
 
@@ -212,6 +211,7 @@ def test_submit_care_days_success(client, seed_db, mock_send_submission_notifica
         ChildColumnNames.FAMILY_ID: "test_family_id",
         ChildColumnNames.FIRST_NAME: "Test",
         ChildColumnNames.LAST_NAME: "Child",
+        ChildColumnNames.PAYMENT_ENABLED: True,
     }
 
     mock_provider_data = {
@@ -220,19 +220,10 @@ def test_submit_care_days_success(client, seed_db, mock_send_submission_notifica
         ProviderColumnNames.PAYMENT_ENABLED: True,
     }
 
-    mock_family_data = {
-        FamilyColumnNames.ID: "test_family_id",
-        FamilyColumnNames.FIRST_NAME: "Test",
-        FamilyColumnNames.LAST_NAME: "Family",
-        FamilyColumnNames.PAYMENT_ENABLED: True,
-    }
-
     mocker.patch("app.routes.child.get_children", return_value=[mock_child_data])
     mocker.patch("app.routes.child.get_child", return_value=mock_child_data)
     mocker.patch("app.routes.child.get_providers", return_value=[mock_provider_data])
     mocker.patch("app.routes.child.get_provider", return_value=mock_provider_data)
-    mocker.patch("app.routes.child.get_families", return_value=[mock_family_data])
-    mocker.patch("app.routes.child.get_family", return_value=mock_family_data)
 
     response = client.post(
         f"/child/{allocation.google_sheets_child_id}/provider/{care_day_new.provider_google_sheets_id}/allocation/{allocation.date.month}/{allocation.date.year}/submit"
@@ -291,7 +282,6 @@ def test_submit_care_days_no_care_days(client, seed_db, mock_send_submission_not
     # Mock the child, provider and family data with payment enabled
     from app.sheets.mappings import (
         ChildColumnNames,
-        FamilyColumnNames,
         ProviderColumnNames,
     )
 
@@ -300,6 +290,7 @@ def test_submit_care_days_no_care_days(client, seed_db, mock_send_submission_not
         ChildColumnNames.FAMILY_ID: "test_family_id",
         ChildColumnNames.FIRST_NAME: "Test",
         ChildColumnNames.LAST_NAME: "Child",
+        ChildColumnNames.PAYMENT_ENABLED: True,
     }
 
     mock_provider_data = {
@@ -308,19 +299,10 @@ def test_submit_care_days_no_care_days(client, seed_db, mock_send_submission_not
         ProviderColumnNames.PAYMENT_ENABLED: True,
     }
 
-    mock_family_data = {
-        FamilyColumnNames.ID: "test_family_id",
-        FamilyColumnNames.FIRST_NAME: "Test",
-        FamilyColumnNames.LAST_NAME: "Family",
-        FamilyColumnNames.PAYMENT_ENABLED: True,
-    }
-
     mocker.patch("app.routes.child.get_children", return_value=[mock_child_data])
     mocker.patch("app.routes.child.get_child", return_value=mock_child_data)
     mocker.patch("app.routes.child.get_providers", return_value=[mock_provider_data])
     mocker.patch("app.routes.child.get_provider", return_value=mock_provider_data)
-    mocker.patch("app.routes.child.get_families", return_value=[mock_family_data])
-    mocker.patch("app.routes.child.get_family", return_value=mock_family_data)
 
     response = client.post(
         f"/child/{new_allocation_child_id}/provider/1/allocation/{new_allocation_month}/{new_allocation_year}/submit"

@@ -75,6 +75,10 @@ def money_to_float(money: str = "0") -> float:
     return float(money.replace("$", "").replace(",", ""))
 
 
+def boolean_from_str(value: str) -> bool:
+    return value.strip().lower() == "true"
+
+
 FIRST_NAME_KEY = Key("First Name", str)
 LAST_NAME_KEY = Key("Last Name", str)
 

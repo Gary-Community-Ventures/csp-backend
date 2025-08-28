@@ -108,7 +108,6 @@ def family_data(child_id: Optional[str] = None):
     transaction_rows = get_transactions()
 
     family_id = user.user_data.family_id
-    family_data = get_family(family_id, get_families())
     family_children = get_family_children(family_id, child_rows)
 
     if len(family_children) == 0:
@@ -135,6 +134,7 @@ def family_data(child_id: Optional[str] = None):
         "balance": child_data.get(ChildColumnNames.BALANCE),
         "monthly_allocation": child_data.get(ChildColumnNames.MONTHLY_ALLOCATION),
         "prorated_first_month_allocation": child_data.get(ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION),
+        "is_payment_enabled": child_data.get(ChildColumnNames.PAYMENT_ENABLED),
     }
 
     providers = [
@@ -191,7 +191,6 @@ def family_data(child_id: Optional[str] = None):
             "children": children,
             "notifications": notifications,
             "is_also_provider": ClerkUserType.PROVIDER.value in user.user_data.types,
-            "is_payment_enabled": family_data.get(FamilyColumnNames.PAYMENT_ENABLED),
         }
     )
 

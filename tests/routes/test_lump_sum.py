@@ -43,12 +43,14 @@ def mock_sheets_data(mocker):
                 ChildColumnNames.FAMILY_ID: "family123",
                 ChildColumnNames.FIRST_NAME: "Test",
                 ChildColumnNames.LAST_NAME: "Child",
+                ChildColumnNames.PAYMENT_ENABLED: True,
             },
             {
                 ChildColumnNames.ID: "child456",
                 ChildColumnNames.FAMILY_ID: "family456",
                 ChildColumnNames.FIRST_NAME: "Another",
                 ChildColumnNames.LAST_NAME: "Child",
+                ChildColumnNames.PAYMENT_ENABLED: True,
             },
         ],
     )
@@ -98,32 +100,6 @@ def mock_sheets_data(mocker):
             if p.get(ProviderColumnNames.ID)
             in [m.get("provider_id") for m in mappings if m.get("child_id") == child_id]
         ],
-    )
-    # Mock get_families and get_family
-    from app.sheets.mappings import FamilyColumnNames
-
-    mocker.patch(
-        "app.routes.lump_sum.get_families",
-        return_value=[
-            {
-                FamilyColumnNames.ID: "family123",
-                FamilyColumnNames.FIRST_NAME: "Test",
-                FamilyColumnNames.LAST_NAME: "Family",
-                FamilyColumnNames.PAYMENT_ENABLED: True,
-            },
-            {
-                FamilyColumnNames.ID: "family456",
-                FamilyColumnNames.FIRST_NAME: "Another",
-                FamilyColumnNames.LAST_NAME: "Family",
-                FamilyColumnNames.PAYMENT_ENABLED: True,
-            },
-        ],
-    )
-    mocker.patch(
-        "app.routes.lump_sum.get_family",
-        side_effect=lambda family_id, families: next(
-            (f for f in families if f.get(FamilyColumnNames.ID) == family_id), None
-        ),
     )
 
 

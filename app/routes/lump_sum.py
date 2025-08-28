@@ -12,12 +12,9 @@ from app.models.month_allocation import MonthAllocation
 from app.schemas.lump_sum import AllocatedLumpSumCreateRequest, AllocatedLumpSumResponse
 from app.sheets.mappings import (
     ChildColumnNames,
-    FamilyColumnNames,
     ProviderColumnNames,
     get_child_providers,
     get_children,
-    get_families,
-    get_family,
     get_family_children,
     get_provider_child_mappings,
     get_providers,
@@ -67,23 +64,20 @@ def create_lump_sum():
     provider_rows = get_providers()
     child_providers = get_child_providers(allocation_child_id, provider_child_mapping_rows, provider_rows)
 
-    provider_found = False
     provider_data = None
     for provider in child_providers:
         if provider.get(ProviderColumnNames.ID) == provider_id:
-            provider_found = True
             provider_data = provider
             break
 
-    if not provider_found:
+    if not provider_data:
         return jsonify({"error": "Provider not associated with the specified child."}), 403
 
     if not provider_data or not provider_data.get(ProviderColumnNames.PAYMENT_ENABLED):
         return jsonify({"error": "Cannot submit: provider payment not enabled"}), 400
 
-    family_data = get_family(family_id, get_families())
-    if not family_data.get(FamilyColumnNames.PAYMENT_ENABLED):
-        return jsonify({"error": "Cannot submit: family payment not enabled"}), 400
+    if not associated_child.get(ChildColumnNames.PAYMENT_ENABLED):
+        return jsonify({"error": "Cannot submit: child payment not enabled"}), 400
 
     try:
         lump_sum = AllocatedLumpSum.create_lump_sum(
