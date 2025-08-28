@@ -72,9 +72,21 @@ def mock_sheets_data(mocker):
     mocker.patch(
         "app.routes.lump_sum.get_providers",
         return_value=[
-            {ProviderColumnNames.ID: "providerABC", ProviderColumnNames.NAME: "Provider A"},
-            {ProviderColumnNames.ID: "providerXYZ", ProviderColumnNames.NAME: "Provider X"},
-            {ProviderColumnNames.ID: "providerDEF", ProviderColumnNames.NAME: "Provider D"},
+            {
+                ProviderColumnNames.ID: "providerABC",
+                ProviderColumnNames.NAME: "Provider A",
+                ProviderColumnNames.PAYMENT_ENABLED: True,
+            },
+            {
+                ProviderColumnNames.ID: "providerXYZ",
+                ProviderColumnNames.NAME: "Provider X",
+                ProviderColumnNames.PAYMENT_ENABLED: True,
+            },
+            {
+                ProviderColumnNames.ID: "providerDEF",
+                ProviderColumnNames.NAME: "Provider D",
+                ProviderColumnNames.PAYMENT_ENABLED: True,
+            },
         ],
     )
     # Mock get_child_providers
@@ -86,6 +98,32 @@ def mock_sheets_data(mocker):
             if p.get(ProviderColumnNames.ID)
             in [m.get("provider_id") for m in mappings if m.get("child_id") == child_id]
         ],
+    )
+    # Mock get_families and get_family
+    from app.sheets.mappings import FamilyColumnNames
+
+    mocker.patch(
+        "app.routes.lump_sum.get_families",
+        return_value=[
+            {
+                FamilyColumnNames.ID: "family123",
+                FamilyColumnNames.FIRST_NAME: "Test",
+                FamilyColumnNames.LAST_NAME: "Family",
+                FamilyColumnNames.PAYMENT_ENABLED: True,
+            },
+            {
+                FamilyColumnNames.ID: "family456",
+                FamilyColumnNames.FIRST_NAME: "Another",
+                FamilyColumnNames.LAST_NAME: "Family",
+                FamilyColumnNames.PAYMENT_ENABLED: True,
+            },
+        ],
+    )
+    mocker.patch(
+        "app.routes.lump_sum.get_family",
+        side_effect=lambda family_id, families: next(
+            (f for f in families if f.get(FamilyColumnNames.ID) == family_id), None
+        ),
     )
 
 

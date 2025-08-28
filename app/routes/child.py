@@ -13,8 +13,11 @@ from app.schemas.month_allocation import (
     MonthAllocationResponse,
 )
 from app.sheets.mappings import (
+    ChildColumnNames,
     FamilyColumnNames,
     ProviderColumnNames,
+    get_child,
+    get_children,
     get_families,
     get_family,
     get_provider,
@@ -79,6 +82,15 @@ def submit_care_days(child_id, provider_id, month, year):
     if allocation.over_allocation:
         return jsonify({"error": "Cannot submit: allocation exceeded"}), 400
 
+    # Get child data to find the family ID
+    child_data = get_child(child_id, get_children())
+    if not child_data:
+        return jsonify({"error": "Child not found"}), 404
+
+    family_id = child_data.get(ChildColumnNames.FAMILY_ID)
+    if not family_id:
+        return jsonify({"error": "Child has no associated family"}), 400
+
     provider_data = get_provider(provider_id, get_providers())
     if not provider_data:
         return jsonify({"error": "Provider not found"}), 404
@@ -86,7 +98,7 @@ def submit_care_days(child_id, provider_id, month, year):
     if not provider_data.get(ProviderColumnNames.PAYMENT_ENABLED):
         return jsonify({"error": "Cannot submit: provider payment not enabled"}), 400
 
-    family_data = get_family(allocation.google_sheets_family_id, get_families())
+    family_data = get_family(family_id, get_families())
     if not family_data:
         return jsonify({"error": "Family not found"}), 404
 

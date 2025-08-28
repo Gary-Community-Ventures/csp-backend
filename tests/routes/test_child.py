@@ -190,7 +190,7 @@ def test_get_month_allocation_allocation_not_found(client, seed_db, mocker):
 
 
 # --- POST /child/{child_id}/provider/{provider_id}/allocation/{month}/{year}/submit ---
-def test_submit_care_days_success(client, seed_db, mock_send_submission_notification):
+def test_submit_care_days_success(client, seed_db, mock_send_submission_notification, mocker):
     (
         allocation,
         care_day_new,
@@ -199,6 +199,40 @@ def test_submit_care_days_success(client, seed_db, mock_send_submission_notifica
         _,
         care_day_deleted,
     ) = seed_db
+
+    # Mock the child, provider and family data with payment enabled
+    from app.sheets.mappings import (
+        ChildColumnNames,
+        FamilyColumnNames,
+        ProviderColumnNames,
+    )
+
+    mock_child_data = {
+        ChildColumnNames.ID: allocation.google_sheets_child_id,
+        ChildColumnNames.FAMILY_ID: "test_family_id",
+        ChildColumnNames.FIRST_NAME: "Test",
+        ChildColumnNames.LAST_NAME: "Child",
+    }
+
+    mock_provider_data = {
+        ProviderColumnNames.ID: care_day_new.provider_google_sheets_id,
+        ProviderColumnNames.NAME: "Test Provider",
+        ProviderColumnNames.PAYMENT_ENABLED: True,
+    }
+
+    mock_family_data = {
+        FamilyColumnNames.ID: "test_family_id",
+        FamilyColumnNames.FIRST_NAME: "Test",
+        FamilyColumnNames.LAST_NAME: "Family",
+        FamilyColumnNames.PAYMENT_ENABLED: True,
+    }
+
+    mocker.patch("app.routes.child.get_children", return_value=[mock_child_data])
+    mocker.patch("app.routes.child.get_child", return_value=mock_child_data)
+    mocker.patch("app.routes.child.get_providers", return_value=[mock_provider_data])
+    mocker.patch("app.routes.child.get_provider", return_value=mock_provider_data)
+    mocker.patch("app.routes.child.get_families", return_value=[mock_family_data])
+    mocker.patch("app.routes.child.get_family", return_value=mock_family_data)
 
     response = client.post(
         f"/child/{allocation.google_sheets_child_id}/provider/{care_day_new.provider_google_sheets_id}/allocation/{allocation.date.month}/{allocation.date.year}/submit"
@@ -238,7 +272,7 @@ def test_submit_care_days_success(client, seed_db, mock_send_submission_notifica
         assert updated_needs_resubmission_day.last_submitted_at is not None
 
 
-def test_submit_care_days_no_care_days(client, seed_db, mock_send_submission_notification):
+def test_submit_care_days_no_care_days(client, seed_db, mock_send_submission_notification, mocker):
 
     # Create a new allocation with no care days
     new_allocation_child_id = "2"
@@ -253,6 +287,40 @@ def test_submit_care_days_no_care_days(client, seed_db, mock_send_submission_not
         )
         db.session.add(new_allocation)
         db.session.commit()
+
+    # Mock the child, provider and family data with payment enabled
+    from app.sheets.mappings import (
+        ChildColumnNames,
+        FamilyColumnNames,
+        ProviderColumnNames,
+    )
+
+    mock_child_data = {
+        ChildColumnNames.ID: new_allocation_child_id,
+        ChildColumnNames.FAMILY_ID: "test_family_id",
+        ChildColumnNames.FIRST_NAME: "Test",
+        ChildColumnNames.LAST_NAME: "Child",
+    }
+
+    mock_provider_data = {
+        ProviderColumnNames.ID: "1",
+        ProviderColumnNames.NAME: "Test Provider",
+        ProviderColumnNames.PAYMENT_ENABLED: True,
+    }
+
+    mock_family_data = {
+        FamilyColumnNames.ID: "test_family_id",
+        FamilyColumnNames.FIRST_NAME: "Test",
+        FamilyColumnNames.LAST_NAME: "Family",
+        FamilyColumnNames.PAYMENT_ENABLED: True,
+    }
+
+    mocker.patch("app.routes.child.get_children", return_value=[mock_child_data])
+    mocker.patch("app.routes.child.get_child", return_value=mock_child_data)
+    mocker.patch("app.routes.child.get_providers", return_value=[mock_provider_data])
+    mocker.patch("app.routes.child.get_provider", return_value=mock_provider_data)
+    mocker.patch("app.routes.child.get_families", return_value=[mock_family_data])
+    mocker.patch("app.routes.child.get_family", return_value=mock_family_data)
 
     response = client.post(
         f"/child/{new_allocation_child_id}/provider/1/allocation/{new_allocation_month}/{new_allocation_year}/submit"
