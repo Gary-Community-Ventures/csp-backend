@@ -13,11 +13,14 @@ from app.schemas.lump_sum import AllocatedLumpSumCreateRequest, AllocatedLumpSum
 from app.sheets.mappings import (
     ChildColumnNames,
     ProviderColumnNames,
+    FamilyColumnNames,
     get_child_providers,
     get_children,
     get_family_children,
     get_provider_child_mappings,
     get_providers,
+    get_family,
+    get_families,
 )
 from app.utils.email_service import send_lump_sum_payment_request_email
 
@@ -72,6 +75,14 @@ def create_lump_sum():
 
     if not provider_found:
         return jsonify({"error": "Provider not associated with the specified child."}), 403
+
+    provider_data = provider
+    if not provider_data.get(ProviderColumnNames.PAYMENT_ENABLED):
+        return jsonify({"error": "Cannot submit: provider payment not enabled"}), 400
+
+    family_data = get_family(family_id, get_families())
+    if not family_data.get(FamilyColumnNames.PAYMENT_ENABLED):
+        return jsonify({"error": "Cannot submit: family payment not enabled"}), 400
 
     try:
         lump_sum = AllocatedLumpSum.create_lump_sum(

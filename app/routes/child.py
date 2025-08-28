@@ -14,6 +14,16 @@ from app.schemas.month_allocation import (
 )
 from app.utils.email_service import send_submission_notification
 from app.utils.json_utils import custom_jsonify
+from app.sheets.mappings import (
+    get_family,
+    get_families,
+    get_provider,
+    get_providers,
+)
+from app.sheets.mappings import (
+    FamilyColumnNames,
+    ProviderColumnNames,
+)
 
 bp = Blueprint("child", __name__)
 
@@ -70,6 +80,20 @@ def submit_care_days(child_id, provider_id, month, year):
 
     if allocation.over_allocation:
         return jsonify({"error": "Cannot submit: allocation exceeded"}), 400
+
+    provider_data = get_provider(provider_id, get_providers())
+    if not provider_data:
+        return jsonify({"error": "Provider not found"}), 404
+
+    if not provider_data.get(ProviderColumnNames.PAYMENT_ENABLED):
+        return jsonify({"error": "Cannot submit: provider payment not enabled"}), 400
+
+    family_data = get_family(allocation.google_sheets_family_id, get_families())
+    if not family_data:
+        return jsonify({"error": "Family not found"}), 404
+
+    if not family_data.get(FamilyColumnNames.PAYMENT_ENABLED):
+        return jsonify({"error": "Cannot submit: family payment not enabled"}), 400
 
     care_days_to_submit = AllocatedCareDay.query.filter(
         AllocatedCareDay.care_month_allocation_id == allocation.id,

@@ -22,6 +22,7 @@ class FamilyColumnNames:
     EMAIL = Key("Email")
     LANGUAGE = Key("Language", default="en")
     PHONE_NUMBER = Key("Phone Number")
+    PAYMENT_ENABLED = Key("Payment Enabled", lambda v: v.lower() == "true", default=False)
 
 
 class ChildColumnNames:
@@ -50,6 +51,7 @@ class ProviderColumnNames:
     LANGUAGE = Key("Language", default="en")
     PHONE_NUMBER = Key("Phone Number")
     TYPE = Key("Type")
+    PAYMENT_ENABLED = Key("Payment Enabled", lambda v: v.lower() == "true", default=False)
 
 
 class ContentColumnNames:

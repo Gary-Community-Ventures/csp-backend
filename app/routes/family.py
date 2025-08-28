@@ -108,6 +108,7 @@ def family_data(child_id: Optional[str] = None):
     transaction_rows = get_transactions()
 
     family_id = user.user_data.family_id
+    family_data = get_family(family_id, get_families())
     family_children = get_family_children(family_id, child_rows)
 
     if len(family_children) == 0:
@@ -142,6 +143,7 @@ def family_data(child_id: Optional[str] = None):
             "name": c.get(ProviderColumnNames.NAME),
             "status": c.get(ProviderColumnNames.STATUS).lower(),
             "type": c.get(ProviderColumnNames.TYPE).lower(),
+            "is_payment_enabled": c.get(ProviderColumnNames.PAYMENT_ENABLED),
         }
         for c in provider_data
     ]
@@ -189,6 +191,7 @@ def family_data(child_id: Optional[str] = None):
             "children": children,
             "notifications": notifications,
             "is_also_provider": ClerkUserType.PROVIDER.value in user.user_data.types,
+            "is_payment_enabled": family_data.get(FamilyColumnNames.PAYMENT_ENABLED),
         }
     )
 
