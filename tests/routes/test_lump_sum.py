@@ -99,6 +99,13 @@ def mock_sheets_data(mocker):
             in [m.get("provider_id") for m in mappings if m.get("child_id") == child_id]
         ],
     )
+    # Mock get_provider
+    mocker.patch(
+        "app.routes.lump_sum.get_provider",
+        side_effect=lambda provider_id, providers: next(
+            (p for p in providers if p.get(ProviderColumnNames.ID) == provider_id), None
+        ),
+    )
     # Mock get_families and get_family
     from app.sheets.mappings import FamilyColumnNames
 

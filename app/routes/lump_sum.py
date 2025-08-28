@@ -69,16 +69,17 @@ def create_lump_sum():
     child_providers = get_child_providers(allocation_child_id, provider_child_mapping_rows, provider_rows)
 
     provider_found = False
+    provider_data = None
     for provider in child_providers:
         if provider.get(ProviderColumnNames.ID) == provider_id:
             provider_found = True
+            provider_data = provider
             break
 
     if not provider_found:
         return jsonify({"error": "Provider not associated with the specified child."}), 403
 
-    provider_data = get_provider(provider_id, provider_rows)
-    if not provider_data.get(ProviderColumnNames.PAYMENT_ENABLED):
+    if not provider_data or not provider_data.get(ProviderColumnNames.PAYMENT_ENABLED):
         return jsonify({"error": "Cannot submit: provider payment not enabled"}), 400
 
     family_data = get_family(family_id, get_families())
