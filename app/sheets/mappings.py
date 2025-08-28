@@ -6,6 +6,7 @@ from flask import current_app
 from app.sheets.helpers import (
     Key,
     KeyMap,
+    boolean_from_str,
     filter_rows_by_value,
     get_row,
     get_rows,
@@ -36,6 +37,7 @@ class ChildColumnNames:
     MONTHLY_ALLOCATION = Key("Monthly Allocation", money_to_float)
     PRORATED_FIRST_MONTH_ALLOCATION = Key("Prorated First Month Allocation", money_to_float)
     STATUS = Key("Status")
+    PAYMENT_ENABLED = Key("Payment Enabled", boolean_from_str, default=False)
 
 
 class ProviderColumnNames:
@@ -50,6 +52,7 @@ class ProviderColumnNames:
     LANGUAGE = Key("Language", default="en")
     PHONE_NUMBER = Key("Phone Number")
     TYPE = Key("Type")
+    PAYMENT_ENABLED = Key("Payment Enabled", boolean_from_str, default=False)
 
 
 class ContentColumnNames:

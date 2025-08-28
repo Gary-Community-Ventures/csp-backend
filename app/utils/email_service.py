@@ -282,54 +282,6 @@ def send_lump_sum_payment_request_email(
     )
 
 
-def send_add_licensed_provider_email(
-    license_number: str,
-    provider_name: str,
-    parent_name: str,
-    parent_id: str,
-    children: list[KeyMap],
-):
-    from_email, to_emails = get_internal_emails()
-
-    current_app.logger.info(
-        f"Sending add license provider request email to {to_emails} for family ID: {parent_id} for provider: {provider_name} for children: {[format_name(child) for child in children]}"
-    )
-
-    rows = [
-        SystemMessageRow(
-            title="License Number",
-            value=license_number,
-        ),
-        SystemMessageRow(
-            title="Provider Name",
-            value=provider_name,
-        ),
-        SystemMessageRow(
-            title=f"Parent Name (ID: {parent_id})",
-            value=parent_name,
-        ),
-    ]
-
-    for child in children:
-        rows.append(
-            SystemMessageRow(
-                title="Child Name",
-                value=f"{format_name(child)} (ID: {child.get(ChildColumnNames.ID)})",
-            )
-        )
-
-    subject = "New Add Licensed Provider Request Notification"
-    description = f"A new licensed provider request has been submitted:"
-    html_content = system_message(subject, description, rows)
-
-    return send_email(
-        from_email=from_email,
-        to_emails=to_emails,
-        subject=subject,
-        html_content=html_content,
-    )
-
-
 def send_provider_invited_email(family_name: str, family_id: str, ids: list[str]):
     from_email, to_emails = get_internal_emails()
 
