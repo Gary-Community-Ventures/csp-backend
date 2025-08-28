@@ -19,7 +19,6 @@ from app.sheets.mappings import (
     get_families,
     get_family,
     get_family_children,
-    get_provider,
     get_provider_child_mappings,
     get_providers,
 )
