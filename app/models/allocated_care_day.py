@@ -146,19 +146,6 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         return self.last_submitted_at is None
 
     @property
-    def is_submitted_and_paid(self):
-        """Check if this care day has been submitted and payment processed"""
-        if self.last_submitted_at is None:
-            return False
-
-        # Primary check: actual payment exists and succeeded
-        if self.payment and self.payment.has_successful_attempt:
-            return True
-
-        # Fallback: legacy flag (for transition period from old batch system)
-        return self.payment_distribution_requested
-
-    @property
     def locked_date(self):
         """Calculate the locked date for this care day"""
         return calculate_week_lock_date(self.date)
