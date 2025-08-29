@@ -256,20 +256,21 @@ class PaymentService:
             ach_request = ACHPaymentRequest(
                 amount=intent.amount_cents,
                 type=ACHPaymentType.SAME_DAY_ACH,
-                funding_source=ACHFundingSource.WALLET_BALANCE,
+                funding_source=ACHFundingSource.WALLET,
+                program_id=self.chek_service.program_id,
             )
 
             ach_response = self.chek_service.send_ach_payment(
-                direct_pay_account_id=provider_payment_settings.chek_direct_pay_id, request=ach_request
+                user_id=int(provider_payment_settings.chek_user_id),
+                direct_pay_account_id=provider_payment_settings.chek_direct_pay_id,
+                request=ach_request,
             )
 
             # Record successful ACH payment
-            self._update_payment_attempt_facts(
-                attempt, ach_payment_id=str(ach_response.id) if hasattr(ach_response, "id") else "ach_completed"
-            )
+            self._update_payment_attempt_facts(attempt, ach_payment_id=ach_response.payment_id)
 
             current_app.logger.info(
-                f"ACH payment initiated for provider {provider_payment_settings.id}. DirectPayAccount status: {ach_response.status}"
+                f"ACH payment initiated for provider {provider_payment_settings.id}. Payment ID: {ach_response.payment_id}, Status: {ach_response.status}"
             )
 
         # 3. Create Payment record ONLY if attempt is successful
@@ -517,7 +518,8 @@ class PaymentService:
                     ach_request = ACHPaymentRequest(
                         amount=intent.amount_cents,
                         type=ACHPaymentType.SAME_DAY_ACH,
-                        funding_source=ACHFundingSource.WALLET_BALANCE,
+                        funding_source=ACHFundingSource.WALLET,
+                        program_id=self.chek_service.program_id,
                     )
 
                     if not provider_payment_settings.chek_direct_pay_id:
@@ -526,13 +528,15 @@ class PaymentService:
                         )
 
                     ach_response = self.chek_service.send_ach_payment(
-                        direct_pay_account_id=provider_payment_settings.chek_direct_pay_id, request=ach_request
+                        user_id=int(provider_payment_settings.chek_user_id),
+                        direct_pay_account_id=provider_payment_settings.chek_direct_pay_id,
+                        request=ach_request,
                     )
 
                     # Record successful ACH
                     self._update_payment_attempt_facts(
                         new_attempt,
-                        ach_payment_id=str(ach_response.id) if hasattr(ach_response, "id") else "ach_completed",
+                        ach_payment_id=ach_response.payment_id,
                     )
 
                     # Create Payment record since now it's complete
@@ -602,43 +606,6 @@ class PaymentService:
                     current_app.logger.error(f"Full payment retry failed for Intent {intent_id}: {payment_error}")
                     sentry_sdk.capture_exception(payment_error)
                     return False
-
-            # Handle ACH-only retry (wallet already funded)
-            try:
-                ach_request = ACHPaymentRequest(
-                    amount=intent.amount_cents,
-                    type=ACHPaymentType.SAME_DAY_ACH,
-                    funding_source=ACHFundingSource.WALLET_BALANCE,
-                )
-
-                if not provider_payment_settings.chek_direct_pay_id:
-                    raise PaymentMethodNotConfiguredException("Provider has no direct pay account ID for ACH payment")
-
-                ach_response = self.chek_service.send_ach_payment(
-                    direct_pay_account_id=provider_payment_settings.chek_direct_pay_id, request=ach_request
-                )
-
-                # Record successful ACH payment
-                self._update_payment_attempt_facts(
-                    ach_retry_attempt,
-                    ach_payment_id=str(ach_response.id) if hasattr(ach_response, "id") else "ach_completed",
-                )
-
-                # Create Payment record on success
-                self._create_payment_on_success(intent, ach_retry_attempt)
-
-                db.session.commit()
-                current_app.logger.info(f"ACH payment retry successful for Intent {intent_id}")
-                return True
-
-            except Exception as ach_error:
-                # Record the ACH failure
-                self._update_payment_attempt_facts(ach_retry_attempt, error_message=str(ach_error))
-                db.session.commit()
-                current_app.logger.error(f"ACH retry failed for Intent {intent_id}: {ach_error}")
-                sentry_sdk.capture_exception(ach_error)
-                return False
-
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Error retrying payment for Intent {intent_id}: {e}")

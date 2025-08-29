@@ -21,7 +21,7 @@ class PaymentAttempt(db.Model, TimestampMixin):
     payment_id = db.Column(
         UUID(as_uuid=True), ForeignKey("payment.id", name="fk_payment_attempt_payment_id"), nullable=True
     )
-    payment = db.relationship("Payment", foreign_keys=[payment_id], back_populates="attempts")
+    payment = db.relationship("Payment", foreign_keys=[payment_id])
 
     # Attempt details
     attempt_number = db.Column(db.Integer, nullable=False)  # Sequential within the intent

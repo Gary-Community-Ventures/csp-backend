@@ -41,9 +41,6 @@ class Payment(db.Model, TimestampMixin):
     amount_cents = db.Column(db.Integer, nullable=False)
     payment_method = db.Column(db.Enum(PaymentMethod), nullable=False)
 
-    # Relationships
-    attempts = db.relationship("PaymentAttempt", foreign_keys="PaymentAttempt.payment_id", back_populates="payment")
-
     # Relationships to allocations
     month_allocation_id = db.Column(
         db.Integer, ForeignKey("month_allocation.id", name="fk_payment_month_allocation_id"), nullable=True
@@ -54,29 +51,24 @@ class Payment(db.Model, TimestampMixin):
 
     @property
     def has_successful_attempt(self):
-        """Check if this payment has at least one successful attempt"""
-        return any(attempt.is_successful for attempt in self.attempts)
+        """Check if this payment has a successful attempt"""
+        # Payment only exists when there's a successful attempt
+        return self.successful_attempt is not None
 
     @property
     def has_failed_attempt(self):
-        """Check if this payment has at least one failed attempt"""
-        return any(attempt.is_failed for attempt in self.attempts)
+        """Check if this payment has any failed attempts"""
+        # Payment only exists after success, check if there were failed attempts before success
+        return self.intent.attempts and any(attempt.is_failed for attempt in self.intent.attempts)
 
     @property
     def status(self):
-        """Compute payment status from attempts"""
-        if not self.attempts:
-            return "pending"
-
-        latest = max(self.attempts, key=lambda a: a.attempt_number)
-        if latest.is_successful:
+        """Compute payment status"""
+        # Payment only exists when successful
+        if self.successful_attempt and self.successful_attempt.is_successful:
             return "successful"
-        elif latest.status == "wallet_funded":
-            return "partially_paid"
-        elif all(attempt.status == "failed" for attempt in self.attempts):
-            return "failed"
-        else:
-            return "processing"
+        # This shouldn't happen as Payment is only created on success
+        return "unknown"
 
     def __repr__(self):
         return f"<Payment {self.id} - Amount: {self.amount_cents} cents - Provider: {self.external_provider_id}>"

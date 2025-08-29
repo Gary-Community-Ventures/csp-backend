@@ -192,10 +192,39 @@ class ACHPaymentType(str, Enum):
 
 
 class ACHFundingSource(str, Enum):
-    WALLET_BALANCE = "wallet_balance"
+    WALLET = "wallet"
 
 
 class ACHPaymentRequest(BaseModel):
     amount: int
     type: ACHPaymentType
     funding_source: ACHFundingSource
+    program_id: int
+
+
+class ACHPaymentUser(BaseModel):
+    """Simplified user info from ACH payment response"""
+
+    id: int
+    email: str
+
+
+class ACHPaymentProgram(BaseModel):
+    """Simplified program info from ACH payment response"""
+
+    id: int
+    name: str
+
+
+class ACHPaymentResponse(BaseModel):
+    """Response from Chek API for ACH payment requests"""
+
+    payment_id: str
+    status: str
+    amount: int = Field(..., description="Amount in cents")
+    descriptor: str
+    created: datetime = Field(..., description="Payment creation timestamp")
+    receiving_bank_account: str
+    funding_source: str
+    user: ACHPaymentUser
+    program: ACHPaymentProgram
