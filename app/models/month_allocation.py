@@ -1,6 +1,4 @@
-from datetime import date, datetime
-from datetime import time as dt_time
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from app.sheets.mappings import (
     ChildColumnNames,
@@ -130,19 +128,14 @@ class MonthAllocation(db.Model, TimestampMixin):
 
     @property
     def locked_until_date(self) -> date:
-        """Returns the last date (inclusive) for which a newly created care day would be immediately locked."""
-        today = date.today()
-        # Calculate the Monday of the current week
-        current_monday = today - timedelta(days=today.weekday())
-        # Calculate the end of day for the current Monday
-        current_monday_eod = datetime.combine(current_monday, dt_time(23, 59, 59))
+        """Returns the last date (inclusive) for which a newly created care day would be immediately locked.
 
-        if datetime.now() > current_monday_eod:
-            # If current time is past Monday EOD, all days in current week are locked
-            return current_monday + timedelta(days=6)  # Sunday of current week
-        else:
-            # If current time is not yet past Monday EOD, days up to previous Sunday are locked
-            return current_monday - timedelta(days=1)  # Sunday of previous week
+        Uses business timezone to determine the current lock status.
+        """
+        # Import here to avoid circular dependency
+        from .allocated_care_day import get_locked_until_date
+
+        return get_locked_until_date()
 
     def __repr__(self):
         return f"<MonthAllocation Child:{self.google_sheets_child_id} {self.date.strftime('%Y-%m')}"

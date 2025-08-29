@@ -62,7 +62,6 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
             date=date.today() + timedelta(days=7),  # Set date to a week in the future
-            locked_date=datetime.now() + timedelta(days=20),
             type="Full Day",
             amount_cents=6000,
             last_submitted_at=None,
@@ -74,7 +73,6 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
             date=date.today() + timedelta(days=1),  # Set date to tomorrow
-            locked_date=datetime.now() + timedelta(days=20),
             type="Half Day",
             amount_cents=4000,
             last_submitted_at=datetime.now(timezone.utc) - timedelta(days=5),  # Submitted 5 days ago
@@ -89,7 +87,6 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
             date=date.today() + timedelta(days=2),  # Set date to two days from now
-            locked_date=datetime.now() + timedelta(days=20),
             type="Full Day",
             amount_cents=6000,
             last_submitted_at=datetime.now(timezone.utc) - timedelta(days=10),  # Submitted 10 days ago
@@ -98,12 +95,11 @@ def seed_db(app):
         db.session.add(care_day_needs_resubmission)
 
         # Care day: locked (date is in the past, beyond locked_date)
-        locked_date_past = datetime.now() - timedelta(days=7)  # A week ago
+        locked_date_past = datetime.now(timezone.utc) - timedelta(days=7)  # A week ago
         care_day_locked = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
             date=locked_date_past.date(),  # Ensure it's locked
-            locked_date=locked_date_past,
             type="Full Day",
             amount_cents=6000,
             last_submitted_at=datetime.now(timezone.utc) - timedelta(days=10),  # Submitted 10 days ago
@@ -118,7 +114,6 @@ def seed_db(app):
             care_month_allocation_id=allocation.id,
             provider_google_sheets_id=1,
             date=date.today() + timedelta(days=3),  # Set date to three days from now
-            locked_date=datetime.now() + timedelta(days=20),
             type="Full Day",
             amount_cents=6000,
             deleted_at=datetime.now(timezone.utc),
@@ -190,7 +185,7 @@ def test_get_month_allocation_allocation_not_found(client, seed_db, mocker):
 
 
 # --- POST /child/{child_id}/provider/{provider_id}/allocation/{month}/{year}/submit ---
-def test_submit_care_days_success(client, seed_db, mock_send_submission_notification):
+def test_submit_care_days_success(client, seed_db, mock_send_submission_notification, mocker):
     (
         allocation,
         care_day_new,
@@ -199,6 +194,31 @@ def test_submit_care_days_success(client, seed_db, mock_send_submission_notifica
         _,
         care_day_deleted,
     ) = seed_db
+
+    # Mock the child, provider and family data with payment enabled
+    from app.sheets.mappings import (
+        ChildColumnNames,
+        ProviderColumnNames,
+    )
+
+    mock_child_data = {
+        ChildColumnNames.ID: allocation.google_sheets_child_id,
+        ChildColumnNames.FAMILY_ID: "test_family_id",
+        ChildColumnNames.FIRST_NAME: "Test",
+        ChildColumnNames.LAST_NAME: "Child",
+        ChildColumnNames.PAYMENT_ENABLED: True,
+    }
+
+    mock_provider_data = {
+        ProviderColumnNames.ID: care_day_new.provider_google_sheets_id,
+        ProviderColumnNames.NAME: "Test Provider",
+        ProviderColumnNames.PAYMENT_ENABLED: True,
+    }
+
+    mocker.patch("app.routes.child.get_children", return_value=[mock_child_data])
+    mocker.patch("app.routes.child.get_child", return_value=mock_child_data)
+    mocker.patch("app.routes.child.get_providers", return_value=[mock_provider_data])
+    mocker.patch("app.routes.child.get_provider", return_value=mock_provider_data)
 
     response = client.post(
         f"/child/{allocation.google_sheets_child_id}/provider/{care_day_new.provider_google_sheets_id}/allocation/{allocation.date.month}/{allocation.date.year}/submit"
@@ -238,7 +258,7 @@ def test_submit_care_days_success(client, seed_db, mock_send_submission_notifica
         assert updated_needs_resubmission_day.last_submitted_at is not None
 
 
-def test_submit_care_days_no_care_days(client, seed_db, mock_send_submission_notification):
+def test_submit_care_days_no_care_days(client, seed_db, mock_send_submission_notification, mocker):
 
     # Create a new allocation with no care days
     new_allocation_child_id = "2"
@@ -253,6 +273,31 @@ def test_submit_care_days_no_care_days(client, seed_db, mock_send_submission_not
         )
         db.session.add(new_allocation)
         db.session.commit()
+
+    # Mock the child, provider and family data with payment enabled
+    from app.sheets.mappings import (
+        ChildColumnNames,
+        ProviderColumnNames,
+    )
+
+    mock_child_data = {
+        ChildColumnNames.ID: new_allocation_child_id,
+        ChildColumnNames.FAMILY_ID: "test_family_id",
+        ChildColumnNames.FIRST_NAME: "Test",
+        ChildColumnNames.LAST_NAME: "Child",
+        ChildColumnNames.PAYMENT_ENABLED: True,
+    }
+
+    mock_provider_data = {
+        ProviderColumnNames.ID: "1",
+        ProviderColumnNames.NAME: "Test Provider",
+        ProviderColumnNames.PAYMENT_ENABLED: True,
+    }
+
+    mocker.patch("app.routes.child.get_children", return_value=[mock_child_data])
+    mocker.patch("app.routes.child.get_child", return_value=mock_child_data)
+    mocker.patch("app.routes.child.get_providers", return_value=[mock_provider_data])
+    mocker.patch("app.routes.child.get_provider", return_value=mock_provider_data)
 
     response = client.post(
         f"/child/{new_allocation_child_id}/provider/1/allocation/{new_allocation_month}/{new_allocation_year}/submit"
@@ -311,12 +356,19 @@ def test_get_month_allocation_future_month_creation_fails(client):
 
 def test_month_allocation_locked_until_date(client, seed_db):
     allocation, _, _, _, _, _ = seed_db
-    # Calculate expected locked_until_date based on current date
-    today = date.today()
-    current_monday = today - timedelta(days=today.weekday())
-    current_monday_eod = datetime.combine(current_monday, time(23, 59, 59))
+    # Import business timezone config
+    import zoneinfo
 
-    if datetime.now() > current_monday_eod:
+    from app.config import BUSINESS_TIMEZONE
+
+    # Calculate expected locked_until_date based on current date in business timezone
+    business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
+    now_business = datetime.now(business_tz)
+    today = now_business.date()
+    current_monday = today - timedelta(days=today.weekday())
+    current_monday_eod = datetime.combine(current_monday, time(23, 59, 59), tzinfo=business_tz)
+
+    if now_business > current_monday_eod:
         expected_locked_until_date = current_monday + timedelta(days=6)  # Sunday of current week
     else:
         expected_locked_until_date = current_monday - timedelta(days=1)  # Sunday of previous week

@@ -38,46 +38,56 @@ def setup_payment_request_data(app):
         db.session.commit()
 
         # Create submitted care days for processing
-        care_day_1 = AllocatedCareDay.create_care_day(
-            allocation=allocation,
-            provider_id="201",
-            care_date=date.today() + timedelta(days=10),
-            day_type=CareDayType.FULL_DAY,
+        # Use a date from last week so its locked_date (Monday 23:59:59) is in the past
+        # We create directly instead of using create_care_day since that prevents past dates
+        care_day_1 = AllocatedCareDay(
+            care_month_allocation_id=allocation.id,
+            provider_google_sheets_id="201",
+            date=date.today() - timedelta(days=7),
+            type=CareDayType.FULL_DAY,
+            amount_cents=60000,
+            last_submitted_at=datetime.now(timezone.utc) - timedelta(days=5),
+            payment_distribution_requested=False,
         )
-        care_day_1.last_submitted_at = datetime.now(timezone.utc) - timedelta(days=5)
-        care_day_1.payment_distribution_requested = False
-        care_day_1.locked_date = datetime.now(timezone.utc) - timedelta(days=1)
+        db.session.add(care_day_1)
 
-        care_day_2 = AllocatedCareDay.create_care_day(
-            allocation=allocation,
-            provider_id="201",
-            care_date=date.today() + timedelta(days=11),
-            day_type=CareDayType.HALF_DAY,
+        # Use another date from last week
+        care_day_2 = AllocatedCareDay(
+            care_month_allocation_id=allocation.id,
+            provider_google_sheets_id="201",
+            date=date.today() - timedelta(days=6),
+            type=CareDayType.HALF_DAY,
+            amount_cents=40000,
+            last_submitted_at=datetime.now(timezone.utc) - timedelta(days=4),
+            payment_distribution_requested=False,
         )
-        care_day_2.last_submitted_at = datetime.now(timezone.utc) - timedelta(days=4)
-        care_day_2.payment_distribution_requested = False
-        care_day_2.locked_date = datetime.now(timezone.utc) - timedelta(days=1)
+        db.session.add(care_day_2)
 
         # Care day for a different provider/child that should NOT be processed by this run
-        care_day_3 = AllocatedCareDay.create_care_day(
-            allocation=allocation,
-            provider_id="202",
-            care_date=date.today() + timedelta(days=12),
-            day_type=CareDayType.FULL_DAY,
+        # Use a date from last week so it's locked
+        care_day_3 = AllocatedCareDay(
+            care_month_allocation_id=allocation.id,
+            provider_google_sheets_id="202",
+            date=date.today() - timedelta(days=5),
+            type=CareDayType.FULL_DAY,
+            amount_cents=60000,
+            last_submitted_at=datetime.now(timezone.utc) - timedelta(days=3),
+            payment_distribution_requested=False,
         )
-        care_day_3.last_submitted_at = datetime.now(timezone.utc) - timedelta(days=3)
-        care_day_3.payment_distribution_requested = False
-        care_day_3.locked_date = datetime.now(timezone.utc) - timedelta(days=1)
+        db.session.add(care_day_3)
 
         # Care day that is already processed
-        care_day_4 = AllocatedCareDay.create_care_day(
-            allocation=allocation,
-            provider_id="201",
-            care_date=date.today() + timedelta(days=13),
-            day_type=CareDayType.FULL_DAY,
+        care_day_4 = AllocatedCareDay(
+            care_month_allocation_id=allocation.id,
+            provider_google_sheets_id="201",
+            date=date.today() - timedelta(days=4),
+            type=CareDayType.FULL_DAY,
+            amount_cents=60000,
+            last_submitted_at=datetime.now(timezone.utc) - timedelta(days=2),
+            payment_distribution_requested=True,
         )
-        care_day_4.last_submitted_at = datetime.now(timezone.utc) - timedelta(days=2)
-        care_day_4.payment_distribution_requested = True
+        db.session.add(care_day_4)
+        db.session.commit()
 
         # Care day that is submitted but not yet locked (locked_date in future)
         future_date = date.today() + timedelta(days=7)  # A week from now

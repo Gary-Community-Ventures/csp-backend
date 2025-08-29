@@ -43,12 +43,14 @@ def mock_sheets_data(mocker):
                 ChildColumnNames.FAMILY_ID: "family123",
                 ChildColumnNames.FIRST_NAME: "Test",
                 ChildColumnNames.LAST_NAME: "Child",
+                ChildColumnNames.PAYMENT_ENABLED: True,
             },
             {
                 ChildColumnNames.ID: "child456",
                 ChildColumnNames.FAMILY_ID: "family456",
                 ChildColumnNames.FIRST_NAME: "Another",
                 ChildColumnNames.LAST_NAME: "Child",
+                ChildColumnNames.PAYMENT_ENABLED: True,
             },
         ],
     )
@@ -72,9 +74,21 @@ def mock_sheets_data(mocker):
     mocker.patch(
         "app.routes.lump_sum.get_providers",
         return_value=[
-            {ProviderColumnNames.ID: "providerABC", ProviderColumnNames.NAME: "Provider A"},
-            {ProviderColumnNames.ID: "providerXYZ", ProviderColumnNames.NAME: "Provider X"},
-            {ProviderColumnNames.ID: "providerDEF", ProviderColumnNames.NAME: "Provider D"},
+            {
+                ProviderColumnNames.ID: "providerABC",
+                ProviderColumnNames.NAME: "Provider A",
+                ProviderColumnNames.PAYMENT_ENABLED: True,
+            },
+            {
+                ProviderColumnNames.ID: "providerXYZ",
+                ProviderColumnNames.NAME: "Provider X",
+                ProviderColumnNames.PAYMENT_ENABLED: True,
+            },
+            {
+                ProviderColumnNames.ID: "providerDEF",
+                ProviderColumnNames.NAME: "Provider D",
+                ProviderColumnNames.PAYMENT_ENABLED: True,
+            },
         ],
     )
     # Mock get_child_providers

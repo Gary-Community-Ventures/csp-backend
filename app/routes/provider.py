@@ -18,6 +18,7 @@ from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation
 from app.models.attendance import Attendance
 from app.models.family_invitation import FamilyInvitation
+from app.models.payment_rate import PaymentRate
 from app.sheets.helpers import KeyMap, format_name, get_row
 from app.sheets.mappings import (
     ChildColumnNames,
@@ -44,6 +45,7 @@ from app.utils.email_service import (
     html_link,
     send_email,
     send_family_invite_accept_email,
+    send_family_invited_email,
 )
 from app.utils.sms_service import send_sms
 
@@ -103,14 +105,19 @@ def get_provider_data():
         "last_name": provider_data.get(ProviderColumnNames.LAST_NAME),
     }
 
-    children = [
-        {
-            "id": c.get(ChildColumnNames.ID),
-            "first_name": c.get(ChildColumnNames.FIRST_NAME),
-            "last_name": c.get(ChildColumnNames.LAST_NAME),
-        }
-        for c in children_data
-    ]
+    children = []
+    for c in children_data:
+        payment_rate = PaymentRate.get(provider_id=provider_id, child_id=c.get(ChildColumnNames.ID))
+
+        children.append(
+            {
+                "id": c.get(ChildColumnNames.ID),
+                "first_name": c.get(ChildColumnNames.FIRST_NAME),
+                "last_name": c.get(ChildColumnNames.LAST_NAME),
+                "half_day_rate_cents": payment_rate.half_day_rate_cents if payment_rate is not None else None,
+                "full_day_rate_cents": payment_rate.full_day_rate_cents if payment_rate is not None else None,
+            }
+        )
 
     transactions = []
     for t in transaction_data:
@@ -259,6 +266,8 @@ def invite_family():
                 invitation.record_sms_sent()
     finally:
         db.session.commit()
+
+    send_family_invited_email(format_name(provider), provider.get(ProviderColumnNames.ID), invitation.public_id)
 
     return jsonify({"message": "Success"}, 201)
 

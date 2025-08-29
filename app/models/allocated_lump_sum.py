@@ -24,8 +24,8 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
     # Provider info
     provider_google_sheets_id = db.Column(db.String(64), nullable=False, index=True)
 
-    paid_at = db.Column(db.DateTime, nullable=True)
-    submitted_at = db.Column(db.DateTime, nullable=True)
+    paid_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    submitted_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     @property
     def is_paid(self) -> bool:
