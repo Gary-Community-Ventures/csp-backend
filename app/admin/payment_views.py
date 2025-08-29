@@ -16,6 +16,7 @@ class PaymentAdminView(SecureModelView):
         "status",
         "chek_transfer_id",
         "chek_ach_payment_id",
+        "chek_card_transfer_id",
         "successful_attempt",
         "created_at",
     ]
@@ -49,6 +50,7 @@ class PaymentAdminView(SecureModelView):
         ),
         "chek_transfer_id": lambda v, c, m, p: m.chek_transfer_id or "-",
         "chek_ach_payment_id": lambda v, c, m, p: m.chek_ach_payment_id or "-",
+        "chek_card_transfer_id": lambda v, c, m, p: m.chek_card_transfer_id or "-",
     }
 
     column_labels = {
@@ -58,6 +60,7 @@ class PaymentAdminView(SecureModelView):
         "payment_method": "Method",
         "chek_transfer_id": "Chek Transfer",
         "chek_ach_payment_id": "ACH Payment",
+        "chek_card_transfer_id": "Card Transfer",
         "successful_attempt": "Successful Attempt",
         "created_at": "Created",
     }
@@ -74,6 +77,7 @@ class PaymentAdminView(SecureModelView):
         "status",
         "chek_transfer_id",
         "chek_ach_payment_id",
+        "chek_card_transfer_id",
         "family_chek_user_id",
         "provider_chek_user_id",
         "provider_chek_direct_pay_id",
