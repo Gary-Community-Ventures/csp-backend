@@ -14,7 +14,7 @@ from app.auth.decorators import (
     auth_required,
 )
 from app.auth.helpers import get_current_user, get_family_user, get_provider_user
-from app.config import PROVIDER_STATUS_STALE_SECONDS
+from app.config import CHEK_STATUS_STALE_MINUTES
 from app.constants import MAX_CHILDREN_PER_PROVIDER
 from app.enums.payment_method import PaymentMethod
 from app.extensions import db
@@ -211,7 +211,7 @@ def get_payment_settings():
     needs_refresh = False
     if provider_payment_settings.last_chek_sync_at:
         time_since_sync = datetime.now(timezone.utc) - provider_payment_settings.last_chek_sync_at
-        if time_since_sync.total_seconds() > PROVIDER_STATUS_STALE_SECONDS:
+        if time_since_sync.total_seconds() > CHEK_STATUS_STALE_MINUTES * 60:
             needs_refresh = True
 
     payment_settings = PaymentSettingsResponse(

@@ -12,12 +12,10 @@ Usage:
 import os
 import sys
 
-
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 import argparse
-
 from datetime import datetime
 from uuid import UUID
 
@@ -35,7 +33,7 @@ def list_failed_payment_intents(since_date=None):
     """List all failed payment intents with details."""
     # Import Payment model
     from app.models import Payment
-    
+
     # Find PaymentIntents that have failed attempts but no successful payment
     # First get the IDs to avoid DISTINCT on JSON columns
     subquery = (
@@ -53,14 +51,18 @@ def list_failed_payment_intents(since_date=None):
 
     # Get unique intent IDs
     intent_ids = [row[0] for row in subquery.distinct().all()]
-    
+
     # Now fetch the full PaymentIntent objects
     failed_intents = (
-        db.session.query(PaymentIntent)
-        .filter(PaymentIntent.id.in_(intent_ids))
-        .order_by(PaymentIntent.created_at.desc())
-        .all()
-    ) if intent_ids else []
+        (
+            db.session.query(PaymentIntent)
+            .filter(PaymentIntent.id.in_(intent_ids))
+            .order_by(PaymentIntent.created_at.desc())
+            .all()
+        )
+        if intent_ids
+        else []
+    )
 
     if not failed_intents:
         app.logger.info("No failed payment intents found.")
@@ -78,7 +80,9 @@ def list_failed_payment_intents(since_date=None):
         app.logger.info(f"Created: {intent.created_at}")
         app.logger.info(f"Status: {intent.status}")
         app.logger.info(f"Attempts: {len(intent.attempts)}")
-        app.logger.info(f"Last Error: {last_attempt.error_message if last_attempt and last_attempt.error_message else 'N/A'}")
+        app.logger.info(
+            f"Last Error: {last_attempt.error_message if last_attempt and last_attempt.error_message else 'N/A'}"
+        )
         app.logger.info("-" * 80)
 
     return failed_intents

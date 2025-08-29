@@ -1,7 +1,6 @@
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
-from ..config import WEEK_START_OFFSET
 from ..extensions import db
 from .mixins import TimestampMixin
 
@@ -27,7 +26,7 @@ class Attendance(db.Model, TimestampMixin):
     def last_week_date():
         today = datetime.now(timezone.utc).date()
 
-        days_to_subtract = today.weekday() + WEEK_START_OFFSET
+        days_to_subtract = today.weekday() + 7
 
         return today - timedelta(days=days_to_subtract)
 

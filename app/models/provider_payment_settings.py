@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from flask import current_app
 from sqlalchemy.orm import Query
 
-from ..config import PROVIDER_STATUS_STALE_MINUTES
+from ..config import CHEK_STATUS_STALE_MINUTES
 from ..enums.payment_method import PaymentMethod
 from ..extensions import db
 from .mixins import TimestampMixin
@@ -74,7 +74,7 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
 
     def is_status_stale(self) -> bool:
         """Check if the provider's Chek status information is stale."""
-        stale_threshold = timedelta(minutes=PROVIDER_STATUS_STALE_MINUTES)
+        stale_threshold = timedelta(minutes=CHEK_STATUS_STALE_MINUTES)
         return self.last_chek_sync_at is None or (datetime.now(timezone.utc) - self.last_chek_sync_at) > stale_threshold
 
     @property

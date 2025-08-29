@@ -1,6 +1,8 @@
 import zoneinfo
 from datetime import datetime, timedelta
 
+from flask import current_app
+
 from app.config import (
     BUSINESS_TIMEZONE,
     DAYS_TO_NEXT_MONTH,
@@ -16,8 +18,6 @@ from ..enums.care_day_type import CareDayType
 from ..extensions import db
 from .mixins import TimestampMixin
 from .utils import get_care_day_cost
-
-from flask import current_app
 
 
 def get_allocation_amount(child_id: str) -> int:

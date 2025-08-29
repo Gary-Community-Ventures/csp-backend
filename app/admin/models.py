@@ -2,6 +2,7 @@ from app.models import (
     AllocatedCareDay,
     AllocatedLumpSum,
     FamilyInvitation,
+    FamilyPaymentSettings,
     MonthAllocation,
     Payment,
     PaymentAttempt,
@@ -10,7 +11,6 @@ from app.models import (
     PaymentRequest,
     ProviderInvitation,
     ProviderPaymentSettings,
-    FamilyPaymentSettings,
 )
 
 

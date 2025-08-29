@@ -27,6 +27,7 @@ class ProviderNotPayableException(PaymentException):
 
     pass
 
+
 class FamilyNotFoundException(PaymentException):
     """Raised when a family cannot be found."""
 

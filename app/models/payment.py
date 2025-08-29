@@ -85,7 +85,7 @@ class Payment(db.Model, TimestampMixin):
         if self.successful_attempt:
             return self.successful_attempt.ach_payment_id
         return None
-    
+
     @property
     def chek_card_transfer_id(self):
         """Get the Chek card transfer ID from the successful attempt"""
@@ -99,7 +99,7 @@ class Payment(db.Model, TimestampMixin):
         if self.successful_attempt:
             return self.successful_attempt.family_chek_user_id
         return None
-    
+
     @property
     def provider_chek_user_id(self):
         """Get the Chek user ID from the successful attempt"""

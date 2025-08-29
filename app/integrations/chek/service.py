@@ -124,10 +124,8 @@ class ChekService:
         response_json = self.client._request("POST", endpoint, json=request_data)
         current_app.logger.debug(f"Chek send_ach_payment response: {response_json}")
         return ACHPaymentResponse.model_validate(response_json)
-    
-    def transfer_funds_to_card(
-        self, card_id: str, request: TransferFundsToCardRequest
-    ) -> TransferFundsToCardResponse:
+
+    def transfer_funds_to_card(self, card_id: str, request: TransferFundsToCardRequest) -> TransferFundsToCardResponse:
         """
         Transfers funds to or from a virtual card.
         Can allocate funds to a card or remit funds from a card back to wallet.
