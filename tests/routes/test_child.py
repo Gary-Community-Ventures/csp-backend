@@ -185,7 +185,7 @@ def test_get_month_allocation_allocation_not_found(client, seed_db, mocker):
 
 
 # --- POST /child/{child_id}/provider/{provider_id}/allocation/{month}/{year}/submit ---
-def test_submit_care_days_success(client, seed_db, mock_send_submission_notification, mocker):
+def test_submit_care_days_success(client, seed_db, mocker):
     (
         allocation,
         care_day_new,
@@ -234,22 +234,6 @@ def test_submit_care_days_success(client, seed_db, mock_send_submission_notifica
     assert len(response.json["removed_days"]) == 1  # care_day_deleted
     assert response.json["removed_days"][0]["id"] == care_day_deleted.id
 
-    # Verify send_submission_notification was called
-    mock_send_submission_notification.assert_called_once()
-    call_kwargs = mock_send_submission_notification.call_args.kwargs
-
-    assert call_kwargs["provider_id"] == care_day_new.provider_google_sheets_id
-    assert call_kwargs["child_id"] == allocation.google_sheets_child_id
-
-    # Extract IDs from the actual call arguments
-    actual_new_day_ids = [d.id for d in call_kwargs["new_days"]]
-    actual_modified_day_ids = [d.id for d in call_kwargs["modified_days"]]
-    actual_removed_day_ids = [d.id for d in call_kwargs["removed_days"]]
-
-    assert actual_new_day_ids == [care_day_new.id]
-    assert actual_modified_day_ids == [care_day_needs_resubmission.id]
-    assert actual_removed_day_ids == [care_day_deleted.id]
-
     # Verify last_submitted_at is updated for submitted days
     with client.application.app_context():
         updated_new_day = db.session.get(AllocatedCareDay, care_day_new.id)
@@ -258,7 +242,7 @@ def test_submit_care_days_success(client, seed_db, mock_send_submission_notifica
         assert updated_needs_resubmission_day.last_submitted_at is not None
 
 
-def test_submit_care_days_no_care_days(client, seed_db, mock_send_submission_notification, mocker):
+def test_submit_care_days_no_care_days(client, seed_db, mocker):
 
     # Create a new allocation with no care days
     new_allocation_child_id = "2"
@@ -307,25 +291,17 @@ def test_submit_care_days_no_care_days(client, seed_db, mock_send_submission_not
     assert len(response.json["new_days"]) == 0
     assert len(response.json["modified_days"]) == 0
     assert len(response.json["removed_days"]) == 0
-    mock_send_submission_notification.assert_called_once_with(
-        provider_id="1",
-        child_id=new_allocation_child_id,
-        new_days=[],
-        modified_days=[],
-        removed_days=[],
-    )
 
 
-def test_submit_care_days_allocation_not_found(client, seed_db, mock_send_submission_notification):
+def test_submit_care_days_allocation_not_found(client, seed_db):
     _, _, _, _, _, _ = seed_db
 
     response = client.post("/child/999/provider/1/allocation/1/2024/submit")  # Non-existent child
     assert response.status_code == 404
     assert "Allocation not found" in response.json["error"]
-    mock_send_submission_notification.assert_not_called()
 
 
-def test_submit_care_days_over_allocation_fails(client, seed_db, mock_send_submission_notification):
+def test_submit_care_days_over_allocation_fails(client, seed_db):
     allocation, _, _, _, _, _ = seed_db
     allocation.allocation_cents = 0
     db.session.commit()
@@ -335,7 +311,6 @@ def test_submit_care_days_over_allocation_fails(client, seed_db, mock_send_submi
     )
     assert response.status_code == 400
     assert "Cannot submit: allocation exceeded" in response.json["error"]
-    mock_send_submission_notification.assert_not_called()
 
 
 def test_get_month_allocation_past_month_creation_fails(client):

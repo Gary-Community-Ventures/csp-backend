@@ -155,6 +155,8 @@ class PaymentService:
         Creates a Payment record ONLY when payment attempt succeeds.
         Links to the intent and successful attempt, marks items as paid.
         """
+        from app.utils.email_service import send_payment_notification
+
         provider_payment_settings = intent.provider_payment_settings
         family_payment_settings = intent.family_payment_settings
 
@@ -190,6 +192,20 @@ class PaymentService:
                 lump_sum.payment = payment
                 lump_sum.submitted_at = datetime.now(timezone.utc)
                 lump_sum.paid_at = datetime.now(timezone.utc)
+
+        # Send payment notification email to provider
+        try:
+            send_payment_notification(
+                provider_id=intent.provider_external_id,
+                child_id=intent.child_external_id,
+                amount_cents=intent.amount_cents,
+                payment_method=attempt.payment_method.value,
+            )
+            current_app.logger.info(f"Payment notification sent for Payment {payment.id}")
+        except Exception as e:
+            # Log error but don't fail the payment
+            current_app.logger.error(f"Failed to send payment notification for Payment {payment.id}: {e}")
+            sentry_sdk.capture_exception(e)
 
         return payment
 
@@ -540,7 +556,7 @@ class PaymentService:
             # Find the latest attempt to determine retry strategy
             last_attempt = intent.latest_attempt
 
-            # Determine if we need full payment or just ACH completion
+            # Determine if we need full payment or just ACH/Card completion
             if (
                 last_attempt
                 and last_attempt.payment_method == PaymentMethod.ACH
@@ -604,6 +620,74 @@ class PaymentService:
                     self._update_payment_attempt_facts(new_attempt, error_message=str(e))
                     db.session.commit()
                     current_app.logger.error(f"ACH retry failed for Intent {intent_id}: {e}")
+                    sentry_sdk.capture_exception(e)
+                    return False
+
+            elif (
+                last_attempt
+                and last_attempt.payment_method == PaymentMethod.CARD
+                and last_attempt.wallet_transfer_id
+                and not last_attempt.card_transfer_id
+            ):
+                # Wallet funded but card transfer incomplete - just retry card transfer
+                current_app.logger.info(f"Retrying card transfer for Intent {intent_id} (wallet already funded)")
+
+                # Create new attempt that continues from the wallet-funded state
+                new_attempt = self._create_payment_attempt(
+                    intent=intent,
+                    payment_method=PaymentMethod.CARD,
+                    provider_payment_settings=provider_payment_settings,
+                    family_payment_settings=family_payment_settings,
+                )
+
+                # Copy wallet funding info from previous attempt
+                new_attempt.wallet_transfer_id = last_attempt.wallet_transfer_id
+                new_attempt.wallet_transfer_at = last_attempt.wallet_transfer_at
+
+                try:
+                    from app.integrations.chek.schemas import (
+                        TransferFundsToCardDirection,
+                        TransferFundsToCardFundingMethod,
+                        TransferFundsToCardRequest,
+                    )
+
+                    # Just do the card transfer part
+                    if not provider_payment_settings.chek_card_id:
+                        raise PaymentMethodNotConfiguredException("Provider has no card ID for card payment")
+
+                    funds_transfer_request = TransferFundsToCardRequest(
+                        direction=TransferFundsToCardDirection.ALLOCATE_TO_CARD,
+                        funding_method=TransferFundsToCardFundingMethod.WALLET,
+                        amount=intent.amount_cents,
+                    )
+
+                    card_transfer_response = self.chek_service.transfer_funds_to_card(
+                        card_id=provider_payment_settings.chek_card_id,
+                        request=funds_transfer_request,
+                    )
+
+                    # Record successful card transfer
+                    self._update_payment_attempt_facts(
+                        new_attempt,
+                        card_transfer_id=str(card_transfer_response.transfer.id),
+                    )
+
+                    # Create Payment record since now it's complete
+                    payment = self._create_payment_on_success(
+                        intent=intent,
+                        attempt=new_attempt,
+                    )
+
+                    db.session.commit()
+                    current_app.logger.info(
+                        f"Card transfer retry successful for Intent {intent_id}, Payment {payment.id} created"
+                    )
+                    return True
+
+                except Exception as e:
+                    self._update_payment_attempt_facts(new_attempt, error_message=str(e))
+                    db.session.commit()
+                    current_app.logger.error(f"Card transfer retry failed for Intent {intent_id}: {e}")
                     sentry_sdk.capture_exception(e)
                     return False
 

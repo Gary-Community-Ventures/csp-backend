@@ -108,7 +108,7 @@ def mock_sheets_data(mocker):
 
 def test_create_lump_sum_success(client, seed_lump_sum_db, mock_sheets_data, mocker):
     allocation = seed_lump_sum_db
-    mock_send_email = mocker.patch("app.routes.lump_sum.send_lump_sum_payment_request_email")
+    mock_send_email = mocker.patch("app.routes.lump_sum.send_lump_sum_payment_email")
 
     response = client.post(
         "/lump-sums",

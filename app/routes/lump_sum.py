@@ -21,7 +21,7 @@ from app.sheets.mappings import (
     get_provider_child_mappings,
     get_providers,
 )
-from app.utils.email_service import send_lump_sum_payment_request_email
+from app.utils.email_service import send_lump_sum_payment_email
 
 bp = Blueprint("lump_sum", __name__, url_prefix="/lump-sums")
 
@@ -108,7 +108,7 @@ def create_lump_sum():
         # Send payment notification email (after successful payment)
         # If email fails, we log it but don't fail the request since payment succeeded
         try:
-            send_lump_sum_payment_request_email(
+            send_lump_sum_payment_email(
                 provider_name=provider_data.get(ProviderColumnNames.NAME),
                 google_sheets_provider_id=provider_id,
                 child_first_name=associated_child.get(ChildColumnNames.FIRST_NAME),

@@ -21,7 +21,7 @@ from app.sheets.mappings import (
     get_providers,
 )
 from app.utils.email_service import (
-    send_care_days_payment_request_email,
+    send_care_days_payment_email,
 )
 from app.utils.json_utils import custom_jsonify
 
@@ -140,12 +140,13 @@ def submit_care_days(child_id, provider_id, month, year):
 
     # Send payment notification email (after successful payment)
     # If email fails, we log it but don't fail the request since payment succeeded
+    # TODO leave so whe know when payments happen but remove in future
     try:
-        send_care_days_payment_request_email(
-            provider_name=provider_data.get("Name", "Unknown"),
+        send_care_days_payment_email(
+            provider_name=provider_data.get(ProviderColumnNames.NAME),
             google_sheets_provider_id=provider_id,
-            child_first_name=child_data.get("First Name", "Unknown"),
-            child_last_name=child_data.get("Last Name", ""),
+            child_first_name=child_data.get(ChildColumnNames.FIRST_NAME),
+            child_last_name=child_data.get(ChildColumnNames.LAST_NAME),
             google_sheets_child_id=child_id,
             amount_in_cents=total_amount_cents,
             care_days=care_days_to_submit,

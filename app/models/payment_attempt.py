@@ -51,10 +51,12 @@ class PaymentAttempt(db.Model, TimestampMixin):
         """Compute status from facts"""
         if self.ach_payment_id:
             return "success"
+        elif self.card_transfer_id:
+            return "success"
         elif self.wallet_transfer_id and self.payment_method == PaymentMethod.ACH:
             return "wallet_funded"  # Transfer succeeded, ACH pending
         elif self.wallet_transfer_id and self.payment_method == PaymentMethod.CARD:
-            return "success"  # For cards, wallet transfer is the final step
+            return "wallet_funded"  # Transfer succeeded, card transfer pending
         elif self.error_message:
             return "failed"
         else:
@@ -64,7 +66,7 @@ class PaymentAttempt(db.Model, TimestampMixin):
     def is_successful(self):
         """Check if this attempt was successful"""
         if self.payment_method == PaymentMethod.CARD:
-            return bool(self.wallet_transfer_id)
+            return bool(self.card_transfer_id)
         else:  # ACH
             return bool(self.ach_payment_id)
 
@@ -79,7 +81,10 @@ class PaymentAttempt(db.Model, TimestampMixin):
         # For ACH: wallet funded but ACH not complete
         if self.payment_method == PaymentMethod.ACH:
             return bool(self.wallet_transfer_id) and not bool(self.ach_payment_id) and not bool(self.error_message)
-        # For cards: if we started but haven't succeeded or failed
+        # For cards: wallet funded but card transfer not complete
+        elif self.payment_method == PaymentMethod.CARD:
+            return bool(self.wallet_transfer_id) and not bool(self.card_transfer_id) and not bool(self.error_message)
+        # For other cases: if we started but haven't succeeded or failed
         return not self.is_successful and not self.is_failed
 
     def __repr__(self):
