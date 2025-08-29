@@ -79,19 +79,9 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
 
     @property
     def is_payable(self):
-        # Check if status is stale and trigger background refresh
+        # Check if status is stale and trigger refresh
         if self.is_status_stale():
-            try:
-                # Import here to avoid circular imports
-                from app.jobs.refresh_provider_status_job import (
-                    enqueue_provider_status_refresh,
-                )
-
-                current_app.logger.info(f"Provider {self.id} Chek status is stale. Enqueuing background refresh.")
-                enqueue_provider_status_refresh(self, from_info="is_payable_stale_check")
-            except Exception as e:
-                # Don't fail the property if job enqueue fails
-                current_app.logger.warning(f"Failed to enqueue status refresh for provider {self.id}: {e}")
+            current_app.payment_service.refresh_provider_settings(self)
 
         # Use detailed validation for payable status (with current cached data)
         is_valid, _ = self.validate_payment_method_status()

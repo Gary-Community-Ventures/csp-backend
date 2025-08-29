@@ -184,6 +184,63 @@ class ProgramListResponse(BaseModel):
     results: List[Program]
 
 
+# --- Transfer Funds to Card Models ---
+
+
+class TransferFundsToCardDirection(str, Enum):
+    ALLOCATE_TO_CARD = "allocate_to_card"
+    REMIT_FROM_CARD = "remit_from_card"
+
+
+class TransferFundsToCardFundingMethod(str, Enum):
+    WALLET = "wallet"
+    PROGRAM = "program"
+
+
+class TransferFundsToCardRequest(BaseModel):
+    direction: TransferFundsToCardDirection
+    funding_method: TransferFundsToCardFundingMethod
+    amount: int
+
+
+class TransferFundsToCardUser(BaseModel):
+    """Simplified user info from card transfer response"""
+
+    id: int
+    email: str
+    first_name: str
+    last_name: str
+    balance: int
+
+
+class TransferFundsToCardInfo(BaseModel):
+    """Card info from transfer response with balance"""
+
+    id: str
+    last4: str
+    balance: int
+    status: str
+    type: str
+    created: datetime
+
+
+class TransferFundsToCardTransfer(BaseModel):
+    """Transfer details from card funding response"""
+
+    id: int
+    amount: int
+    created: datetime
+    type: str  # e.g., "Wallet to Card"
+
+
+class TransferFundsToCardResponse(BaseModel):
+    """Response from transferring funds to a card"""
+
+    user: TransferFundsToCardUser
+    card: TransferFundsToCardInfo
+    transfer: TransferFundsToCardTransfer
+
+
 # --- ACH Payment Models ---
 
 

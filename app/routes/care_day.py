@@ -67,8 +67,8 @@ def update_care_day(care_day_id):
     if care_day.is_locked:
         return jsonify({"error": "Cannot modify a locked care day"}), 403
 
-    if care_day.is_submitted_and_paid:
-        return jsonify({"error": "Cannot modify a care day that has been submitted and paid"}), 403
+    if care_day.is_submitted:
+        return jsonify({"error": "Cannot modify a care day that has been submitted"}), 403
 
     data = request.get_json()
     day_type_str = data.get("type")
@@ -118,7 +118,7 @@ def delete_care_day(care_day_id):
     if care_day.is_locked:
         return jsonify({"error": "Cannot delete a locked care day"}), 403
 
-    if care_day.is_submitted_and_paid:
+    if care_day.is_submitted:
         return jsonify({"error": "Cannot delete a care day that has been submitted and paid"}), 403
 
     care_day.soft_delete()

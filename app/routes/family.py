@@ -19,6 +19,7 @@ from app.models.attendance import Attendance
 from app.models.month_allocation import MonthAllocation
 from app.models.provider_invitation import ProviderInvitation
 from app.models.provider_payment_settings import ProviderPaymentSettings
+from app.models.family_payment_settings import FamilyPaymentSettings
 from app.sheets.helpers import KeyMap, format_name, get_row
 from app.sheets.mappings import (
     ChildColumnNames,
@@ -218,6 +219,8 @@ def family_data(child_id: Optional[str] = None):
     if needs_attendance:
         notifications.append({"type": "attendance"})
 
+    family_payment_settings = FamilyPaymentSettings.query.filter_by(family_external_id=family_id).first()
+
     return jsonify(
         {
             "selected_child_info": selected_child_info,
@@ -226,6 +229,7 @@ def family_data(child_id: Optional[str] = None):
             "children": children,
             "notifications": notifications,
             "is_also_provider": ClerkUserType.PROVIDER.value in user.user_data.types,
+            "can_make_payments": family_payment_settings.can_make_payments if family_payment_settings else False,
         }
     )
 

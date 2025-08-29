@@ -129,6 +129,11 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     )
 
     @property
+    def is_submitted(self):
+        """Check if this care day is submitted"""
+        return self.last_submitted_at is not None
+
+    @property
     def day_count(self):
         """Return the day count based on type"""
         return Decimal("1.0") if self.type == CareDayType.FULL_DAY else Decimal("0.5")

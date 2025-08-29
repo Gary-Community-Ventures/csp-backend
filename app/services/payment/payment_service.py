@@ -210,6 +210,9 @@ class PaymentService:
             ACHPaymentType,
             FlowDirection,
             TransferBalanceRequest,
+            TransferFundsToCardDirection,
+            TransferFundsToCardFundingMethod,
+            TransferFundsToCardRequest,
         )
 
         # Get care days and lump sums for metadata
@@ -239,9 +242,13 @@ class PaymentService:
 
         # 1. Initiate Chek transfer (Wallet to Wallet)
         transfer_request = TransferBalanceRequest(
-            flow_direction=FlowDirection.WALLET_TO_WALLET.value,
-            program_id=family_payment_settings.chek_user_id,  # Documentation says program_id but API uses counterparty_id
-            counterparty_id=family_payment_settings.chek_user_id,  # Set both for safety
+            flow_direction=FlowDirection.PROGRAM_TO_WALLET.value,
+            # TODO use family
+            # flow_direction=FlowDirection.WALLET_TO_WALLET.value,
+            # program_id=family_payment_settings.chek_user_id,  # Documentation says program_id but API uses counterparty_id
+            # counterparty_id=family_payment_settings.chek_user_id,  # Set both for safety
+            program_id=self.chek_service.program_id,
+            counterparty_id=self.chek_service.program_id,
             amount=intent.amount_cents,
             description=description,
             metadata=metadata,
@@ -277,6 +284,23 @@ class PaymentService:
             current_app.logger.info(
                 f"ACH payment initiated for provider {provider_payment_settings.id}. Payment ID: {ach_response.payment_id}, Status: {ach_response.status}"
             )
+        else:
+            # If Card payment, transfer funds to card
+            if not provider_payment_settings.chek_card_id:
+                raise PaymentMethodNotConfiguredException("Provider has no card ID for card payment")
+
+            funds_transfer_request = TransferFundsToCardRequest(
+                direction=TransferFundsToCardDirection.ALLOCATE_TO_CARD,
+                funding_method=TransferFundsToCardFundingMethod.WALLET,
+                amount=intent.amount_cents,
+            )
+
+            card_transfer_response = self.chek_service.transfer_funds_to_card(
+                card_id=provider_payment_settings.chek_card_id,
+                request=funds_transfer_request,
+            )
+
+            self._update_payment_attempt_facts(attempt, card_transfer_id=str(card_transfer_response.transfer.id))
 
         # 3. Create Payment record ONLY if attempt is successful
         if attempt.is_successful:
@@ -301,6 +325,7 @@ class PaymentService:
         attempt: PaymentAttempt,
         wallet_transfer_id: Optional[str] = None,
         ach_payment_id: Optional[str] = None,
+        card_transfer_id: Optional[str] = None,
         error_message: Optional[str] = None,
     ):
         """
@@ -312,6 +337,9 @@ class PaymentService:
         if ach_payment_id:
             attempt.ach_payment_id = ach_payment_id
             attempt.ach_payment_at = datetime.now(timezone.utc)
+        if card_transfer_id:
+            attempt.card_transfer_id = card_transfer_id
+            attempt.card_transfer_at = datetime.now(timezone.utc)
         if error_message:
             attempt.error_message = error_message
         db.session.add(attempt)
@@ -335,12 +363,10 @@ class PaymentService:
         try:
             # 0. Look up family payment settings
             family_payment_settings = self._get_family_settings_from_child_id(external_child_id)
-            if (
-                not family_payment_settings
-                or not family_payment_settings.chek_user_id
-                or not family_payment_settings.chek_wallet_balance
-            ):
+            if not family_payment_settings or not family_payment_settings.chek_user_id:
                 raise ProviderNotPayableException(f"Family for child {external_child_id} does not have chek account")
+            if not family_payment_settings.can_make_payments:
+                raise ProviderNotPayableException(f"Family for child {external_child_id} cannot make payments")
 
             # 1. Look up provider payment settings
             provider_payment_settings = ProviderPaymentSettings.query.filter_by(
@@ -361,19 +387,19 @@ class PaymentService:
                 raise InvalidPaymentStateException("No allocations provided for payment")
 
             # 3. Validate all allocated items are submitted
-            if allocated_care_days:
-                unsubmitted_days = [day for day in allocated_care_days if day.last_submitted_at is None]
-                if unsubmitted_days:
-                    error_msg = f"Cannot process payment: {len(unsubmitted_days)} care days are not submitted"
-                    current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
-                    raise InvalidPaymentStateException(error_msg)
+            # if allocated_care_days:
+            #     unsubmitted_days = [day for day in allocated_care_days if day.last_submitted_at is None]
+            #     if unsubmitted_days:
+            #         error_msg = f"Cannot process payment: {len(unsubmitted_days)} care days are not submitted"
+            #         current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
+            #         raise InvalidPaymentStateException(error_msg)
 
-            if allocated_lump_sums:
-                unsubmitted_lumps = [lump for lump in allocated_lump_sums if lump.submitted_at is None]
-                if unsubmitted_lumps:
-                    error_msg = f"Cannot process payment: {len(unsubmitted_lumps)} lump sums are not submitted"
-                    current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
-                    raise InvalidPaymentStateException(error_msg)
+            # if allocated_lump_sums:
+            #     unsubmitted_lumps = [lump for lump in allocated_lump_sums if lump.submitted_at is None]
+            #     if unsubmitted_lumps:
+            #         error_msg = f"Cannot process payment: {len(unsubmitted_lumps)} lump sums are not submitted"
+            #         current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
+            #         raise InvalidPaymentStateException(error_msg)
 
             # 4. Validate payment doesn't exceed $1400 limit
             if amount_cents > MAX_PAYMENT_AMOUNT_CENTS:
@@ -693,7 +719,7 @@ class PaymentService:
                 card_request = CardCreateRequest(
                     program_id=int(chek_program_id),
                     funding_method="program_balance",
-                    amount=0,  # Initial amount in cents
+                    amount=1,  # Initial amount in cents
                 )
 
                 card_response = self.chek_service.create_card(int(provider_settings.chek_user_id), card_request)

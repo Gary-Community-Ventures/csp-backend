@@ -25,23 +25,12 @@ class FamilyPaymentSettings(db.Model, TimestampMixin):
         return self.last_chek_sync_at is None or (datetime.now(timezone.utc) - self.last_chek_sync_at) > stale_threshold
 
     @property
-    def is_onboarded(self):
+    def can_make_payments(self):
         # Check if status is stale and trigger background refresh
         if self.is_status_stale():
-            try:
-                # Import here to avoid circular imports
-                from app.jobs.refresh_family_status_job import (
-                    enqueue_family_status_refresh,
-                )
+            current_app.payment_service.refresh_family_settings(self)
 
-                current_app.logger.info(f"Family {self.id} Chek status is stale. Enqueuing background refresh.")
-                enqueue_family_status_refresh(self, from_info="is_onboarded_stale_check")
-            except Exception as e:
-                # Don't fail the property if job enqueue fails
-                current_app.logger.error(f"Failed to enqueue status refresh for family {self.id}: {e}")
-
-        return self.chek_user_id is not None
-    
+        return self.chek_user_id is not None and self.chek_wallet_balance is not None and self.chek_wallet_balance > 0
 
     def __repr__(self):
         return f"<FamilyPaymentSettings {self.id} - External ID: {self.family_external_id}>"

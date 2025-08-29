@@ -214,7 +214,7 @@ class MonthAllocation(db.Model, TimestampMixin):
                 date=month_start,
                 allocation_cents=allocation_cents,
                 chek_transfer_id=transaction.transfer.id,
-                chek_transfer_date=transaction.transfer.created_at,
+                chek_transfer_date=transaction.transfer.created,
             )
             db.session.add(allocation)
             db.session.commit()
