@@ -27,6 +27,11 @@ class PaymentAttempt(db.Model, TimestampMixin):
     attempt_number = db.Column(db.Integer, nullable=False)  # Sequential within the intent
     payment_method = db.Column(db.Enum(PaymentMethod), nullable=False)  # Method used for this specific attempt
 
+    # Payment instrument identifiers (snapshot at time of attempt)
+    chek_user_id = db.Column(db.String(64), nullable=True, index=True)  # Chek user ID at time of attempt
+    chek_card_id = db.Column(db.String(64), nullable=True, index=True)  # Card ID used (if card payment)
+    chek_direct_pay_id = db.Column(db.String(64), nullable=True, index=True)  # DirectPay ID used (if ACH)
+
     # Track what actually happened (facts, not status)
     wallet_transfer_id = db.Column(
         db.String(64), nullable=True, index=True

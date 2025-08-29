@@ -33,11 +33,6 @@ class Payment(db.Model, TimestampMixin):
     )
     provider_payment_settings = db.relationship("ProviderPaymentSettings", backref="payments")
 
-    chek_user_id = db.Column(db.String(64), nullable=True, index=True)
-    chek_direct_pay_id = db.Column(db.String(64), nullable=True, index=True)
-    chek_card_id = db.Column(db.String(64), nullable=True, index=True)
-    chek_transfer_id = db.Column(db.String(64), nullable=True, index=True)  # ID from Chek for the transfer
-
     amount_cents = db.Column(db.Integer, nullable=False)
     payment_method = db.Column(db.Enum(PaymentMethod), nullable=False)
 
@@ -69,6 +64,41 @@ class Payment(db.Model, TimestampMixin):
             return "successful"
         # This shouldn't happen as Payment is only created on success
         return "unknown"
+
+    @property
+    def chek_transfer_id(self):
+        """Get the Chek wallet transfer ID from the successful attempt"""
+        if self.successful_attempt:
+            return self.successful_attempt.wallet_transfer_id
+        return None
+
+    @property
+    def chek_ach_payment_id(self):
+        """Get the Chek ACH payment ID from the successful attempt"""
+        if self.successful_attempt:
+            return self.successful_attempt.ach_payment_id
+        return None
+
+    @property
+    def chek_user_id(self):
+        """Get the Chek user ID from the successful attempt"""
+        if self.successful_attempt:
+            return self.successful_attempt.chek_user_id
+        return None
+
+    @property
+    def chek_direct_pay_id(self):
+        """Get the Chek direct pay ID from the successful attempt"""
+        if self.successful_attempt:
+            return self.successful_attempt.chek_direct_pay_id
+        return None
+
+    @property
+    def chek_card_id(self):
+        """Get the Chek card ID from the successful attempt"""
+        if self.successful_attempt:
+            return self.successful_attempt.chek_card_id
+        return None
 
     def __repr__(self):
         return f"<Payment {self.id} - Amount: {self.amount_cents} cents - Provider: {self.external_provider_id}>"

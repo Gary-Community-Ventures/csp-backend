@@ -5,7 +5,7 @@ from typing import Optional, Union
 import sentry_sdk
 from flask import current_app
 
-from app.config import CARE_DAYS_SAMPLE_SIZE, MAX_PAYMENT_AMOUNT_CENTS
+from app.config import MAX_PAYMENT_AMOUNT_CENTS
 from app.enums.payment_method import PaymentMethod
 from app.exceptions import (
     AllocationExceededException,
@@ -125,10 +125,12 @@ class PaymentService:
         self,
         intent: "PaymentIntent",
         payment_method: PaymentMethod,
+        provider_payment_settings: "ProviderPaymentSettings" = None,
         attempt_number: int = None,
     ) -> PaymentAttempt:
         """
         Creates a new PaymentAttempt for a PaymentIntent.
+        Captures payment instrument IDs from provider settings at time of attempt.
         """
         if attempt_number is None:
             attempt_number = len(intent.attempts) + 1
@@ -138,6 +140,15 @@ class PaymentService:
             attempt_number=attempt_number,
             payment_method=payment_method,
         )
+
+        # Capture payment instrument IDs at time of attempt
+        if provider_payment_settings:
+            attempt.chek_user_id = provider_payment_settings.chek_user_id
+            if payment_method == PaymentMethod.CARD:
+                attempt.chek_card_id = provider_payment_settings.chek_card_id
+            elif payment_method == PaymentMethod.ACH:
+                attempt.chek_direct_pay_id = provider_payment_settings.chek_direct_pay_id
+
         db.session.add(attempt)
         db.session.flush()
         return attempt
@@ -157,15 +168,11 @@ class PaymentService:
             payment_intent_id=intent.id,
             successful_attempt_id=attempt.id,
             provider_payment_settings_id=provider_payment_settings.id,
-            chek_user_id=provider_payment_settings.chek_user_id,
-            chek_direct_pay_id=provider_payment_settings.chek_direct_pay_id,
-            chek_card_id=provider_payment_settings.chek_card_id,
             amount_cents=intent.amount_cents,
             payment_method=attempt.payment_method,
             month_allocation_id=intent.month_allocation_id,
             external_provider_id=intent.provider_external_id,
             external_child_id=intent.child_external_id,
-            chek_transfer_id=attempt.wallet_transfer_id,  # Store the successful transfer ID
         )
         db.session.add(payment)
         db.session.flush()
@@ -410,6 +417,7 @@ class PaymentService:
                 attempt = self._create_payment_attempt(
                     intent=intent,
                     payment_method=provider_payment_settings.payment_method,
+                    provider_payment_settings=provider_payment_settings,
                 )
                 self._update_payment_attempt_facts(attempt, error_message=validation_error)
                 db.session.commit()
@@ -419,6 +427,7 @@ class PaymentService:
             attempt = self._create_payment_attempt(
                 intent=intent,
                 payment_method=provider_payment_settings.payment_method,
+                provider_payment_settings=provider_payment_settings,
             )
 
             try:
@@ -507,6 +516,7 @@ class PaymentService:
                 new_attempt = self._create_payment_attempt(
                     intent=intent,
                     payment_method=PaymentMethod.ACH,
+                    provider_payment_settings=provider_payment_settings,
                 )
 
                 # Copy wallet funding info from previous attempt
@@ -566,6 +576,7 @@ class PaymentService:
                 new_attempt = self._create_payment_attempt(
                     intent=intent,
                     payment_method=provider_payment_settings.payment_method,
+                    provider_payment_settings=provider_payment_settings,
                 )
 
                 # Refresh provider status
