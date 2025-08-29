@@ -1,20 +1,18 @@
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
+CENTS_PER_DOLLAR = 100
+MIN_RATE = 1 * CENTS_PER_DOLLAR
+MAX_RATE = 160 * CENTS_PER_DOLLAR
+
+
 class PaymentRateBase(BaseModel):
-    half_day_rate_cents: int = Field(..., gt=0, le=50000)
-    full_day_rate_cents: int = Field(..., gt=0, le=50000)
+    half_day_rate_cents: int = Field(..., ge=MIN_RATE, le=MAX_RATE)
+    full_day_rate_cents: int = Field(..., ge=MIN_RATE, le=MAX_RATE)
 
 
 class PaymentRateCreate(PaymentRateBase):
     pass
-
-
-class PaymentRateUpdate(BaseModel):
-    half_day_rate_cents: Optional[int] = Field(None, gt=0, le=50000)
-    full_day_rate_cents: Optional[int] = Field(None, gt=0, le=50000)
 
 
 class PaymentRateResponse(PaymentRateBase):

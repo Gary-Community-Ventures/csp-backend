@@ -9,6 +9,8 @@ from app.schemas.payment_rate import (
     PaymentRateCreate,
     PaymentRateResponse,
 )
+from app.sheets.helpers import filter_rows_by_value
+from app.sheets.mappings import ProviderChildMappingColumnNames, get_provider_child_mappings
 
 bp = Blueprint("payment_rate_bp", __name__, url_prefix="/payment-rates")
 
@@ -24,6 +26,16 @@ def create_payment_rate(child_id: str):
 
     user = get_provider_user()
     provider_id = user.user_data.provider_id
+
+    mappings = get_provider_child_mappings()
+    is_childs_provider = False
+    for mapping in filter_rows_by_value(mappings, provider_id, ProviderChildMappingColumnNames.PROVIDER_ID):
+        if mapping.get(ProviderChildMappingColumnNames.CHILD_ID) == child_id:
+            is_childs_provider = True
+            break
+
+    if not is_childs_provider:
+        return jsonify({"error": "Child not found"}), 404
 
     existing_rate = PaymentRate.get(provider_id=provider_id, child_id=child_id)
 
