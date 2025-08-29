@@ -17,7 +17,6 @@ bp = Blueprint("payment_rate_bp", __name__, url_prefix="/payment-rates")
 @auth_required(ClerkUserType.PROVIDER)
 def create_payment_rate(child_id: str):
     """Create a new payment rate for a given provider and child."""
-    print(request.get_json())
     try:
         payment_rate_data = PaymentRateCreate(**request.get_json())
     except ValidationError as e:
