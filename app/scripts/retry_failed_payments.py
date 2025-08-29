@@ -9,15 +9,22 @@ Usage:
     python app/scripts/retry_failed_payments.py --since DATE      # Retry failures since date
 """
 
-import argparse
+import os
 import sys
+
+
+# Add the project root to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+
+import argparse
+
 from datetime import datetime
 from uuid import UUID
 
 from app import create_app
 from app.extensions import db
 from app.models import PaymentAttempt, PaymentIntent
-from app.services.payment_service import PaymentService
+from app.services.payment.payment_service import PaymentService
 
 # Create Flask app context
 app = create_app()
@@ -26,40 +33,53 @@ app.app_context().push()
 
 def list_failed_payment_intents(since_date=None):
     """List all failed payment intents with details."""
+    # Import Payment model
+    from app.models import Payment
+    
     # Find PaymentIntents that have failed attempts but no successful payment
-    query = (
-        db.session.query(PaymentIntent)
+    # First get the IDs to avoid DISTINCT on JSON columns
+    subquery = (
+        db.session.query(PaymentIntent.id)
         .join(PaymentAttempt)
+        .outerjoin(Payment, PaymentIntent.id == Payment.payment_intent_id)
         .filter(
             PaymentAttempt.error_message.isnot(None),  # Has failed attempts
-            PaymentIntent.payment.is_(None),  # No successful payment created
+            Payment.id.is_(None),  # No successful payment created
         )
     )
 
     if since_date:
-        query = query.filter(PaymentIntent.created_at >= since_date)
+        subquery = subquery.filter(PaymentIntent.created_at >= since_date)
 
-    # Get unique failed payment intents
-    failed_intents = query.distinct().order_by(PaymentIntent.created_at.desc()).all()
+    # Get unique intent IDs
+    intent_ids = [row[0] for row in subquery.distinct().all()]
+    
+    # Now fetch the full PaymentIntent objects
+    failed_intents = (
+        db.session.query(PaymentIntent)
+        .filter(PaymentIntent.id.in_(intent_ids))
+        .order_by(PaymentIntent.created_at.desc())
+        .all()
+    ) if intent_ids else []
 
     if not failed_intents:
-        print("No failed payment intents found.")
+        app.logger.info("No failed payment intents found.")
         return []
 
-    print(f"\nFound {len(failed_intents)} failed payment intent(s):\n")
-    print("-" * 80)
+    app.logger.info(f"Found {len(failed_intents)} failed payment intent(s):")
+    app.logger.info("-" * 80)
 
     for intent in failed_intents:
         last_attempt = intent.latest_attempt
 
-        print(f"Intent ID: {intent.id}")
-        print(f"Provider: {intent.provider_external_id}")
-        print(f"Amount: ${intent.amount_cents / 100:.2f}")
-        print(f"Created: {intent.created_at}")
-        print(f"Status: {intent.status}")
-        print(f"Attempts: {len(intent.attempts)}")
-        print(f"Last Error: {last_attempt.error_message if last_attempt and last_attempt.error_message else 'N/A'}")
-        print("-" * 80)
+        app.logger.info(f"Intent ID: {intent.id}")
+        app.logger.info(f"Provider: {intent.provider_external_id}")
+        app.logger.info(f"Amount: ${intent.amount_cents / 100:.2f}")
+        app.logger.info(f"Created: {intent.created_at}")
+        app.logger.info(f"Status: {intent.status}")
+        app.logger.info(f"Attempts: {len(intent.attempts)}")
+        app.logger.info(f"Last Error: {last_attempt.error_message if last_attempt and last_attempt.error_message else 'N/A'}")
+        app.logger.info("-" * 80)
 
     return failed_intents
 
@@ -69,18 +89,18 @@ def retry_payment_intent(intent_id):
     try:
         intent = PaymentIntent.query.get(intent_id)
         if not intent:
-            print(f"Error: Payment Intent {intent_id} not found.")
+            app.logger.info(f"Error: Payment Intent {intent_id} not found.")
             return False
 
         # Check if payment already succeeded
         if intent.payment:
-            print(f"Payment Intent {intent_id} has already succeeded. Skipping retry.")
+            app.logger.info(f"Payment Intent {intent_id} has already succeeded. Skipping retry.")
             return True
 
-        print(f"\nRetrying payment intent {intent_id}...")
-        print(f"Provider: {intent.provider_external_id}")
-        print(f"Amount: ${intent.amount_cents / 100:.2f}")
-        print(f"Current status: {intent.status}")
+        app.logger.info(f"\nRetrying payment intent {intent_id}...")
+        app.logger.info(f"Provider: {intent.provider_external_id}")
+        app.logger.info(f"Amount: ${intent.amount_cents / 100:.2f}")
+        app.logger.info(f"Current status: {intent.status}")
 
         # Initialize payment service and retry using the new method
         payment_service = PaymentService(app)

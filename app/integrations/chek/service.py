@@ -117,13 +117,6 @@ class ChekService:
         Initiates a Same-Day ACH transfer to a recipient's linked bank account.
         Requires the DirectPay account to be Active.
         """
-        # Pre-check: Get the DirectPayAccount and check its status
-        # direct_pay_account = self.get_direct_pay_account(direct_pay_account_id)
-        # if direct_pay_account.status != "Active":
-        #     raise ValueError(
-        #         f"DirectPay account {direct_pay_account_id} is not Active. Current status: {direct_pay_account.status}"
-        #     )
-
         endpoint = f"directpay_accounts/{user_id}/send_payment/"
         request_data = request.model_dump()
         response_json = self.client._request("POST", endpoint, json=request_data)
@@ -139,7 +132,7 @@ class ChekService:
             # Fetch user details to get latest direct pay and card info
             user_details = self.get_user(chek_user_id)
 
-            current_app.logger.debug(f"Fetched user details for Chek user {chek_user_id}: {user_details}")
+            current_app.logger.debug(f"Fetched provider details for Chek user {chek_user_id}: {user_details}")
 
             status = {
                 "direct_pay_id": None,
@@ -164,6 +157,28 @@ class ChekService:
             return status
 
         except Exception as e:
-            current_app.logger.error(f"Failed to fetch Chek status for user {chek_user_id}: {e}")
+            current_app.logger.error(f"Failed to fetch Chek status for provider user {chek_user_id}: {e}")
+            sentry_sdk.capture_exception(e)
+            raise
+
+    def get_family_chek_status(self, chek_user_id: int) -> dict:
+        """
+        Fetches the current Chek status for a family.
+        Returns a dict with direct_pay and card status information.
+        """
+        try:
+            # Fetch family details to get latest direct pay and card info
+            family_details = self.get_user(chek_user_id)
+
+            current_app.logger.debug(f"Fetched family details for Chek user {chek_user_id}: {family_details}")
+
+            status = {
+                "timestamp": datetime.now(timezone.utc),
+                "wallet_balance": family_details.balance,
+            }
+            return status
+
+        except Exception as e:
+            current_app.logger.error(f"Failed to fetch Chek status for family user {chek_user_id}: {e}")
             sentry_sdk.capture_exception(e)
             raise

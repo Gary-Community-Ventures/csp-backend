@@ -74,9 +74,10 @@ class PaymentAdminView(SecureModelView):
         "status",
         "chek_transfer_id",
         "chek_ach_payment_id",
-        "chek_user_id",
-        "chek_direct_pay_id",
-        "chek_card_id",
+        "family_chek_user_id",
+        "provider_chek_user_id",
+        "provider_chek_direct_pay_id",
+        "provider_chek_card_id",
         "provider_payment_settings_id",
         "month_allocation_id",
         "created_at",
@@ -97,16 +98,23 @@ class PaymentAttemptAdminView(SecureModelView):
         "attempt_number",
         "payment_method",
         "status",
-        "chek_user_id",
-        "chek_card_id",
-        "chek_direct_pay_id",
+        "family_chek_user_id",
+        "provider_chek_user_id",
+        "provider_chek_card_id",
+        "provider_chek_direct_pay_id",
         "wallet_transfer_id",
         "ach_payment_id",
         "error_message",
         "created_at",
     ]
 
-    column_searchable_list = ["wallet_transfer_id", "ach_payment_id", "chek_user_id", "error_message"]
+    column_searchable_list = [
+        "wallet_transfer_id",
+        "ach_payment_id",
+        "family_chek_user_id",
+        "provider_chek_user_id",
+        "error_message",
+    ]
 
     column_filters = ["payment_method", "attempt_number", "created_at", "wallet_transfer_at", "ach_payment_at"]
 
@@ -137,9 +145,10 @@ class PaymentAttemptAdminView(SecureModelView):
         "payment_id": "Payment",
         "attempt_number": "#",
         "payment_method": "Method",
-        "chek_user_id": "Chek User",
-        "chek_card_id": "Card ID",
-        "chek_direct_pay_id": "DirectPay ID",
+        "family_chek_user_id": "Family Chek User",
+        "provider_chek_user_id": "Provider Chek User",
+        "provider_chek_card_id": "Provider Card ID",
+        "provider_chek_direct_pay_id": "Provider DirectPay ID",
         "wallet_transfer_id": "Transfer ID",
         "ach_payment_id": "ACH ID",
         "error_message": "Error",

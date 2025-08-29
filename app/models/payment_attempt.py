@@ -28,9 +28,12 @@ class PaymentAttempt(db.Model, TimestampMixin):
     payment_method = db.Column(db.Enum(PaymentMethod), nullable=False)  # Method used for this specific attempt
 
     # Payment instrument identifiers (snapshot at time of attempt)
-    chek_user_id = db.Column(db.String(64), nullable=True, index=True)  # Chek user ID at time of attempt
-    chek_card_id = db.Column(db.String(64), nullable=True, index=True)  # Card ID used (if card payment)
-    chek_direct_pay_id = db.Column(db.String(64), nullable=True, index=True)  # DirectPay ID used (if ACH)
+    family_chek_user_id = db.Column(db.String(64), nullable=True, index=True)  # Family Chek user ID at time of attempt
+    provider_chek_user_id = db.Column(
+        db.String(64), nullable=True, index=True
+    )  # Provider Chek user ID at time of attempt
+    provider_chek_card_id = db.Column(db.String(64), nullable=True, index=True)  # Card ID used (if card payment)
+    provider_chek_direct_pay_id = db.Column(db.String(64), nullable=True, index=True)  # DirectPay ID used (if ACH)
 
     # Track what actually happened (facts, not status)
     wallet_transfer_id = db.Column(
@@ -39,6 +42,8 @@ class PaymentAttempt(db.Model, TimestampMixin):
     wallet_transfer_at = db.Column(db.DateTime(timezone=True), nullable=True)  # When wallet was funded
     ach_payment_id = db.Column(db.String(64), nullable=True, index=True)  # ACH payment ID if ACH succeeded
     ach_payment_at = db.Column(db.DateTime(timezone=True), nullable=True)  # When ACH completed
+    card_transfer_id = db.Column(db.String(64), nullable=True, index=True)  # Card transfer ID if card succeeded
+    card_transfer_at = db.Column(db.DateTime(timezone=True), nullable=True)  # When card transfer completed
     error_message = db.Column(db.Text, nullable=True)  # Error if something failed
 
     @property

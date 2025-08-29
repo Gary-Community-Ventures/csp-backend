@@ -1,5 +1,4 @@
-import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import Optional, Union
 
 import sentry_sdk
@@ -21,6 +20,7 @@ from app.integrations.chek.schemas import (
     ACHFundingSource,
     ACHPaymentRequest,
     ACHPaymentType,
+    TransferBalanceResponse,
 )
 from app.integrations.chek.service import (
     ChekService as ChekIntegrationService,  # Avoid name collision
@@ -28,65 +28,59 @@ from app.integrations.chek.service import (
 from app.models import (
     AllocatedCareDay,
     AllocatedLumpSum,
+    FamilyPaymentSettings,
     MonthAllocation,
     Payment,
     PaymentAttempt,
     ProviderPaymentSettings,
 )
-from app.services.payment_result import PaymentResult
-
-
-def format_phone_to_e164(phone: Optional[str], default_country: str = "US") -> Optional[str]:
-    """
-    Format a phone number to E.164 format for Chek API.
-
-    Args:
-        phone: Phone number string in various formats
-        default_country: Default country code if not provided (US = +1)
-
-    Returns:
-        Phone number in E.164 format (e.g., +13035551234) or None if invalid
-    """
-    if not phone:
-        return None
-
-    # Remove all non-digit characters
-    digits = re.sub(r"\D", "", phone)
-
-    # If empty after cleaning, return None
-    if not digits:
-        return None
-
-    # Handle US numbers (default)
-    if default_country == "US":
-        # If it starts with 1 and is 11 digits, it's already formatted
-        if len(digits) == 11 and digits.startswith("1"):
-            return f"+{digits}"
-        # If it's 10 digits, add US country code
-        elif len(digits) == 10:
-            return f"+1{digits}"
-        # If it's less than 10 digits, it's invalid
-        else:
-            return None
-
-    # For other countries, you'd add their logic here
-    # For now, just prepend + if not present
-    return f"+{digits}" if not digits.startswith("+") else digits
+from app.services.payment.family_onboarding import FamilyOnboarding
+from app.services.payment.provider_onboarding import ProviderOnboarding
+from app.services.payment.schema import PaymentResult
 
 
 class PaymentService:
     """
-    Service for orchestrating payment processing, including Chek integration,
-    database updates, and retry logic.
+    Service for orchestrating payment processing
     """
 
     def __init__(self, app):
         self.chek_service = ChekIntegrationService(app)
         self.app = app
+        self.provider_onboarding = ProviderOnboarding(self.chek_service)
+        self.family_onboarding = FamilyOnboarding(self.chek_service)
+
+    def _get_types(
+        self,
+        allocated_care_days: Optional[list[AllocatedCareDay]] = None,
+        allocated_lump_sums: Optional[list[AllocatedLumpSum]] = None,
+    ) -> list[str]:
+        """Determine the types of allocations being paid for"""
+        types = []
+        if allocated_care_days:
+            types.append("care_days")
+        if allocated_lump_sums:
+            types.append("lump_sum")
+        return types
+
+    def _generate_description(
+        self,
+        external_provider_id: str,
+        allocated_care_days: Optional[list[AllocatedCareDay]] = None,
+        allocated_lump_sums: Optional[list[AllocatedLumpSum]] = None,
+    ) -> str:
+        """
+        Generate a description for the payment intent based on the allocated items.
+        """
+        payment_types = self._get_types(allocated_care_days, allocated_lump_sums)
+
+        payment_type = " and ".join(payment_types) if payment_types else "other"
+        return f"Payment to provider {external_provider_id} for {payment_type}"
 
     def _create_payment_intent(
         self,
         provider_payment_settings: ProviderPaymentSettings,
+        family_payment_settings: FamilyPaymentSettings,
         amount_cents: int,
         month_allocation: MonthAllocation,
         external_provider_id: str,
@@ -104,8 +98,7 @@ class PaymentService:
         lump_sum_ids = [lump.id for lump in (allocated_lump_sums or [])]
 
         # Build description
-        payment_type = "care_days" if allocated_care_days else "lump_sum" if allocated_lump_sums else "other"
-        description = f"Payment to provider {external_provider_id} for {payment_type}"
+        description = self._generate_description(external_provider_id, allocated_care_days, allocated_lump_sums)
 
         intent = PaymentIntent(
             provider_external_id=external_provider_id,
@@ -115,6 +108,7 @@ class PaymentService:
             care_day_ids=care_day_ids,
             lump_sum_ids=lump_sum_ids,
             provider_payment_settings_id=provider_payment_settings.id,
+            family_payment_settings_id=family_payment_settings.id,
             description=description,
         )
         db.session.add(intent)
@@ -125,15 +119,14 @@ class PaymentService:
         self,
         intent: "PaymentIntent",
         payment_method: PaymentMethod,
-        provider_payment_settings: "ProviderPaymentSettings" = None,
-        attempt_number: int = None,
+        provider_payment_settings: "ProviderPaymentSettings",
+        family_payment_settings: "FamilyPaymentSettings",
     ) -> PaymentAttempt:
         """
         Creates a new PaymentAttempt for a PaymentIntent.
         Captures payment instrument IDs from provider settings at time of attempt.
         """
-        if attempt_number is None:
-            attempt_number = len(intent.attempts) + 1
+        attempt_number = len(intent.attempts) + 1
 
         attempt = PaymentAttempt(
             payment_intent_id=intent.id,
@@ -142,12 +135,12 @@ class PaymentService:
         )
 
         # Capture payment instrument IDs at time of attempt
-        if provider_payment_settings:
-            attempt.chek_user_id = provider_payment_settings.chek_user_id
-            if payment_method == PaymentMethod.CARD:
-                attempt.chek_card_id = provider_payment_settings.chek_card_id
-            elif payment_method == PaymentMethod.ACH:
-                attempt.chek_direct_pay_id = provider_payment_settings.chek_direct_pay_id
+        attempt.provider_chek_user_id = provider_payment_settings.chek_user_id
+        attempt.family_chek_user_id = family_payment_settings.chek_user_id
+        if payment_method == PaymentMethod.CARD:
+            attempt.provider_chek_card_id = provider_payment_settings.chek_card_id
+        elif payment_method == PaymentMethod.ACH:
+            attempt.provider_chek_direct_pay_id = provider_payment_settings.chek_direct_pay_id
 
         db.session.add(attempt)
         db.session.flush()
@@ -159,15 +152,17 @@ class PaymentService:
         attempt: PaymentAttempt,
     ) -> Payment:
         """
-        Creates a Payment record ONLY when payment succeeds.
+        Creates a Payment record ONLY when payment attempt succeeds.
         Links to the intent and successful attempt, marks items as paid.
         """
         provider_payment_settings = intent.provider_payment_settings
+        family_payment_settings = intent.family_payment_settings
 
         payment = Payment(
             payment_intent_id=intent.id,
             successful_attempt_id=attempt.id,
             provider_payment_settings_id=provider_payment_settings.id,
+            family_payment_settings_id=family_payment_settings.id,
             amount_cents=intent.amount_cents,
             payment_method=attempt.payment_method,
             month_allocation_id=intent.month_allocation_id,
@@ -203,6 +198,7 @@ class PaymentService:
         attempt: PaymentAttempt,
         intent: "PaymentIntent",
         provider_payment_settings: "ProviderPaymentSettings",
+        family_payment_settings: "FamilyPaymentSettings",
     ) -> bool:
         """
         Execute the payment flow: Program->Wallet transfer, then optionally ACH.
@@ -221,12 +217,14 @@ class PaymentService:
         allocated_lump_sums = intent.get_lump_sums()
 
         # Build description and metadata for tracking
-        payment_type = "care_days" if allocated_care_days else "lump_sum" if allocated_lump_sums else "other"
-        description = f"Payment to provider {intent.provider_external_id} for {payment_type}"
+        payment_type = " and ".join(self._get_types(allocated_care_days, allocated_lump_sums))
+        description = self._generate_description(intent.provider_external_id, allocated_care_days, allocated_lump_sums)
 
         metadata = {
             "provider_id": intent.provider_external_id,
             "child_id": intent.child_external_id,
+            "family_id": family_payment_settings.family_external_id,
+            "family_chek_user_id": family_payment_settings.chek_user_id,
             "payment_type": payment_type,
             "intent_id": str(intent.id),
         }
@@ -239,11 +237,11 @@ class PaymentService:
         if intent.month_allocation:
             metadata["allocation_month"] = intent.month_allocation.date.strftime("%Y-%m")
 
-        # 1. Initiate Chek transfer (Program to Wallet)
+        # 1. Initiate Chek transfer (Wallet to Wallet)
         transfer_request = TransferBalanceRequest(
-            flow_direction=FlowDirection.PROGRAM_TO_WALLET.value,
-            program_id=self.chek_service.program_id,
-            counterparty_id=self.chek_service.program_id,
+            flow_direction=FlowDirection.WALLET_TO_WALLET.value,
+            program_id=family_payment_settings.chek_user_id,  # Documentation says program_id but API uses counterparty_id
+            counterparty_id=family_payment_settings.chek_user_id,  # Set both for safety
             amount=intent.amount_cents,
             description=description,
             metadata=metadata,
@@ -335,6 +333,15 @@ class PaymentService:
             In future versions, will return PaymentResult for more details
         """
         try:
+            # 0. Look up family payment settings
+            family_payment_settings = self._get_family_settings_from_child_id(external_child_id)
+            if (
+                not family_payment_settings
+                or not family_payment_settings.chek_user_id
+                or not family_payment_settings.chek_wallet_balance
+            ):
+                raise ProviderNotPayableException(f"Family for child {external_child_id} does not have chek account")
+
             # 1. Look up provider payment settings
             provider_payment_settings = ProviderPaymentSettings.query.filter_by(
                 provider_external_id=external_provider_id
@@ -385,6 +392,13 @@ class PaymentService:
                 )
                 current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
                 raise AllocationExceededException(error_msg)
+            if amount_cents > family_payment_settings.chek_wallet_balance:
+                error_msg = (
+                    f"Payment amount {amount_cents} cents exceeds family Chek wallet balance "
+                    f"{family_payment_settings.chek_wallet_balance} cents"
+                )
+                current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
+                raise AllocationExceededException(error_msg)
 
             # 6. Ensure provider has a payment method configured
             if not provider_payment_settings.payment_method:
@@ -399,6 +413,7 @@ class PaymentService:
             # 8. Create PaymentIntent to capture what we're trying to pay for
             intent = self._create_payment_intent(
                 provider_payment_settings=provider_payment_settings,
+                family_payment_settings=family_payment_settings,
                 amount_cents=amount_cents,
                 month_allocation=month_allocation,
                 external_provider_id=external_provider_id,
@@ -407,35 +422,31 @@ class PaymentService:
                 allocated_lump_sums=allocated_lump_sums,
             )
 
-            # 9. Validate payment method status with detailed error messages
+            # 9. Create PaymentAttempt for this intent
+            attempt = self._create_payment_attempt(
+                intent=intent,
+                payment_method=provider_payment_settings.payment_method,
+                provider_payment_settings=provider_payment_settings,
+                family_payment_settings=family_payment_settings,
+            )
+
+            # 10. Validate payment method status with detailed error messages
             is_valid, validation_error = provider_payment_settings.validate_payment_method_status()
             if not is_valid:
                 current_app.logger.warning(
                     f"Payment skipped for Provider {provider_payment_settings.id}: {validation_error}"
                 )
-                # Create a failed attempt for the intent
-                attempt = self._create_payment_attempt(
-                    intent=intent,
-                    payment_method=provider_payment_settings.payment_method,
-                    provider_payment_settings=provider_payment_settings,
-                )
                 self._update_payment_attempt_facts(attempt, error_message=validation_error)
                 db.session.commit()
                 return False
 
-            # 10. Create PaymentAttempt for this intent
-            attempt = self._create_payment_attempt(
-                intent=intent,
-                payment_method=provider_payment_settings.payment_method,
-                provider_payment_settings=provider_payment_settings,
-            )
-
+            # 11. Execute the payment flow
             try:
-                # Execute payment flow
                 success = self._execute_payment_flow(
                     attempt=attempt,
                     intent=intent,
                     provider_payment_settings=provider_payment_settings,
+                    family_payment_settings=family_payment_settings,
                 )
 
                 if success:
@@ -498,6 +509,7 @@ class PaymentService:
                 return False
 
             provider_payment_settings = intent.provider_payment_settings
+            family_payment_settings = intent.family_payment_settings
 
             # Find the latest attempt to determine retry strategy
             last_attempt = intent.latest_attempt
@@ -517,6 +529,7 @@ class PaymentService:
                     intent=intent,
                     payment_method=PaymentMethod.ACH,
                     provider_payment_settings=provider_payment_settings,
+                    family_payment_settings=family_payment_settings,
                 )
 
                 # Copy wallet funding info from previous attempt
@@ -577,6 +590,7 @@ class PaymentService:
                     intent=intent,
                     payment_method=provider_payment_settings.payment_method,
                     provider_payment_settings=provider_payment_settings,
+                    family_payment_settings=family_payment_settings,
                 )
 
                 # Refresh provider status
@@ -602,6 +616,7 @@ class PaymentService:
                         attempt=new_attempt,
                         intent=intent,
                         provider_payment_settings=provider_payment_settings,
+                        family_payment_settings=family_payment_settings,
                     )
 
                     if success:
@@ -623,7 +638,7 @@ class PaymentService:
             sentry_sdk.capture_exception(e)
             return False
 
-    def initialize_provider_payment(self, provider_external_id: str, payment_method: str) -> dict:
+    def initialize_provider_payment_method(self, provider_external_id: str, payment_method: str) -> dict:
         """
         Initialize a provider's payment method (card or ACH).
 
@@ -678,7 +693,7 @@ class PaymentService:
                 card_request = CardCreateRequest(
                     program_id=int(chek_program_id),
                     funding_method="program_balance",
-                    amount=1000,  # Initial amount in cents
+                    amount=0,  # Initial amount in cents
                 )
 
                 card_response = self.chek_service.create_card(int(provider_settings.chek_user_id), card_request)
@@ -741,141 +756,79 @@ class PaymentService:
             current_app.logger.error(f"Failed to initialize payment for provider {provider_external_id}: {e}")
             raise
 
+    def refresh_family_settings(self, family_payment_settings: FamilyPaymentSettings):
+        """
+        Refreshes the Chek status of a family and updates the database.
+        """
+        self.family_onboarding.refresh_settings(family_payment_settings)
+
+    def onboard_family(self, family_external_id: str) -> FamilyPaymentSettings:
+        """
+        Onboards a new family by creating a Chek user and FamilyPaymentSettings record.
+        """
+        return self.family_onboarding.onboard(family_external_id)
+
     def refresh_provider_settings(self, provider_payment_settings: ProviderPaymentSettings):
         """
         Refreshes the Chek status of a provider and updates the database.
         """
-        if not provider_payment_settings.chek_user_id:
-            current_app.logger.warning(
-                f"Provider {provider_payment_settings.id} has no chek_user_id. Cannot refresh status."
-            )
-            return
-
-        try:
-            # Get status from Chek API
-            status = self.chek_service.get_provider_chek_status(int(provider_payment_settings.chek_user_id))
-
-            # Update provider with new status
-            provider_payment_settings.chek_direct_pay_id = status["direct_pay_id"]
-            provider_payment_settings.chek_direct_pay_status = status["direct_pay_status"]
-            provider_payment_settings.chek_card_id = status["card_id"]
-            provider_payment_settings.chek_card_status = status["card_status"]
-            provider_payment_settings.chek_wallet_balance = status.get(
-                "wallet_balance", provider_payment_settings.chek_wallet_balance
-            )
-            provider_payment_settings.last_chek_sync_at = status["timestamp"]
-
-            db.session.add(provider_payment_settings)
-            db.session.commit()
-            current_app.logger.info(f"Provider {provider_payment_settings.id} Chek status refreshed successfully.")
-
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"Failed to refresh Chek status for provider {provider_payment_settings.id}: {e}")
-            sentry_sdk.capture_exception(e)
+        self.provider_onboarding.refresh_settings(provider_payment_settings)
 
     def onboard_provider(self, provider_external_id: str) -> ProviderPaymentSettings:
         """
         Onboards a new provider by creating a Chek user and ProviderPaymentSettings record.
         """
-        import uuid
+        return self.provider_onboarding.onboard(provider_external_id)
 
-        from app.integrations.chek.schemas import Address, UserCreateRequest
-        from app.sheets.mappings import ProviderColumnNames, get_provider, get_providers
+    def _get_family_settings_from_child_id(self, child_external_id: str) -> FamilyPaymentSettings:
+        """
+        Helper to get FamilyPaymentSettings from a child external ID.
+        Raises FamilyNotFoundException if not found.
+        """
+        from app.sheets.mappings import get_child, get_children, ChildColumnNames
 
-        try:
-            # Check if provider already exists
-            existing_provider_payment_settings = ProviderPaymentSettings.query.filter_by(
-                provider_external_id=provider_external_id
-            ).first()
+        child_data = get_child(child_external_id, get_children())
+        if not child_data:
+            raise DataNotFoundException(f"Child {child_external_id} not found in Google Sheets")
 
-            if existing_provider_payment_settings:
-                current_app.logger.info(
-                    f"Provider {provider_external_id} already exists with Chek user {existing_provider_payment_settings.chek_user_id}"
-                )
-                return existing_provider_payment_settings
+        family_payment_settings = FamilyPaymentSettings.query.filter_by(
+            family_external_id=child_data.get(ChildColumnNames.FAMILY_ID)
+        ).first()
+        if not family_payment_settings:
+            return None
 
-            # Get provider data from Google Sheets
-            provider_rows = get_providers()
-            provider_data = get_provider(provider_external_id, provider_rows)
+        return family_payment_settings
 
-            if not provider_data:
-                raise ProviderNotFoundException(f"Provider {provider_external_id} not found in Google Sheets")
+    def allocate_funds_to_family(self, child_external_id: str, amount: int, date: date) -> TransferBalanceResponse:
+        """
+        Allocates funds to a family's Chek account.
+        """
+        from app.integrations.chek.schemas import FlowDirection, TransferBalanceRequest
 
-            # Extract provider information
-            provider_email = provider_data.get(ProviderColumnNames.EMAIL)
-            provider_phone_raw = provider_data.get(ProviderColumnNames.PHONE_NUMBER)
-            first_name = provider_data.get(ProviderColumnNames.FIRST_NAME)
-            last_name = provider_data.get(ProviderColumnNames.LAST_NAME)
-            address_line1 = provider_data.get(ProviderColumnNames.ADDRESS_LINE1)
-            address_line2 = provider_data.get(ProviderColumnNames.ADDRESS_LINE2)
-            city = provider_data.get(ProviderColumnNames.CITY)
-            state = provider_data.get(ProviderColumnNames.STATE)
-            zip_code = provider_data.get(ProviderColumnNames.ZIP_CODE)
-            country_code = provider_data.get(ProviderColumnNames.COUNTRY_CODE)
+        from app.sheets.mappings import get_child, get_children, ChildColumnNames
 
-            if not provider_email:
-                raise DataNotFoundException(f"Provider {provider_external_id} has no email in Google Sheets")
+        # If family does not have settings, onboard them
+        family_payment_settings = self._get_family_settings_from_child_id(child_external_id)
+        if not family_payment_settings or not family_payment_settings.chek_user_id:
+            child_data = get_child(child_external_id, get_children())
+            if not child_data:
+                raise DataNotFoundException(f"Child {child_external_id} not found in Google Sheets")
+            family_payment_settings = self.onboard_family(family_external_id=child_data.get(ChildColumnNames.FAMILY_ID))
 
-            # Format phone number to E.164 format
-            provider_phone = format_phone_to_e164(provider_phone_raw)
-            if not provider_phone:
-                raise DataNotFoundException(
-                    f"Provider {provider_external_id} has invalid phone number: {provider_phone_raw}"
-                )
+        # Transfer funds from program to family's wallet
+        transfer_request = TransferBalanceRequest(
+            flow_direction=FlowDirection.PROGRAM_TO_WALLET.value,
+            program_id=self.chek_service.program_id,  # Documentation says program_id but API uses counterparty_id
+            counterparty_id=self.chek_service.program_id,  # Set both for safety
+            amount=amount,
+            description=f"Allocation for child {child_external_id} for month {date.strftime('%Y-%m')}",
+            metadata={
+                "child_id": child_external_id,
+                "family_id": family_payment_settings.family_external_id,
+                "allocation_month": date.strftime("%Y-%m"),
+            },
+        )
 
-            # Check if Chek user already exists with this email
-            existing_chek_user = self.chek_service.get_user_by_email(provider_email)
-            balance = existing_chek_user.balance if existing_chek_user else 0
-
-            if existing_chek_user:
-                # User already exists in Chek, just create the ProviderPaymentSettings
-                current_app.logger.info(
-                    f"Chek user already exists for email {provider_email}, linking to provider {provider_external_id}"
-                )
-                chek_user_id = str(existing_chek_user.id)
-            else:
-                # Create new Chek user
-                user_request = UserCreateRequest(
-                    email=provider_email,
-                    phone=provider_phone,
-                    first_name=first_name,
-                    last_name=last_name,
-                    address=Address(
-                        line1=address_line1 or "",
-                        line2=address_line2 or "",
-                        city=city or "",
-                        state=state or "",
-                        postal_code=zip_code or "",
-                        country_code=country_code or "US",
-                    ),
-                )
-
-                chek_user_response = self.chek_service.create_user(user_request)
-                current_app.logger.info(
-                    f"Created Chek user {chek_user_response.id} for provider {provider_external_id}"
-                )
-                chek_user_id = str(chek_user_response.id)
-                balance = chek_user_response.balance
-
-            # Create ProviderPaymentSettings record
-            provider_payment_settings = ProviderPaymentSettings(
-                id=uuid.uuid4(),
-                provider_external_id=provider_external_id,
-                chek_user_id=chek_user_id,
-                payment_method=None,  # Provider chooses this later
-                chek_wallet_balance=balance,
-            )
-            db.session.add(provider_payment_settings)
-            db.session.commit()
-
-            current_app.logger.info(
-                f"Successfully onboarded provider {provider_external_id} with Chek user {chek_user_id}"
-            )
-            return provider_payment_settings
-
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"Failed to onboard provider {provider_external_id}: {e}")
-            sentry_sdk.capture_exception(e)
-            raise
+        return self.chek_service.transfer_balance(
+            user_id=int(family_payment_settings.chek_user_id), request=transfer_request
+        )

@@ -40,6 +40,14 @@ class PaymentIntent(db.Model, TimestampMixin):
     )
     provider_payment_settings = db.relationship("ProviderPaymentSettings", backref="payment_intents")
 
+    # Family payment settings at time of intent creation
+    family_payment_settings_id = db.Column(
+        UUID(as_uuid=True),
+        db.ForeignKey("family_payment_settings.id", name="fk_payment_intent_family_settings_id"),
+        nullable=False,
+    )
+    family_payment_settings = db.relationship("FamilyPaymentSettings", backref="payment_intents")
+
     # Relationships
     attempts = db.relationship("PaymentAttempt", back_populates="intent", order_by="PaymentAttempt.attempt_number")
     payment = db.relationship("Payment", back_populates="intent", uselist=False)  # One-to-one when successful

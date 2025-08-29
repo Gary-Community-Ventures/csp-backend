@@ -33,6 +33,13 @@ class Payment(db.Model, TimestampMixin):
     )
     provider_payment_settings = db.relationship("ProviderPaymentSettings", backref="payments")
 
+    family_payment_settings_id = db.Column(
+        UUID(as_uuid=True),
+        ForeignKey("family_payment_settings.id", name="fk_payment_family_settings_id"),
+        nullable=False,
+    )
+    family_payment_settings = db.relationship("FamilyPaymentSettings", backref="payments")
+
     amount_cents = db.Column(db.Integer, nullable=False)
     payment_method = db.Column(db.Enum(PaymentMethod), nullable=False)
 
@@ -80,10 +87,17 @@ class Payment(db.Model, TimestampMixin):
         return None
 
     @property
-    def chek_user_id(self):
+    def family_chek_user_id(self):
         """Get the Chek user ID from the successful attempt"""
         if self.successful_attempt:
-            return self.successful_attempt.chek_user_id
+            return self.successful_attempt.family_chek_user_id
+        return None
+    
+    @property
+    def provider_chek_user_id(self):
+        """Get the Chek user ID from the successful attempt"""
+        if self.successful_attempt:
+            return self.successful_attempt.provider_chek_user_id
         return None
 
     @property

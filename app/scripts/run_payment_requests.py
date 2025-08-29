@@ -7,7 +7,7 @@ from app.models import (
     MonthAllocation,
     ProviderPaymentSettings,
 )
-from app.services.payment_service import PaymentService
+from app.services.payment.payment_service import PaymentService
 from app.sheets.mappings import (
     get_child,
     get_children,

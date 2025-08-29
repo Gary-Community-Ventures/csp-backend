@@ -17,6 +17,8 @@ from ..extensions import db
 from .mixins import TimestampMixin
 from .utils import get_care_day_cost
 
+from flask import current_app
+
 
 def get_allocation_amount(child_id: str) -> int:
     """Get the monthly allocation amount for a child"""
@@ -64,6 +66,9 @@ class MonthAllocation(db.Model, TimestampMixin):
     )
 
     lump_sums = db.relationship("AllocatedLumpSum", back_populates="care_month_allocation")
+
+    chek_transfer_id = db.Column(db.String(64), nullable=True, index=True)
+    chek_transfer_date = db.Column(db.DateTime(timezone=True), nullable=True)
 
     __table_args__ = (db.UniqueConstraint("google_sheets_child_id", "date", name="unique_child_month"),)
 
@@ -198,10 +203,18 @@ class MonthAllocation(db.Model, TimestampMixin):
                     f"of ${MAX_ALLOCATION_AMOUNT_CENTS / 100:.2f} for child {child_id}"
                 )
 
+            transaction = current_app.payment_service.allocate_funds_to_family(
+                child_external_id=child_id, amount=allocation_cents, date=month_start
+            )
+            if not transaction or not transaction.transfer or not transaction.transfer.id:
+                raise RuntimeError(f"Failed to allocate funds to family for child {child_id}: {transaction}")
+
             allocation = MonthAllocation(
                 google_sheets_child_id=child_id,
                 date=month_start,
                 allocation_cents=allocation_cents,
+                chek_transfer_id=transaction.transfer.id,
+                chek_transfer_date=transaction.transfer.created_at,
             )
             db.session.add(allocation)
             db.session.commit()

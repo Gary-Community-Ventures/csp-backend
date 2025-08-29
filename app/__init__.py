@@ -10,7 +10,7 @@ from googleapiclient.discovery import build
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
-from app.services.payment_service import PaymentService
+from app.services.payment.payment_service import PaymentService
 from app.sheets.integration import SheetsManager
 
 # Import models to ensure they are registered with SQLAlchemy

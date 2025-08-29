@@ -106,9 +106,9 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
         return ProviderPaymentSettings(id=uuid.uuid4(), provider_external_id=provider_external_id)
 
     @classmethod
-    def provider_by_external_id(cls, id: str) -> Query:
+    def by_external_id(cls, id: str) -> Query:
         return cls.query.filter_by(provider_external_id=id)
 
     @classmethod
-    def provider_by_chek_user_id(cls, id: str) -> Query:
+    def by_chek_user_id(cls, id: str) -> Query:
         return cls.query.filter_by(chek_user_id=id)

@@ -71,6 +71,13 @@ def new_family():
     all_children_data = get_children()
     family_children = get_family_children(google_sheet_id, all_children_data)
 
+    # Create Chek user and FamilyPaymentSettings
+    payment_service = current_app.payment_service
+    family_settings = payment_service.onboard_family(family_external_id=data["google_sheet_id"])
+    current_app.logger.info(
+        f"Created FamilyPaymentSettings for family {data['google_sheet_id']} with Chek user {family_settings.chek_user_id}"
+    )
+
     for child in family_children:
         # Create a new MonthAllocation for each child
         MonthAllocation.get_or_create_for_month(

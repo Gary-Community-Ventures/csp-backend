@@ -27,6 +27,11 @@ class ProviderNotPayableException(PaymentException):
 
     pass
 
+class FamilyNotFoundException(PaymentException):
+    """Raised when a family cannot be found."""
+
+    pass
+
 
 class PaymentLimitExceededException(PaymentException):
     """Raised when a payment exceeds configured limits."""

@@ -75,16 +75,11 @@ def new_provider():
         abort(400, description="Missing required field: email")
 
     # Create Chek user and ProviderPaymentSettings
-    try:
-        payment_service = current_app.payment_service
-        provider_settings = payment_service.onboard_provider(provider_external_id=data["google_sheet_id"])
-        current_app.logger.info(
-            f"Created ProviderPaymentSettings for provider {data['google_sheet_id']} with Chek user {provider_settings.chek_user_id}"
-        )
-    except Exception as e:
-        current_app.logger.error(f"Failed to create Chek user for provider {data['google_sheet_id']}: {e}")
-        # Don't fail the entire request if Chek onboarding fails
-        # Provider can be onboarded to Chek later
+    payment_service = current_app.payment_service
+    provider_settings = payment_service.onboard_provider(provider_external_id=data["google_sheet_id"])
+    current_app.logger.info(
+        f"Created ProviderPaymentSettings for provider {data['google_sheet_id']} with Chek user {provider_settings.chek_user_id}"
+    )
 
     # send clerk invite
     clerk: Clerk = current_app.clerk_client
@@ -334,7 +329,7 @@ def initialize_provider_payment(provider_id: str):
 
     try:
         payment_service = current_app.payment_service
-        result = payment_service.initialize_provider_payment(provider_id, payment_method)
+        result = payment_service.initialize_provider_payment_method(provider_id, payment_method)
 
         # Convert the result to PaymentInitializationResponse
         response = PaymentInitializationResponse(**result)
@@ -365,7 +360,7 @@ def initialize_my_payment():
 
     try:
         payment_service = current_app.payment_service
-        result = payment_service.initialize_provider_payment(provider_id, payment_method)
+        result = payment_service.initialize_provider_payment_method(provider_id, payment_method)
 
         # Convert the result to PaymentInitializationResponse for consistency
         response = PaymentInitializationResponse(**result)
