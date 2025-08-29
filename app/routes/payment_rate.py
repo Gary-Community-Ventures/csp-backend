@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
 
 from app.auth.decorators import ClerkUserType, auth_required
-from app.auth.helpers import get_provider_user
+from app.auth.helpers import get_family_user, get_provider_user
 from app.extensions import db
 from app.models import PaymentRate
 from app.schemas.payment_rate import (
@@ -10,7 +10,13 @@ from app.schemas.payment_rate import (
     PaymentRateResponse,
 )
 from app.sheets.helpers import filter_rows_by_value
-from app.sheets.mappings import ProviderChildMappingColumnNames, get_provider_child_mappings
+from app.sheets.mappings import (
+    ChildColumnNames,
+    ProviderChildMappingColumnNames,
+    get_children,
+    get_family_children,
+    get_provider_child_mappings,
+)
 
 bp = Blueprint("payment_rate_bp", __name__, url_prefix="/payment-rates")
 
@@ -62,6 +68,26 @@ def create_payment_rate(child_id: str):
 @auth_required(ClerkUserType.FAMILY)
 def get_payment_rate(provider_id, child_id):
     """Get a payment rate for a given provider and child."""
+    user = get_family_user()
+    family_id = user.user_data.family_id
+
+    children = get_children()
+    family_children = get_family_children(family_id, children)
+    child_ids = [child.get(ChildColumnNames.ID) for child in family_children]
+
+    if child_id not in child_ids:
+        return jsonify({"error": "Child not found"}), 404
+
+    mappings = get_provider_child_mappings()
+    child_has_provider = False
+    for mapping in filter_rows_by_value(mappings, child_id, ProviderChildMappingColumnNames.CHILD_ID):
+        if mapping.get(ProviderChildMappingColumnNames.PROVIDER_ID) == provider_id:
+            child_has_provider = True
+            break
+
+    if not child_has_provider:
+        return jsonify({"error": "Provider not assigned to this child"}), 404
+
     payment_rate = PaymentRate.get(provider_id=provider_id, child_id=child_id)
     if not payment_rate:
         return jsonify({"error": "Payment rate not found"}), 404
