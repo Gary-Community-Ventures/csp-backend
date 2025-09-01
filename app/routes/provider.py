@@ -29,6 +29,7 @@ from app.schemas.provider_payment import (
     PaymentMethodUpdateResponse,
     PaymentSettingsResponse,
 )
+from app.models.payment_rate import PaymentRate
 from app.sheets.helpers import KeyMap, format_name, get_row
 from app.sheets.mappings import (
     ChildColumnNames,
@@ -125,14 +126,19 @@ def get_provider_data():
         "is_payable": provider_payment_settings.is_payable if provider_payment_settings else False,
     }
 
-    children = [
-        {
-            "id": c.get(ChildColumnNames.ID),
-            "first_name": c.get(ChildColumnNames.FIRST_NAME),
-            "last_name": c.get(ChildColumnNames.LAST_NAME),
-        }
-        for c in children_data
-    ]
+    children = []
+    for c in children_data:
+        payment_rate = PaymentRate.get(provider_id=provider_id, child_id=c.get(ChildColumnNames.ID))
+
+        children.append(
+            {
+                "id": c.get(ChildColumnNames.ID),
+                "first_name": c.get(ChildColumnNames.FIRST_NAME),
+                "last_name": c.get(ChildColumnNames.LAST_NAME),
+                "half_day_rate_cents": payment_rate.half_day_rate_cents if payment_rate is not None else None,
+                "full_day_rate_cents": payment_rate.full_day_rate_cents if payment_rate is not None else None,
+            }
+        )
 
     transactions = []
     for t in transaction_data:

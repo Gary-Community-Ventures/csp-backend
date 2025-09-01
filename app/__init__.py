@@ -162,8 +162,8 @@ def create_app(config_class=None):
     from .routes.family import bp as family_bp
     from .routes.lump_sum import bp as lump_sum_bp
     from .routes.main import bp as main_bp
-    from .routes.payment_rate import payment_rate_bp
     from .routes.payments import bp as payments_bp
+    from .routes.payment_rate import bp as payment_rate_bp
     from .routes.provider import bp as provider_bp
 
     app.register_blueprint(main_bp)
