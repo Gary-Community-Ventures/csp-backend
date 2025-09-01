@@ -50,9 +50,9 @@ class ChekService:
             return None
 
         # Check if the first user in the list matches the email.
-        first_user_data = results[0]
-        if first_user_data.get("email") == email:
-            return User.model_validate(first_user_data)
+        for item in results:
+            if item.get("email") == email:
+                return User.model_validate(item)
 
         return None
 
