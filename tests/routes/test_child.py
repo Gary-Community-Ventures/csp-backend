@@ -224,7 +224,7 @@ def test_submit_care_days_success(client, seed_db, mocker):
         f"/child/{allocation.google_sheets_child_id}/provider/{care_day_new.provider_google_sheets_id}/allocation/{allocation.date.month}/{allocation.date.year}/submit"
     )
     assert response.status_code == 200
-    assert response.json["message"] == "Submission successful"
+    assert response.json["message"] == "Payment processed successfully"
 
     # Verify new, modified, and removed days are in the response
     assert len(response.json["new_days"]) == 1  # care_day_new

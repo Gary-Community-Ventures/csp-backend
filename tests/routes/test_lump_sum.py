@@ -249,12 +249,27 @@ def test_create_lump_sum_exceeds_allocation(client, seed_lump_sum_db, mock_sheet
         json={
             "allocation_id": allocation.id,
             "provider_id": "providerABC",
-            "amount_cents": 150000,  # Exceeds 100000 allocation
+            "amount_cents": 130000,  # Exceeds 100000 allocation
             "hours": 5.0,
         },
     )
     assert response.status_code == 400
     assert "Adding this lump sum would exceed monthly allocation" in response.json["error"]
+
+def test_create_lump_sum_exceeds_max_allowable_amount(client, seed_lump_sum_db, mock_sheets_data):
+    allocation = seed_lump_sum_db
+
+    response = client.post(
+        "/lump-sums",
+        json={
+            "allocation_id": allocation.id,
+            "provider_id": "providerABC",
+            "amount_cents": 150000,  # Exceeds 100000 allocation
+            "hours": 5.0,
+        },
+    )
+    assert response.status_code == 400
+    assert "Lump sum amount $1500.00 exceeds maximum allowed payment of $1400.00" in response.json["error"]
 
 
 def test_create_lump_sum_hours_negative(client, seed_lump_sum_db, mock_sheets_data):
