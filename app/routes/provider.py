@@ -123,6 +123,7 @@ def get_provider_data():
         "id": provider_data.get(ProviderColumnNames.ID),
         "first_name": provider_data.get(ProviderColumnNames.FIRST_NAME),
         "last_name": provider_data.get(ProviderColumnNames.LAST_NAME),
+        "is_payment_enabled": provider_data.get(ProviderColumnNames.PAYMENT_ENABLED),
         "is_payable": provider_payment_settings.is_payable if provider_payment_settings else False,
     }
 
