@@ -73,22 +73,12 @@ class MonthAllocation(db.Model, TimestampMixin):
     __table_args__ = (db.UniqueConstraint("google_sheets_child_id", "date", name="unique_child_month"),)
 
     @property
-    def over_allocation(self):
+    def selected_over_allocation(self):
         """Check if allocated care days exceed the monthly allocation"""
-        return self.allocated_cents > self.allocation_cents
+        return self.selected_cents > self.allocation_cents
 
     @property
-    def over_paid(self):
-        """Check if payments exceed what was allocated"""
-        return self.paid_cents > self.allocated_cents
-
-    @property
-    def used_days(self):
-        """Calculate total days used from active care days"""
-        return sum(day.day_count for day in self.care_days)
-
-    @property
-    def promised_cents(self):
+    def selected_cents(self):
         """Total promised (allocated but not necessarily paid) from care days + lump sums.
         This prevents over-allocation but doesn't reduce the actual allocation."""
         return sum(day.amount_cents for day in self.care_days) + sum(
@@ -103,64 +93,25 @@ class MonthAllocation(db.Model, TimestampMixin):
         return sum(payment.amount_cents for payment in self.payments)
 
     @property
-    def unpaid_cents(self):
-        """Total that's been promised but not yet paid"""
-        return self.promised_cents - self.paid_cents
-
-    @property
-    def allocated_cents(self):
-        """Total allocated (DEPRECATED: use promised_cents for clarity)"""
-        # Keep for backward compatibility
-        return self.promised_cents
-
-    @property
-    def used_cents(self):
-        """Calculate total cents used (DEPRECATED: use paid_cents for actual usage)"""
-        # Keep for backward compatibility
-        return self.promised_cents
-
-    @property
-    def remaining_to_promise_cents(self):
-        """How much budget is left to promise (create new care days/lump sums).
+    def remaining_unselected_cents(self):
+        """How much budget is left to select (create new care days/lump sums).
         This prevents over-promising but doesn't reflect actual payment status."""
-        return self.allocation_cents - self.promised_cents
-
-    @property
-    def remaining_to_pay_cents(self):
-        """How much allocation is actually left to pay out.
-        This is the real remaining allocation after successful payments."""
-        return self.allocation_cents - self.paid_cents
-
-    @property
-    def remaining_to_allocate_cents(self):
-        """How much budget is left to allocate (DEPRECATED: use remaining_to_promise_cents)"""
-        # Keep for backward compatibility
-        return self.remaining_to_promise_cents
+        return self.allocation_cents - self.selected_cents
 
     @property
     def remaining_unpaid_cents(self):
-        """How much allocated money is left to pay (DEPRECATED: use remaining_to_pay_cents)"""
-        # Keep for backward compatibility
-        print(  # For debugging
-            f"MonthAllocation.remaining_unpaid_cents: allocation_cents={self.allocation_cents}, "
-            f"promised_cents={self.promised_cents}, paid_cents={self.paid_cents}"
-        )
-        return self.remaining_to_pay_cents
-
-    @property
-    def remaining_cents(self):
-        """Calculate remaining cents available (DEPRECATED: use remaining_to_promise_cents)"""
-        # Keep for backward compatibility
-        return self.remaining_to_promise_cents
+        """How much allocation is actually left to use.
+        This is the real remaining allocation after successful payments."""
+        return self.allocation_cents - self.paid_cents
 
     def can_add_care_day(self, day_type: CareDayType, provider_id: str) -> bool:
         """Check if we can add a care day of given type without over-allocating"""
         cents_amount = get_care_day_cost(day_type, provider_id=provider_id, child_id=self.google_sheets_child_id)
-        return self.used_cents + cents_amount <= self.allocation_cents
+        return self.paid_cents + cents_amount <= self.allocation_cents
 
     def can_add_lump_sum(self, amount_cents: int) -> bool:
         """Check if we can add a lump sum without over-allocating"""
-        return self.used_cents + amount_cents <= self.allocation_cents
+        return self.paid_cents + amount_cents <= self.allocation_cents
 
     @staticmethod
     def get_or_create_for_month(child_id: str, month_date: date):
@@ -251,6 +202,14 @@ class MonthAllocation(db.Model, TimestampMixin):
         from .allocated_care_day import get_locked_until_date
 
         return get_locked_until_date()
+
+    @property
+    def locked_past_date(self) -> date:
+        """Returns the last date (inclusive) for which a newly created care day would be locked.
+
+        Uses business timezone to determine the current lock status.
+        """
+        return self.locked_until_date + timedelta(days=8)
 
     def __repr__(self):
         return f"<MonthAllocation Child:{self.google_sheets_child_id} {self.date.strftime('%Y-%m')}"

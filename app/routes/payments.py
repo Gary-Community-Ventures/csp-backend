@@ -166,10 +166,12 @@ def get_provider_payment_history():
 
         # Get payment method used for this payment
         payment_method = "unknown"
-        if payment.attempts:
+        if payment.successful_attempt:
             # Get the payment method from the first attempt (they should all be the same)
             payment_method = (
-                payment.attempts[0].payment_method.value if payment.attempts[0].payment_method else "unknown"
+                payment.successful_attempt.payment_method.value
+                if payment.successful_attempt.payment_method
+                else "unknown"
             )
 
         # Determine payment type

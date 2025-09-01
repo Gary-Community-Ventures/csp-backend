@@ -259,7 +259,7 @@ def test_update_care_day_missing_type(client, seed_db):
     assert "Missing type field" in response.json["error"]
 
 
-def test_update_care_day_over_allocation_soft_deletes(client, seed_db):
+def test_update_care_day_selected_over_allocation_soft_deletes(client, seed_db):
     allocation, _, _, _, _, payment_rate = seed_db
     # Set allocation to be less than a full day
     allocation.allocation_cents = payment_rate.half_day_rate_cents

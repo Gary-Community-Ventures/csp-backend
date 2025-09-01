@@ -402,22 +402,7 @@ class PaymentService:
             if amount_cents <= 0:
                 raise InvalidPaymentStateException("No allocations provided for payment")
 
-            # 3. Validate all allocated items are submitted
-            # if allocated_care_days:
-            #     unsubmitted_days = [day for day in allocated_care_days if day.last_submitted_at is None]
-            #     if unsubmitted_days:
-            #         error_msg = f"Cannot process payment: {len(unsubmitted_days)} care days are not submitted"
-            #         current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
-            #         raise InvalidPaymentStateException(error_msg)
-
-            # if allocated_lump_sums:
-            #     unsubmitted_lumps = [lump for lump in allocated_lump_sums if lump.submitted_at is None]
-            #     if unsubmitted_lumps:
-            #         error_msg = f"Cannot process payment: {len(unsubmitted_lumps)} lump sums are not submitted"
-            #         current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
-            #         raise InvalidPaymentStateException(error_msg)
-
-            # 4. Validate payment doesn't exceed $1400 limit
+            # 3. Validate payment doesn't exceed $1400 limit
             if amount_cents > MAX_PAYMENT_AMOUNT_CENTS:
                 error_msg = (
                     f"Payment amount ${amount_cents / 100:.2f} exceeds maximum allowed payment "
@@ -426,11 +411,11 @@ class PaymentService:
                 current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
                 raise PaymentLimitExceededException(error_msg)
 
-            # 5. Validate payment doesn't exceed remaining allocation
-            if amount_cents > month_allocation.remaining_to_pay_cents:
+            # 4. Validate payment doesn't exceed remaining allocation
+            if amount_cents > month_allocation.remaining_unpaid_cents:
                 error_msg = (
                     f"Payment amount {amount_cents} cents exceeds remaining allocation "
-                    f"{month_allocation.remaining_to_pay_cents} cents for month {month_allocation.date.strftime('%Y-%m')}"
+                    f"{month_allocation.remaining_unpaid_cents} cents for month {month_allocation.date.strftime('%Y-%m')}"
                 )
                 current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
                 raise AllocationExceededException(error_msg)
@@ -442,17 +427,17 @@ class PaymentService:
                 current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
                 raise AllocationExceededException(error_msg)
 
-            # 6. Ensure provider has a payment method configured
+            # 5. Ensure provider has a payment method configured
             if not provider_payment_settings.payment_method:
                 error_msg = f"Provider {external_provider_id} has no payment method configured"
                 current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
                 raise PaymentMethodNotConfiguredException(error_msg)
 
-            # 7. Refresh provider Chek status to ensure freshness
+            # 6. Refresh provider Chek status to ensure freshness
             self.refresh_provider_settings(provider_payment_settings)
             db.session.flush()  # Ensure provider object is updated in session
 
-            # 8. Create PaymentIntent to capture what we're trying to pay for
+            # 7. Create PaymentIntent to capture what we're trying to pay for
             intent = self._create_payment_intent(
                 provider_payment_settings=provider_payment_settings,
                 family_payment_settings=family_payment_settings,
@@ -464,7 +449,7 @@ class PaymentService:
                 allocated_lump_sums=allocated_lump_sums,
             )
 
-            # 9. Create PaymentAttempt for this intent
+            # 8. Create PaymentAttempt for this intent
             attempt = self._create_payment_attempt(
                 intent=intent,
                 payment_method=provider_payment_settings.payment_method,
@@ -472,7 +457,7 @@ class PaymentService:
                 family_payment_settings=family_payment_settings,
             )
 
-            # 10. Validate payment method status with detailed error messages
+            # 9. Validate payment method status with detailed error messages
             is_valid, validation_error = provider_payment_settings.validate_payment_method_status()
             if not is_valid:
                 current_app.logger.warning(
@@ -482,7 +467,7 @@ class PaymentService:
                 db.session.commit()
                 return False
 
-            # 11. Execute the payment flow
+            # 10. Execute the payment flow
             try:
                 success = self._execute_payment_flow(
                     attempt=attempt,

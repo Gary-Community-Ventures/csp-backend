@@ -301,7 +301,7 @@ def test_submit_care_days_allocation_not_found(client, seed_db):
     assert "Allocation not found" in response.json["error"]
 
 
-def test_submit_care_days_over_allocation_fails(client, seed_db):
+def test_submit_care_days_selected_over_allocation_fails(client, seed_db):
     allocation, _, _, _, _, _ = seed_db
     allocation.allocation_cents = 0
     db.session.commit()

@@ -81,7 +81,7 @@ def submit_care_days(child_id, provider_id, month, year):
     if not allocation:
         return jsonify({"error": "Allocation not found"}), 404
 
-    if allocation.over_allocation:
+    if allocation.selected_over_allocation:
         return jsonify({"error": "Cannot submit: allocation exceeded"}), 400
 
     # Get child data to find the family ID
