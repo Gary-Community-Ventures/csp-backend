@@ -16,7 +16,9 @@ MAX_ALLOCATION_AMOUNT_CENTS = 140000  # $1400 maximum per month allocation
 CHEK_STATUS_STALE_MINUTES = 1  # Minutes before Chek status is considered stale
 
 # --- Date Calculation Constants ---
-DAYS_TO_NEXT_MONTH = 32  # Days to add to current month to safely get into next month
+DAYS_TO_NEXT_MONTH = (
+    32  # Days to add to current month to safely get into next month. Always used against first of month.
+)
 
 # --- User Restrictions ---
 MAX_CHILDREN_PER_PROVIDER = 2

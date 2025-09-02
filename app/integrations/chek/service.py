@@ -41,8 +41,9 @@ class ChekService:
         results of the list endpoint, as the API's server-side
         filtering appears to be unreliable.
         """
-        # We pass the email parameter optimistically, but don't rely on it.
-        # TODO talk to Chek about improving this endpoint.
+        # We pass the email parameter as their documentation suggests it should filter,
+        # but we don't rely on it and filter ourselves because it doesn't work.
+        # TODO talk to Chek about fixing this issue.
         users_response = self.client.list_users(email=email)
         results = users_response.get("results")
         current_app.logger.debug(f"Chek list_users results: {results}")
