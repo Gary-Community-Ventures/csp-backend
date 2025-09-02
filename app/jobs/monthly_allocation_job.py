@@ -1,9 +1,10 @@
+import zoneinfo
 from datetime import date, datetime, timedelta
 from typing import Any, Dict
 
 from flask import current_app
 
-from ..constants import DAYS_TO_NEXT_MONTH
+from ..constants import BUSINESS_TIMEZONE, DAYS_TO_NEXT_MONTH
 from ..extensions import db
 from ..models.month_allocation import MonthAllocation
 from ..sheets.helpers import format_name
@@ -124,16 +125,22 @@ def create_monthly_allocations(from_info: str = "scheduler", **kwargs) -> Dict[s
 
 def schedule_monthly_allocation_job():
     """
-    Schedule the monthly allocation job to run on the 1st of every month at 1:00 AM.
+    Schedule the monthly allocation job to run on the 1st of every month at 1:00 AM MST.
     Cron format: minute hour day month day_of_week
     """
-    # Run at 1:00 AM on the 1st of every month
+    # Run at 1:00 AM MST on the 1st of every month
     cron_schedule = current_app.config.get("MONTHLY_ALLOCATION_CRON", "0 1 1 * *")
     from_info = "monthly_scheduler"
 
-    current_app.logger.info(f"Scheduling monthly allocation job with cron '{cron_schedule}'")
+    # Use Mountain Time (MST/MDT) for scheduling
+    business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
 
-    return create_monthly_allocations.schedule_cron(cron_schedule, from_info=from_info)
+    current_app.logger.info(
+        f"Scheduling monthly allocation job with cron '{cron_schedule}' in timezone '{BUSINESS_TIMEZONE}'"
+    )
+
+    # Schedule with timezone-aware cron
+    return create_monthly_allocations.schedule_cron(cron_schedule, from_info=from_info, timezone=business_tz)
 
 
 def create_allocations_for_next_month():
