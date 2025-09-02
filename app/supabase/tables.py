@@ -1,6 +1,6 @@
 from flask import current_app
 from postgrest import SyncRequestBuilder, SyncSelectRequestBuilder
-from app.supabase.helpers import cols, date_column, datetime_column
+from app.supabase.helpers import Language, ProviderType, Status, cols, date_column, datetime_column, enum_column
 from typing import Any, Callable, Generic, TypeVar
 
 T = TypeVar("T")
@@ -41,7 +41,7 @@ class Column(Generic[T]):
 
 class Table:
     TABLE_NAME: str = ""
-    ID: str = Column("id", int)
+    ID: str = Column("id")
 
     @classmethod
     def query(cls) -> SyncRequestBuilder:
@@ -68,7 +68,7 @@ class Family(Table):
     SIZE = Column("size", int)
     YEARLY_INCOME = Column("yearly_income", float)
     ZIP = Column("zip")
-    APPROVED = Column("approved", datetime_column)
+    LANGUAGE = Column("language", enum_column(Language))
 
 
 class Guardian(Table):
@@ -76,6 +76,7 @@ class Guardian(Table):
 
     CREATED_AT = Column("created_at", datetime_column)
     TYPE = Column("type")
+    IS_PRIMARY = Column("is_primary", bool)
     FIRST_NAME = Column("first_name")
     LAST_NAME = Column("last_name")
     EMAIL = Column("email")
@@ -98,6 +99,10 @@ class Child(Table):
     MIDDLE_NAME = Column("middle_name")
     LAST_NAME = Column("last_name")
     DATE_OF_BIRTH = Column("dob", date_column)
+    MONTHLY_ALLOCATION = Column("monthly_allocation", float)
+    PRORATED_ALLOCATION = Column("prorated_allocation", float)
+    STATUS = Column("status", enum_column(Status))
+    PAYMENT_ENABLED = Column("payment_enabled", bool)
 
     # Foreign keys
     FAMILY_ID = Column("family_id")
@@ -107,11 +112,16 @@ class Provider(Table):
     TABLE_NAME = "provider"
 
     CREATED_AT = Column("created_at", datetime_column)
-    TYPE = Column("type")
     NAME = Column("name")
+    FIRST_NAME = Column("first_name")
+    LAST_NAME = Column("last_name")
+    EMAIL = Column("email")
+    PHONE_NUMBER = Column("phone")
+    STATUS = Column("status", enum_column(Status))
+    TYPE = Column("type", enum_column(ProviderType))
+    PAYMENT_ENABLED = Column("payment_enabled", bool)
     ADDRESS_1 = Column("address_1")
     ADDRESS_2 = Column("address_2")
     CITY = Column("city")
     STATE = Column("state")
     ZIP = Column("zip")
-    APPROVED = Column("approved", datetime_column)
