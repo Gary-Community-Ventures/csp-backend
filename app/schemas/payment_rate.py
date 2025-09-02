@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
 
-
 CENTS_PER_DOLLAR = 100
 MIN_RATE = 1 * CENTS_PER_DOLLAR
 MAX_RATE = 160 * CENTS_PER_DOLLAR

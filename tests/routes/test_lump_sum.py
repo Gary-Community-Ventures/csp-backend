@@ -256,6 +256,7 @@ def test_create_lump_sum_exceeds_allocation(client, seed_lump_sum_db, mock_sheet
     assert response.status_code == 400
     assert "Adding this lump sum would exceed monthly allocation" in response.json["error"]
 
+
 def test_create_lump_sum_exceeds_max_allowable_amount(client, seed_lump_sum_db, mock_sheets_data):
     allocation = seed_lump_sum_db
 

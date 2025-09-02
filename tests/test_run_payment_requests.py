@@ -4,7 +4,13 @@ import pytest
 
 from app.enums.care_day_type import CareDayType
 from app.extensions import db
-from app.models import AllocatedCareDay, MonthAllocation, PaymentRate, PaymentRequest
+from app.models import (
+    AllocatedCareDay,
+    FamilyPaymentSettings,
+    MonthAllocation,
+    PaymentRate,
+    ProviderPaymentSettings,
+)
 from app.scripts.run_payment_requests import run_payment_requests
 from app.sheets.mappings import ChildColumnNames, KeyMap, ProviderColumnNames
 
@@ -35,6 +41,17 @@ def setup_payment_request_data(app):
             half_day_rate_cents=35000,
         )
         db.session.add_all([payment_rate_1, payment_rate_2])
+
+        # Create ProviderPaymentSettings for the providers
+        provider_settings_1 = ProviderPaymentSettings.new("201")
+        provider_settings_2 = ProviderPaymentSettings.new("202")
+        db.session.add_all([provider_settings_1, provider_settings_2])
+
+        # Create FamilyPaymentSettings for the family (assuming family_id is "family123" based on the child)
+        family_settings = FamilyPaymentSettings.new("family123")
+        family_settings.chek_wallet_balance = 1000000  # Set a high balance so payment doesn't fail
+        db.session.add(family_settings)
+
         db.session.commit()
 
         # Create submitted care days for processing
@@ -107,7 +124,7 @@ def setup_payment_request_data(app):
 
 
 def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
-    _, care_day_1, care_day_2, care_day_3, care_day_4, care_day_5 = setup_payment_request_data
+    allocation, care_day_1, care_day_2, care_day_3, care_day_4, care_day_5 = setup_payment_request_data
 
     # Mock external dependencies
     mocker.patch.dict("os.environ", {"GOOGLE_SHEETS_CREDENTIALS": '{"type": "service_account"}'})
@@ -119,6 +136,7 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
                     ChildColumnNames.ID.key: "101",
                     ChildColumnNames.FIRST_NAME.key: "Test",
                     ChildColumnNames.LAST_NAME.key: "Child",
+                    ChildColumnNames.FAMILY_ID.key: "family123",
                 }
             )
         ],
@@ -152,7 +170,10 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
             (p for p in providers if p.get(ProviderColumnNames.ID) == provider_id), None
         ),
     )
-    mock_send_email = mocker.patch("app.scripts.run_payment_requests.send_care_days_payment_email", return_value=True)
+    # Mock the payment service process_payment method
+    mock_payment_service = mocker.patch(
+        "app.scripts.run_payment_requests.payment_service.process_payment", return_value=True
+    )
 
     # Run the script
     run_payment_requests()
@@ -160,24 +181,6 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
     with app.app_context():
         # Refresh the objects from the database to get the latest state
         db.session.expire_all()
-
-        # Verify PaymentRequest was created
-        payment_requests = PaymentRequest.query.order_by(PaymentRequest.google_sheets_provider_id).all()
-        assert len(payment_requests) == 2
-
-        pr1 = payment_requests[0]  # For provider 201, child 101
-        assert pr1.google_sheets_provider_id == "201"
-        assert pr1.google_sheets_child_id == "101"
-        assert pr1.care_days_count == 2
-        assert pr1.amount_in_cents == (care_day_1.amount_cents + care_day_2.amount_cents)
-        assert set(pr1.care_day_ids) == {care_day_1.id, care_day_2.id}
-
-        pr2 = payment_requests[1]  # For provider 202, child 101
-        assert pr2.google_sheets_provider_id == "202"
-        assert pr2.google_sheets_child_id == "101"
-        assert pr2.care_days_count == 1
-        assert pr2.amount_in_cents == care_day_3.amount_cents
-        assert set(pr2.care_day_ids) == {care_day_3.id}
 
         # Verify care days were marked as processed
         processed_care_day_1 = db.session.get(AllocatedCareDay, care_day_1.id)
@@ -192,23 +195,18 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
         assert already_processed_care_day_4.payment_distribution_requested is True
         assert not_yet_locked_care_day_5.payment_distribution_requested is False
 
-    # Verify that the email sending function was called
-    assert mock_send_email.call_count == 2
-    mock_send_email.assert_any_call(
-        provider_name="Test Provider",
-        google_sheets_provider_id="201",
-        child_first_name="Test",
-        child_last_name="Child",
-        google_sheets_child_id="101",
-        amount_in_cents=care_day_1.amount_cents + care_day_2.amount_cents,
-        care_days=[care_day_1, care_day_2],
+    # Verify that the payment service was called
+    assert mock_payment_service.call_count == 2
+    # The payment service would be called with provider and child IDs
+    mock_payment_service.assert_any_call(
+        external_provider_id="201",
+        external_child_id="101",
+        month_allocation=allocation,
+        allocated_care_days=[care_day_1, care_day_2],
     )
-    mock_send_email.assert_any_call(
-        provider_name="Another Provider",
-        google_sheets_provider_id="202",
-        child_first_name="Test",
-        child_last_name="Child",
-        google_sheets_child_id="101",
-        amount_in_cents=care_day_3.amount_cents,
-        care_days=[care_day_3],
+    mock_payment_service.assert_any_call(
+        external_provider_id="202",
+        external_child_id="101",
+        month_allocation=allocation,
+        allocated_care_days=[care_day_3],
     )

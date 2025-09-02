@@ -21,6 +21,7 @@ from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation
 from app.models.attendance import Attendance
 from app.models.family_invitation import FamilyInvitation
+from app.models.payment_rate import PaymentRate
 from app.models.provider_payment_settings import ProviderPaymentSettings
 from app.schemas.payment import PaymentInitializationResponse
 from app.schemas.provider_payment import (
@@ -29,7 +30,6 @@ from app.schemas.provider_payment import (
     PaymentMethodUpdateResponse,
     PaymentSettingsResponse,
 )
-from app.models.payment_rate import PaymentRate
 from app.sheets.helpers import KeyMap, format_name, get_row
 from app.sheets.mappings import (
     ChildColumnNames,

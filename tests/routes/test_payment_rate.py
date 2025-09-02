@@ -34,14 +34,15 @@ def mock_auth_and_helpers(mocker, request):
             "data": {"types": ["family"], "family_id": "1"},
         }
         mocker.patch("clerk_backend_api.Clerk.authenticate_request", return_value=mock_request_state)
-        
+
         # Mock get_family_user
         mock_user = mocker.Mock()
         mock_user.user_data.family_id = "1"
         mocker.patch("app.routes.payment_rate.get_family_user", return_value=mock_user)
-        
+
         # Mock get_children and get_family_children
         from app.sheets.helpers import KeyMap
+
         children = [
             KeyMap({"ID": "1", "Family ID": "1"}),
             KeyMap({"ID": "2", "Family ID": "1"}),
@@ -64,14 +65,15 @@ def mock_auth_and_helpers(mocker, request):
             "data": {"types": ["provider"], "provider_id": "1"},
         }
         mocker.patch("clerk_backend_api.Clerk.authenticate_request", return_value=mock_request_state)
-        
+
         # Mock get_provider_user
         mock_user = mocker.Mock()
         mock_user.user_data.provider_id = "1"
         mocker.patch("app.routes.payment_rate.get_provider_user", return_value=mock_user)
-    
+
     # Mock get_provider_child_mappings for all tests
     from app.sheets.helpers import KeyMap
+
     mappings = [
         KeyMap({"Child ID": "1", "Provider ID": "1"}),
         KeyMap({"Child ID": "2", "Provider ID": "1"}),

@@ -1,10 +1,24 @@
+import zoneinfo
 from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
+from app.config import BUSINESS_TIMEZONE
 from app.enums.care_day_type import CareDayType
+from app.enums.payment_method import PaymentMethod
 from app.extensions import db
-from app.models import AllocatedCareDay, MonthAllocation, PaymentRate
+from app.models import (
+    AllocatedCareDay,
+    FamilyPaymentSettings,
+    MonthAllocation,
+    Payment,
+    PaymentAttempt,
+    PaymentIntent,
+    PaymentRate,
+    ProviderPaymentSettings,
+)
+
+business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
 
 
 @pytest.fixture
@@ -161,23 +175,63 @@ def test_create_care_day_allocation_not_found(client, seed_db):
 
 
 def test_create_care_day_exceeds_allocation(client, seed_db):
-    allocation, _, _, _, _, payment_rate = seed_db
-    # Create many care days to exceed allocation
+    allocation, _, _, _, _, _ = seed_db
+
+    # Create a payment that uses up the entire allocation
     with client.application.app_context():
-        # Fill up allocation - start from day 30 to avoid conflicts with seed_db dates
-        for i in range(1, 20):  # 19 full days
-            care_day = AllocatedCareDay(
-                care_month_allocation_id=allocation.id,
-                provider_google_sheets_id="1",
-                date=date.today() + timedelta(days=i + 30),
-                type=CareDayType.FULL_DAY,
-                amount_cents=payment_rate.full_day_rate_cents,
-            )
-            db.session.add(care_day)
+        # First create ProviderPaymentSettings and FamilyPaymentSettings
+        provider_settings = ProviderPaymentSettings.new("1")
+        family_settings = FamilyPaymentSettings.new("family1")
+        db.session.add_all([provider_settings, family_settings])
+        db.session.flush()
+
+        # Create PaymentIntent
+        payment_intent = PaymentIntent(
+            provider_payment_settings_id=provider_settings.id,
+            family_payment_settings_id=family_settings.id,
+            amount_cents=allocation.allocation_cents,  # Use entire allocation
+            month_allocation_id=allocation.id,
+            provider_external_id="1",
+            child_external_id="1",
+        )
+        db.session.add(payment_intent)
+        db.session.flush()
+
+        # Create successful PaymentAttempt
+        payment_attempt = PaymentAttempt(
+            payment_intent_id=payment_intent.id,
+            attempt_number=1,
+            payment_method=PaymentMethod.CARD,
+            provider_chek_user_id="test-provider-user",
+            family_chek_user_id="test-family-user",
+            wallet_transfer_id="test-wallet-transfer",
+            wallet_transfer_at=datetime.now(timezone.utc),
+            card_transfer_id="test-card-transfer",
+            card_transfer_at=datetime.now(timezone.utc),
+        )
+        db.session.add(payment_attempt)
+        db.session.flush()
+
+        # Create Payment (only created for successful attempts)
+        payment = Payment(
+            payment_intent_id=payment_intent.id,
+            successful_attempt_id=payment_attempt.id,
+            provider_payment_settings_id=provider_settings.id,
+            family_payment_settings_id=family_settings.id,
+            amount_cents=allocation.allocation_cents,  # Use entire allocation
+            payment_method=PaymentMethod.CARD,
+            month_allocation_id=allocation.id,
+            external_provider_id="1",
+            external_child_id="1",
+        )
+        db.session.add(payment)
         db.session.commit()
 
-    allocation = db.session.get(MonthAllocation, allocation.id)
+        # Verify the allocation is now fully used
+        allocation = db.session.get(MonthAllocation, allocation.id)
+        assert allocation.paid_cents == allocation.allocation_cents
 
+    # Now try to create a care day - should fail due to exceeded allocation
     response = client.post(
         "/care-days",
         json={
@@ -215,10 +269,15 @@ def test_create_care_day_restore_soft_deleted(client, seed_db):
 
 def test_create_care_day_past_date_fails(client, seed_db):
     allocation, _, _, _, _, _ = seed_db
-    past_date = date.today() - timedelta(days=1)
+    past_date = datetime.now(business_tz) - timedelta(days=1)
     response = client.post(
         "/care-days",
-        json={"allocation_id": allocation.id, "provider_id": "1", "date": past_date.isoformat(), "type": "Full Day"},
+        json={
+            "allocation_id": allocation.id,
+            "provider_id": "1",
+            "date": past_date.date().isoformat(),
+            "type": "Full Day",
+        },
     )
     assert response.status_code == 400
     assert "Cannot create a care day in the past." in response.json["error"]
@@ -269,7 +328,7 @@ def test_update_care_day_selected_over_allocation_soft_deletes(client, seed_db):
     days_until_next_monday = (7 - date.today().weekday()) % 7
     if days_until_next_monday == 0:
         days_until_next_monday = 7
-    next_week_date = date.today() + timedelta(days=days_until_next_monday + 3)
+    next_week_date = date.today() + timedelta(days=days_until_next_monday + 4)
     care_day = AllocatedCareDay(
         care_month_allocation_id=allocation.id,
         provider_google_sheets_id="1",
