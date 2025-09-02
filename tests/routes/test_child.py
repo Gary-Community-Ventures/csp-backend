@@ -220,6 +220,8 @@ def test_submit_care_days_success(client, seed_db, mocker):
     mocker.patch("app.routes.child.get_providers", return_value=[mock_provider_data])
     mocker.patch("app.routes.child.get_provider", return_value=mock_provider_data)
 
+    mocker.patch("app.routes.child.send_care_days_payment_email", return_value=True)
+
     response = client.post(
         f"/child/{allocation.google_sheets_child_id}/provider/{care_day_new.provider_google_sheets_id}/allocation/{allocation.date.month}/{allocation.date.year}/submit"
     )
