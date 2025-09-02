@@ -60,8 +60,9 @@ def mock_clerk_authentication(mocker: MockerFixture):
         "sid": "session_id_123",
         "data": {"types": ["family"], "family_id": "family123", "provider_id": None},
     }
-    # Patch the authenticate_request method of the Clerk class
-    mocker.patch("clerk_backend_api.Clerk.authenticate_request", return_value=mock_request_state)
+    # Mock at the decorator level to bypass Clerk client check
+    # This works regardless of whether CLERK_SECRET_KEY is set
+    mocker.patch("app.auth.decorators._authenticate_request", return_value=mock_request_state)
 
 
 @pytest.fixture

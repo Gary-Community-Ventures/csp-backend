@@ -22,7 +22,8 @@ def seed_db(app):
 
 # Override the global mock_clerk_authentication for our tests
 @pytest.fixture(autouse=True)
-def mock_auth_and_helpers(mocker, request):
+def mock_auth_and_helpers(mocker, request, app):
+    # Mock _authenticate_request directly to bypass Clerk client check
     # Determine which type of auth to use based on test name
     if "get_payment_rate" in request.node.name:
         # Family auth for GET endpoints
@@ -33,7 +34,8 @@ def mock_auth_and_helpers(mocker, request):
             "sid": "session_id_123",
             "data": {"types": ["family"], "family_id": "1"},
         }
-        mocker.patch("clerk_backend_api.Clerk.authenticate_request", return_value=mock_request_state)
+        # Mock at the decorator level to bypass Clerk client check
+        mocker.patch("app.auth.decorators._authenticate_request", return_value=mock_request_state)
 
         # Mock get_family_user
         mock_user = mocker.Mock()
@@ -64,7 +66,8 @@ def mock_auth_and_helpers(mocker, request):
             "sid": "session_id_123",
             "data": {"types": ["provider"], "provider_id": "1"},
         }
-        mocker.patch("clerk_backend_api.Clerk.authenticate_request", return_value=mock_request_state)
+        # Mock at the decorator level to bypass Clerk client check
+        mocker.patch("app.auth.decorators._authenticate_request", return_value=mock_request_state)
 
         # Mock get_provider_user
         mock_user = mocker.Mock()
@@ -87,7 +90,12 @@ def mock_auth_and_helpers(mocker, request):
 
 
 # --- POST /payment-rates/<child_id> ---
-def test_create_payment_rate_success(client):
+def test_create_payment_rate_success(client, app):
+    # Debug: Check if Clerk client is initialized
+    print(f"Clerk client initialized: {app.clerk_client is not None}")
+    print(f"Flask ENV: {app.config.get('FLASK_ENV')}")
+    print(f"CLERK_SECRET_KEY present: {bool(app.config.get('CLERK_SECRET_KEY'))}")
+
     response = client.post(
         "/payment-rates/2",
         json={
@@ -96,6 +104,10 @@ def test_create_payment_rate_success(client):
         },
         headers={"Authorization": "Bearer test-token"},
     )
+    if response.status_code != 201:
+        print(f"Response status: {response.status_code}")
+        print(f"Response data: {response.get_json()}")
+        print(f"Response text: {response.text}")
     assert response.status_code == 201
     # Response only has id and the rate cents, not provider/child IDs based on PaymentRateResponse schema
     assert response.json["half_day_rate_cents"] == 3000
