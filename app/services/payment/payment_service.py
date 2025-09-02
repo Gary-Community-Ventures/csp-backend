@@ -258,13 +258,9 @@ class PaymentService:
 
         # 1. Initiate Chek transfer (Wallet to Wallet)
         transfer_request = TransferBalanceRequest(
-            flow_direction=FlowDirection.PROGRAM_TO_WALLET.value,
-            # TODO use family
-            # flow_direction=FlowDirection.WALLET_TO_WALLET.value,
-            # program_id=family_payment_settings.chek_user_id,  # Documentation says program_id but API uses counterparty_id
-            # counterparty_id=family_payment_settings.chek_user_id,  # Set both for safety
-            program_id=self.chek_service.program_id,
-            counterparty_id=self.chek_service.program_id,
+            flow_direction=FlowDirection.WALLET_TO_WALLET.value,
+            program_id=family_payment_settings.chek_user_id,  # Documentation says program_id but API uses counterparty_id
+            counterparty_id=family_payment_settings.chek_user_id,  # Set both for safety
             amount=intent.amount_cents,
             description=description,
             metadata=metadata,
