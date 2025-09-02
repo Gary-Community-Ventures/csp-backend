@@ -94,7 +94,6 @@ class ChekClient:
             log_message = f"Chek API Request Details:\n"
             log_message += f"  Method: {method}\n"
             log_message += f"  URL: {url}\n"
-            log_message += f"  Headers: {headers}\n"
             if "json" in kwargs:
                 log_message += f"  Body (JSON): {kwargs['json']}\n"
             elif "data" in kwargs:

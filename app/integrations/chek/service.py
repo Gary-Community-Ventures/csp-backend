@@ -37,11 +37,12 @@ class ChekService:
         """
         Retrieves a user by their email address.
 
-        NOTE: This implementation is based on the user's request to check only
-        the first result of the list endpoint, as the API's server-side
+        NOTE: This implementation is based on the user's request to check all the
+        results of the list endpoint, as the API's server-side
         filtering appears to be unreliable.
         """
         # We pass the email parameter optimistically, but don't rely on it.
+        # TODO talk to Chek about improving this endpoint.
         users_response = self.client.list_users(email=email)
         results = users_response.get("results")
         current_app.logger.debug(f"Chek list_users results: {results}")
