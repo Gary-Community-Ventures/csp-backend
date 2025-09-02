@@ -4,7 +4,7 @@ from typing import Optional, Union
 import sentry_sdk
 from flask import current_app
 
-from app.config import MAX_PAYMENT_AMOUNT_CENTS
+from app.constants import MAX_PAYMENT_AMOUNT_CENTS
 from app.enums.payment_method import PaymentMethod
 from app.exceptions import (
     AllocationExceededException,

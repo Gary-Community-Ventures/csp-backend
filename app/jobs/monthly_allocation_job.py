@@ -3,7 +3,7 @@ from typing import Any, Dict
 
 from flask import current_app
 
-from ..config import DAYS_TO_NEXT_MONTH
+from ..constants import DAYS_TO_NEXT_MONTH
 from ..extensions import db
 from ..models.month_allocation import MonthAllocation
 from ..sheets.helpers import format_name

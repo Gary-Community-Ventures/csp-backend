@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from ..config import MAX_PAYMENT_AMOUNT_CENTS
+from ..constants import MAX_PAYMENT_AMOUNT_CENTS
 from ..extensions import db
 from .mixins import TimestampMixin
 from .month_allocation import MonthAllocation

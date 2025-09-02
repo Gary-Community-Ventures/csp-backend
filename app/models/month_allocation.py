@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 from flask import current_app
 
-from app.config import (
+from app.constants import (
     BUSINESS_TIMEZONE,
     DAYS_TO_NEXT_MONTH,
     MAX_ALLOCATION_AMOUNT_CENTS,

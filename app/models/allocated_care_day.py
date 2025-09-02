@@ -5,7 +5,7 @@ from datetime import timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 
-from ..config import BUSINESS_TIMEZONE
+from ..constants import BUSINESS_TIMEZONE
 from ..enums.care_day_type import CareDayType
 from ..extensions import db
 from .mixins import TimestampMixin

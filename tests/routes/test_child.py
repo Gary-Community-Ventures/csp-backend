@@ -302,7 +302,7 @@ def test_month_allocation_locked_until_date(client, seed_db):
     # Import business timezone config
     import zoneinfo
 
-    from app.config import BUSINESS_TIMEZONE
+    from app.constants import BUSINESS_TIMEZONE
 
     # Calculate expected locked_until_date based on current date in business timezone
     business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)

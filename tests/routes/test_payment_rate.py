@@ -7,7 +7,7 @@ from app.models import PaymentRate
 @pytest.fixture
 def seed_db(app):
     with app.app_context():
-        # Create a PaymentRate for testing (using valid values within MIN_RATE and MAX_RATE)
+        # Create a PaymentRate for testing (using valid values within MIN_PAYMENT_RATE and MAX_PAYMENT_RATE)
         payment_rate = PaymentRate(
             google_sheets_provider_id="1",
             google_sheets_child_id="1",
@@ -150,7 +150,7 @@ def test_get_payment_rate_not_found(client):
 
 
 def test_create_payment_rate_invalid_values(client):
-    # Test with half_day_rate_cents = 0 (less than MIN_RATE of 100)
+    # Test with half_day_rate_cents = 0 (less than MIN_PAYMENT_RATE of 100)
     response = client.post(
         "/payment-rates/3",
         json={

@@ -19,7 +19,7 @@ from typing import Any, Dict
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from app import create_app
-from app.config import DAYS_TO_NEXT_MONTH
+from app.constants import DAYS_TO_NEXT_MONTH
 from app.extensions import db
 from app.models.month_allocation import MonthAllocation
 from app.sheets.helpers import format_name

@@ -15,7 +15,7 @@ from app.sheets.integration import SheetsManager
 
 # Import models to ensure they are registered with SQLAlchemy
 from . import models
-from .config import ENV_DEVELOPMENT, ENV_PRODUCTION, ENV_STAGING, ENV_TESTING
+from .constants import ENV_DEVELOPMENT, ENV_PRODUCTION, ENV_STAGING, ENV_TESTING
 
 # Import extensions from the extensions module
 from .extensions import cors, csrf, db, migrate
