@@ -37,7 +37,7 @@ class FamilyPaymentSettings(db.Model, TimestampMixin):
 
     @staticmethod
     def new(family_external_id: str):
-        return FamilyPaymentSettings(id=uuid.uuid4(), family_external_id=family_external_id)
+        return FamilyPaymentSettings(family_external_id=family_external_id)
 
     @classmethod
     def by_external_id(cls, id: str) -> Query:
