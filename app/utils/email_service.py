@@ -173,7 +173,7 @@ def system_message(subject: str, description: str, rows: list[SystemMessageRow])
     """
 
 
-def send_care_days_payment_request_email(
+def send_care_days_payment_email(
     provider_name: str,
     google_sheets_provider_id: str,
     child_first_name: str,
@@ -187,11 +187,11 @@ def send_care_days_payment_request_email(
     from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(
-        f"Sending payment request email to {to_emails} for provider ID: {google_sheets_provider_id} from child ID: {google_sheets_child_id}"
+        f"Sending payment processed notification to {to_emails} for provider ID: {google_sheets_provider_id} from child ID: {google_sheets_child_id}"
     )
 
-    subject = "New Care Days Payment Request Notification"
-    description = f"A new payment request has been created:"
+    subject = "Care Days Payment Processed"
+    description = f"Payment has been successfully processed for the following care days:"
 
     care_day_info = "<br>".join([f"{day.date} - {day.type.value} (${day.amount_cents / 100:.2f})" for day in care_days])
 
@@ -228,7 +228,7 @@ def send_care_days_payment_request_email(
     )
 
 
-def send_lump_sum_payment_request_email(
+def send_lump_sum_payment_email(
     provider_name: str,
     google_sheets_provider_id: str,
     child_first_name: str,
@@ -243,11 +243,11 @@ def send_lump_sum_payment_request_email(
     from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(
-        f"Sending lump sum payment request email to {to_emails} for provider ID: {google_sheets_provider_id} from child ID: {google_sheets_child_id}"
+        f"Sending lump sum payment processed email to {to_emails} for provider ID: {google_sheets_provider_id} from child ID: {google_sheets_child_id}"
     )
 
-    subject = "New Lump Sum Payment Request Notification"
-    description = f"A new lump sum payment request has been created:"
+    subject = "New Lump Sum Payment Notification"
+    description = f"A new lump sum payment has been created:"
 
     rows = [
         SystemMessageRow(
@@ -282,44 +282,28 @@ def send_lump_sum_payment_request_email(
     )
 
 
-def send_add_licensed_provider_email(
-    license_number: str,
-    provider_name: str,
-    parent_name: str,
-    parent_id: str,
-    children: list[KeyMap],
-):
+def send_provider_invited_email(family_name: str, family_id: str, ids: list[str]):
     from_email, to_emails = get_internal_emails()
 
-    current_app.logger.info(
-        f"Sending add license provider request email to {to_emails} for family ID: {parent_id} for provider: {provider_name} for children: {[format_name(child) for child in children]}"
-    )
+    current_app.logger.info(f"Sending invite sent request email to {to_emails} for family ID: {family_id}")
 
     rows = [
         SystemMessageRow(
-            title="License Number",
-            value=license_number,
-        ),
-        SystemMessageRow(
-            title="Provider Name",
-            value=provider_name,
-        ),
-        SystemMessageRow(
-            title=f"Parent Name (ID: {parent_id})",
-            value=parent_name,
+            title="Family Name",
+            value=family_name,
         ),
     ]
 
-    for child in children:
+    for id in ids:
         rows.append(
             SystemMessageRow(
-                title="Child Name",
-                value=f"{format_name(child)} (ID: {child.get(ChildColumnNames.ID)})",
+                title="Invite ID",
+                value=id,
             )
         )
 
-    subject = "New Add Licensed Provider Request Notification"
-    description = f"A new licensed provider request has been submitted:"
+    subject = "Family Has Invited A Provider Notification"
+    description = f"A family has invited a provider:"
     html_content = system_message(subject, description, rows)
 
     return send_email(
@@ -366,8 +350,25 @@ def send_provider_invite_accept_email(
     )
 
 
-def send_submission_notification(provider_id, child_id, new_days, modified_days, removed_days):
-    """Sends a submission notification email to the provider."""
+def send_payment_notification(
+    provider_id: str,
+    child_id: str,
+    amount_cents: int,
+    payment_method: str,
+) -> bool:
+    """
+    Sends a payment notification email to the provider when payment is completed.
+
+    Args:
+        provider_id: Provider's external ID
+        child_id: Child's external ID
+        amount_cents: Payment amount in cents
+        payment_method: Method used for payment (CARD or ACH)
+        payment_id: Optional payment ID for reference
+        month: Optional month string (YYYY-MM format)
+    """
+    from app.enums.payment_method import PaymentMethod
+
     from_email = get_from_email_external()
 
     provider = get_provider(provider_id, get_providers())
@@ -382,47 +383,86 @@ def send_submission_notification(provider_id, child_id, new_days, modified_days,
     )
 
     current_app.logger.info(
-        f"Sending submission notification to {to_email} for provider ID: {provider_id} and child ID: {child_id}"
+        f"Sending payment notification to {to_email} for provider ID: {provider_id}, "
+        f"child ID: {child_id}, amount: ${amount_cents/100:.2f}"
     )
 
     if not to_email:
         current_app.logger.warning(f"Provider {provider_id} has no email address. Skipping notification.")
         return False
 
-    subject = f"Care Day Submission Update for {child_name}"
+    amount_dollars = amount_cents / 100
+    subject = f"New Payment - ${amount_dollars:.2f}"
+
+    # Format payment method for display
+    payment_method_display = "Virtual Card" if payment_method == PaymentMethod.CARD else "Direct Deposit (ACH)"
 
     # Build the HTML content for the email
     html_content = f"""
     <html>
-        <body style="font-family: sans-serif;">
-            <h2>Care Day Submission Update</h2>
-            <p>Hello {provider_name},</p>
-            <p>This email is to notify you of an update to the care day submission for <strong>{child_name}</strong>.</p>
+        <body style="font-family: sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #b53363; border-bottom: 2px solid #364f3f; padding-bottom: 10px;">
+                    New Payment Processed
+                </h2>
+                
+                <p>Hello {provider_name},</p>
+                
+                <p>We're pleased to inform you that a payment has been successfully processed for you.</p>
+                
+                <div style="background-color: #f8f9fa; border-left: 4px solid #364f3f; padding: 15px; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #2c3e50;">Payment Details:</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 8px 0;"><strong>Child:</strong></td>
+                            <td style="padding: 8px 0;">{child_name}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0;"><strong>Amount:</strong></td>
+                            <td style="padding: 8px 0; color: #364f3f; font-size: 18px;"><strong>${amount_dollars:.2f}</strong></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0;"><strong>Payment Method:</strong></td>
+                            <td style="padding: 8px 0;">{payment_method_display}</td>
+                        </tr>
     """
 
-    if new_days:
-        html_content += "<h3>New Days Added:</h3><ul>"
-        for day in new_days:
-            html_content += f"<li>{day.date} - {day.type.value}</li>"
-        html_content += "</ul>"
+    html_content += f"""
+                    </table>
+                </div>
+                
+                <div style="background-color: #C9D1CC; padding: 15px; margin: 20px 0; border-radius: 5px; color: #000000;">
+                    <p style="margin: 0;"><strong>What's Next?</strong></p>
+                    <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+    """
 
-    if modified_days:
-        html_content += "<h3>Days Modified:</h3><ul>"
-        for day in modified_days:
-            html_content += f"<li>{day.date} - Now: {day.type.value}</li>"
-        html_content += "</ul>"
-
-    if removed_days:
-        html_content += "<h3>Days Removed:</h3><ul>"
-        for day in removed_days:
-            html_content += f"<li>{day.date} - {day.type.value}</li>"
-        html_content += "</ul>"
+    if payment_method == PaymentMethod.CARD:
+        html_content += """
+                        <li>Funds have been loaded onto your virtual card</li>
+                        <li>You can use your card immediately for purchases</li>
+                        <li>Check your card balance in your Chek account</li>
+        """
+    else:  # ACH
+        html_content += """
+                        <li>Funds are being transferred to your bank account</li>
+                        <li>Direct deposits typically arrive within 1-2 business days</li>
+                        <li>You'll receive a confirmation once the transfer is complete</li>
+        """
 
     html_content += """
-            <p>Thank you,</p>
-            <p>The CAP Team</p>
-            <hr>
-            <p style="font-size: 12px; color: #666;">This is an automated notification from the CAP portal system.</p>
+                    </ul>
+                </div>
+                
+                <p>If you have any questions about this payment, please reach out to our support team.</p>
+                
+                <p>Best regards,<br>
+                The CAP Team</p>
+                
+                <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
+                <p style="font-size: 12px; color: #666; text-align: center;">
+                    This is an automated notification from the CAP portal system.<br>
+                </p>
+            </div>
         </body>
     </html>
     """
@@ -435,18 +475,45 @@ def send_submission_notification(provider_id, child_id, new_days, modified_days,
     )
 
 
+def send_family_invited_email(provider_name: str, provider_id: str, id: str):
+    from_email, to_emails = get_internal_emails()
+
+    current_app.logger.info(f"Sending invite sent request email to {to_emails} for provider ID: {provider_id}")
+
+    rows = [
+        SystemMessageRow(
+            title="Provider Name",
+            value=f"{provider_name} (ID: {provider_id})",
+        ),
+        SystemMessageRow(
+            title="Invite ID",
+            value=id,
+        ),
+    ]
+
+    subject = "Provider Has Invited A Family Notification"
+    description = f"A proivder has invited a family:"
+    html_content = system_message(subject, description, rows)
+
+    return send_email(
+        from_email=from_email,
+        to_emails=to_emails,
+        subject=subject,
+        html_content=html_content,
+    )
+
+
 def send_family_invite_accept_email(
     provider_name: str,
     provider_id: str,
     parent_name: str,
     parent_id: str,
-    child_name: str,
-    child_id: str,
+    children: list[KeyMap],
 ):
     from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(
-        f"Sending accept invite request email to {to_emails} for provider ID: {provider_id} for family ID: {parent_id} for child ID: {child_id}"
+        f"Sending accept invite request email to {to_emails} for provider ID: {provider_id} for family ID: {parent_id} for child IDs: {[c.get(ChildColumnNames.ID) for c in children]}"
     )
 
     rows = [
@@ -458,11 +525,15 @@ def send_family_invite_accept_email(
             title=f"Parent Name",
             value=f"{parent_name} (ID: {parent_id})",
         ),
-        SystemMessageRow(
-            title="Child Name",
-            value=f"{child_name} (ID: {child_id})",
-        ),
     ]
+
+    for child in children:
+        rows.append(
+            SystemMessageRow(
+                title="Child Name",
+                value=f"{format_name(child)} (ID: {child.get(ChildColumnNames.ID)})",
+            )
+        )
 
     subject = "New Add Family Invite Accepted Notification"
     description = f"A new family invite request has been submitted:"

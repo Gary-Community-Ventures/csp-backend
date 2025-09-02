@@ -7,6 +7,20 @@ ENV_PRODUCTION = "production"
 ENV_TESTING = "testing"
 # --- End Environment Constants ---
 
+# --- Business Logic Constants ---
+BUSINESS_TIMEZONE = "America/Denver"  # Mountain Time for care day locking and business rules
+
+# --- Payment Processing Constants ---
+MAX_PAYMENT_AMOUNT_CENTS = 140000  # $1400 maximum per transaction
+MAX_ALLOCATION_AMOUNT_CENTS = 140000  # $1400 maximum per month allocation
+
+# --- Timing Constants ---
+CHEK_STATUS_STALE_MINUTES = 1  # Minutes before Chek status is considered stale
+
+# --- Date Calculation Constants ---
+DAYS_TO_NEXT_MONTH = 32  # Days to add to current month to safely get into next month
+# --- End Business Logic Constants ---
+
 
 class Config:
     """Base configuration."""
@@ -18,7 +32,11 @@ class Config:
     SENTRY_PROFILES_SAMPLE_RATE = float(os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "1.0"))
     APP_VERSION = os.getenv("APP_VERSION", "1.0.0")  # Example for Sentry release tracking
     FRONTEND_DOMAIN = os.getenv("FRONTEND_DOMAIN", "http://localhost:5173")
-    AUTH_AUTHORIZED_PARTIES = [os.getenv("FRONTEND_DOMAIN", "http://localhost:5173")]
+    BACKEND_DOMAIN = os.getenv("BACKEND_DOMAIN", "http://localhost:5000")
+    AUTH_AUTHORIZED_PARTIES = [
+        os.getenv("FRONTEND_DOMAIN", "http://localhost:5173"),
+        os.getenv("BACKEND_DOMAIN", "http://localhost:5000"),
+    ]
     GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     GOOGLE_SPREADSHEET_ID = os.getenv("GOOGLE_SPREADSHEET_ID")
     SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
@@ -42,6 +60,13 @@ class Config:
 
     # For Flask-Admin
     SECRET_KEY = os.getenv("SECRET_KEY")
+
+    # Chek Configuration
+    CHEK_BASE_URL = os.getenv("CHEK_BASE_URL")
+    CHEK_ACCOUNT_ID = os.getenv("CHEK_ACCOUNT_ID")
+    CHEK_API_KEY = os.getenv("CHEK_API_KEY")
+    CHEK_WRITE_KEY = os.getenv("CHEK_WRITE_KEY")
+    CHEK_PROGRAM_ID = os.getenv("CHEK_PROGRAM_ID")
 
 
 class DevelopmentConfig(Config):

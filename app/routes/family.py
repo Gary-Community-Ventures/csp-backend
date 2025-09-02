@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Optional
 from uuid import uuid4
 
@@ -13,12 +14,13 @@ from app.auth.decorators import (
 )
 from app.auth.helpers import get_current_user, get_family_user, get_provider_user
 from app.constants import MAX_CHILDREN_PER_PROVIDER
-from app.data.providers.mappings import ProviderListColumnNames
 from app.extensions import db
 from app.models.attendance import Attendance
+from app.models.family_payment_settings import FamilyPaymentSettings
+from app.models.month_allocation import MonthAllocation
 from app.models.provider_invitation import ProviderInvitation
+from app.models.provider_payment_settings import ProviderPaymentSettings
 from app.sheets.helpers import KeyMap, format_name, get_row
-from app.sheets.integration import get_csv_data
 from app.sheets.mappings import (
     ChildColumnNames,
     FamilyColumnNames,
@@ -41,9 +43,9 @@ from app.sheets.mappings import (
 from app.utils.email_service import (
     get_from_email_internal,
     html_link,
-    send_add_licensed_provider_email,
     send_email,
     send_provider_invite_accept_email,
+    send_provider_invited_email,
 )
 from app.utils.sms_service import send_sms
 
@@ -55,12 +57,36 @@ bp = Blueprint("family", __name__)
 def new_family():
     data = request.json
 
+    google_sheet_id = data.get("google_sheet_id")
+
+    # TODO should we replace this with getting from the google sheet?
+    email = data.get("email")
+
     # Validate required fields
     if "google_sheet_id" not in data:
         abort(400, description="Missing required fields: google_sheet_id")
 
     if "email" not in data:
         abort(400, description="Missing required field: email")
+
+    all_children_data = get_children()
+    family_children = get_family_children(google_sheet_id, all_children_data)
+
+    # Create Chek user and FamilyPaymentSettings
+    payment_service = current_app.payment_service
+    family_settings = payment_service.onboard_family(family_external_id=data["google_sheet_id"])
+    current_app.logger.info(
+        f"Created FamilyPaymentSettings for family {data['google_sheet_id']} with Chek user {family_settings.chek_user_id}"
+    )
+
+    for child in family_children:
+        # Create a new MonthAllocation for each child
+        MonthAllocation.get_or_create_for_month(
+            child.get(ChildColumnNames.ID),
+            datetime.today().replace(day=1),
+        )
+
+    db.session.commit()
 
     # send clerk invite
     clerk: Clerk = current_app.clerk_client
@@ -72,7 +98,7 @@ def new_family():
 
     clerk.invitations.create(
         request=CreateInvitationRequestBody(
-            email_address=data["email"],
+            email_address=email,
             redirect_url=f"{fe_domain}/auth/sign-up",
             public_metadata=meta_data,
         )
@@ -137,17 +163,26 @@ def family_data(child_id: Optional[str] = None):
         "balance": child_data.get(ChildColumnNames.BALANCE),
         "monthly_allocation": child_data.get(ChildColumnNames.MONTHLY_ALLOCATION),
         "prorated_first_month_allocation": child_data.get(ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION),
+        "is_payment_enabled": child_data.get(ChildColumnNames.PAYMENT_ENABLED),
     }
 
-    providers = [
-        {
-            "id": c.get(ProviderColumnNames.ID),
-            "name": c.get(ProviderColumnNames.NAME),
-            "status": c.get(ProviderColumnNames.STATUS).lower(),
-            "type": c.get(ProviderColumnNames.TYPE).lower(),
-        }
-        for c in provider_data
-    ]
+    providers = []
+    for c in provider_data:
+        provider_id = c.get(ProviderColumnNames.ID)
+        # Look up the ProviderPaymentSettings to get is_payable status
+        provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
+        current_app.logger.error(f"Provider {provider_id} payment settings: {provider_payment_settings}")
+
+        providers.append(
+            {
+                "id": provider_id,
+                "name": c.get(ProviderColumnNames.NAME),
+                "status": c.get(ProviderColumnNames.STATUS).lower(),
+                "type": c.get(ProviderColumnNames.TYPE).lower(),
+                "is_payable": provider_payment_settings.is_payable if provider_payment_settings else False,
+                "is_payment_enabled": c.get(ProviderColumnNames.PAYMENT_ENABLED),
+            }
+        )
 
     transactions = [
         {
@@ -184,6 +219,8 @@ def family_data(child_id: Optional[str] = None):
     if needs_attendance:
         notifications.append({"type": "attendance"})
 
+    family_payment_settings = FamilyPaymentSettings.query.filter_by(family_external_id=family_id).first()
+
     return jsonify(
         {
             "selected_child_info": selected_child_info,
@@ -192,92 +229,9 @@ def family_data(child_id: Optional[str] = None):
             "children": children,
             "notifications": notifications,
             "is_also_provider": ClerkUserType.PROVIDER.value in user.user_data.types,
+            "can_make_payments": family_payment_settings.can_make_payments if family_payment_settings else False,
         }
     )
-
-
-@bp.get("/family/licensed-providers")
-@auth_required(ClerkUserType.FAMILY)
-def licensed_providers():
-    data = get_csv_data("app/data/providers/list.csv")
-
-    providers = []
-    for row in data:
-        providers.append(
-            {
-                "license_number": row.get(ProviderListColumnNames.LICENSE_NUMBER),
-                "name": row.get(ProviderListColumnNames.PROVIDER_NAME),
-                "address": {
-                    "street_address": row.get(ProviderListColumnNames.STREET_ADDRESS),
-                    "city": row.get(ProviderListColumnNames.CITY),
-                    "state": row.get(ProviderListColumnNames.STATE),
-                    "zip": row.get(ProviderListColumnNames.ZIP),
-                    "county": row.get(ProviderListColumnNames.COUNTY),
-                },
-                "rating": row.get(ProviderListColumnNames.QUALITY_RATING),
-            }
-        )
-
-    return jsonify({"providers": providers})
-
-
-@bp.post("/family/licensed-providers")
-@auth_required(ClerkUserType.FAMILY)
-def add_licensed_provider():
-    data = request.json
-
-    # Validate required fields
-    if "license_number" not in data:
-        abort(400, description="Missing required field: license_number")
-    if "child_ids" not in data:
-        abort(400, description="Missing required field: child_ids")
-    if type(data["child_ids"]) != list:
-        abort(400, description="child_ids must be a list of child IDs")
-
-    user = get_family_user()
-
-    family_id = user.user_data.family_id
-
-    child_rows = get_children()
-    family_rows = get_families()
-
-    licensed_provideer_rows = get_csv_data("app/data/providers/list.csv")
-
-    provider = get_row(
-        licensed_provideer_rows,
-        data["license_number"],
-        id_key=ProviderListColumnNames.LICENSE_NUMBER,
-    )
-    if provider is None:
-        abort(
-            404,
-            description=f"Provider with license number {data['license_number']} not found.",
-        )
-
-    family = get_family(family_id, family_rows)
-    if family is None:
-        abort(404, description=f"Family with ID {family_id} not found.")
-
-    family_children = get_family_children(family_id, child_rows)
-
-    children: list[KeyMap] = []
-    for child_id in data["child_ids"]:
-        child = get_child(child_id, family_children)
-
-        if child is None:
-            abort(404, description=f"Child with ID {child_id} not found.")
-
-        children.append(child)
-
-    send_add_licensed_provider_email(
-        license_number=provider.get(ProviderListColumnNames.LICENSE_NUMBER),
-        provider_name=provider.get(ProviderListColumnNames.PROVIDER_NAME),
-        parent_name=format_name(family),
-        parent_id=family.get(FamilyColumnNames.ID),
-        children=children,
-    )
-
-    return jsonify({"message": "Success"}, 201)
 
 
 @dataclass
@@ -343,6 +297,7 @@ def invite_provider():
 
         children.append(child)
 
+    invitations: list[ProviderInvitation] = []
     for child in children:
         try:
             child_id = child.get(ChildColumnNames.ID)
@@ -350,6 +305,7 @@ def invite_provider():
 
             invitation = ProviderInvitation.new(id, data["provider_email"], child_id)
             db.session.add(invitation)
+            invitations.append(invitation)
 
             domain = current_app.config.get("FRONTEND_DOMAIN")
             link = f"{domain}/invite/provider/{id}"
@@ -375,6 +331,10 @@ def invite_provider():
             current_app.logger.error(f"Failed to send provider invite for child ID {child_id}: {e}")
         finally:
             db.session.commit()
+
+    send_provider_invited_email(
+        format_name(family), family.get(FamilyColumnNames.ID), [i.public_id for i in invitations]
+    )
 
     return jsonify({"message": "Success"}, 201)
 

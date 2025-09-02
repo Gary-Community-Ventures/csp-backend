@@ -1,4 +1,6 @@
-from flask import Blueprint, jsonify, request
+import traceback
+
+from flask import Blueprint, current_app, jsonify, request
 from pydantic import ValidationError
 
 from app.auth.decorators import (
@@ -19,7 +21,7 @@ from app.sheets.mappings import (
     get_provider_child_mappings,
     get_providers,
 )
-from app.utils.email_service import send_lump_sum_payment_request_email
+from app.utils.email_service import send_lump_sum_payment_email
 
 bp = Blueprint("lump_sum", __name__, url_prefix="/lump-sums")
 
@@ -64,14 +66,20 @@ def create_lump_sum():
     provider_rows = get_providers()
     child_providers = get_child_providers(allocation_child_id, provider_child_mapping_rows, provider_rows)
 
-    provider_found = False
+    provider_data = None
     for provider in child_providers:
         if provider.get(ProviderColumnNames.ID) == provider_id:
-            provider_found = True
+            provider_data = provider
             break
 
-    if not provider_found:
+    if not provider_data:
         return jsonify({"error": "Provider not associated with the specified child."}), 403
+
+    if not provider_data or not provider_data.get(ProviderColumnNames.PAYMENT_ENABLED):
+        return jsonify({"error": "Cannot submit: provider payment not enabled"}), 400
+
+    if not associated_child.get(ChildColumnNames.PAYMENT_ENABLED):
+        return jsonify({"error": "Cannot submit: child payment not enabled"}), 400
 
     try:
         lump_sum = AllocatedLumpSum.create_lump_sum(
@@ -81,21 +89,51 @@ def create_lump_sum():
             hours=hours,
         )
         db.session.add(lump_sum)
-        db.session.commit()
-        send_lump_sum_payment_request_email(
-            provider_name=provider.get(ProviderColumnNames.NAME),
-            google_sheets_provider_id=provider_id,
-            child_first_name=associated_child.get(ChildColumnNames.FIRST_NAME),
-            child_last_name=associated_child.get(ChildColumnNames.LAST_NAME),
-            google_sheets_child_id=allocation_child_id,
-            amount_in_cents=amount_cents,
-            hours=hours,
-            month=allocation.date.strftime("%B %Y"),
+        db.session.flush()  # Flush to get lump_sum ID before payment processing
+
+        # Process payment using the PaymentService
+        payment_successful = current_app.payment_service.process_payment(
+            external_provider_id=provider_id,
+            external_child_id=allocation_child_id,
+            month_allocation=allocation,
+            allocated_lump_sums=[lump_sum],
         )
+
+        if not payment_successful:
+            db.session.rollback()
+            return jsonify({"error": "Failed to process payment for lump sum."}), 500
+
+        db.session.commit()
+
+        # Send payment notification email (after successful payment)
+        # If email fails, we log it but don't fail the request since payment succeeded
+        try:
+            send_lump_sum_payment_email(
+                provider_name=provider_data.get(ProviderColumnNames.NAME),
+                google_sheets_provider_id=provider_id,
+                child_first_name=associated_child.get(ChildColumnNames.FIRST_NAME),
+                child_last_name=associated_child.get(ChildColumnNames.LAST_NAME),
+                google_sheets_child_id=allocation_child_id,
+                amount_in_cents=amount_cents,
+                hours=hours,
+                month=allocation.date.strftime("%B %Y"),
+            )
+        except Exception as email_error:
+            # Log email failure as warning, but payment was successful so continue
+            current_app.logger.warning(
+                f"Lump sum payment processed successfully for provider {provider_id}, child {allocation_child_id} "
+                f"(${amount_cents / 100:.2f}), but email notification failed: {email_error}"
+            )
         return (
             AllocatedLumpSumResponse.model_validate(lump_sum).model_dump_json(),
             201,
             {"Content-Type": "application/json"},
         )
     except ValueError as e:
+        db.session.rollback()
         return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error creating lump sum or processing payment: {e}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({"error": "An unexpected error occurred."}), 500

@@ -14,11 +14,26 @@ def init_admin_views(app):
     """Initialize admin views with your models"""
 
     try:
+        from app.admin.payment_views import (
+            PaymentAdminView,
+            PaymentAttemptAdminView,
+            PaymentIntentAdminView,
+        )
         from app.extensions import db
 
+        # Map view class names to actual classes
+        view_classes = {
+            "PaymentAdminView": PaymentAdminView,
+            "PaymentAttemptAdminView": PaymentAttemptAdminView,
+            "PaymentIntentAdminView": PaymentIntentAdminView,
+        }
+
         for model_config in ADMIN_MODELS:
+            # Use custom view class if specified, otherwise use default
+            view_class = view_classes.get(model_config.view_class, SecureModelView)
+
             admin.add_view(
-                SecureModelView(
+                view_class(
                     model_config.model,
                     db.session,
                     name=model_config.name,

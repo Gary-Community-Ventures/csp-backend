@@ -16,9 +16,39 @@ def db_session(app):
 
 
 @pytest.fixture(autouse=True)
-def mock_send_submission_notification(mocker: MockerFixture):
-    mock = mocker.patch("app.routes.child.send_submission_notification")
-    return mock
+def mock_payment_service(mocker: MockerFixture):
+    # Mock the payment service methods used across the app
+    mock_process = mocker.patch("app.routes.child.current_app.payment_service.process_payment")
+    mock_process.return_value = True  # Assume payment succeeds by default
+
+    # Mock allocate_funds_to_family used in MonthAllocation
+    from datetime import datetime, timezone
+
+    mock_allocate = mocker.patch("app.models.month_allocation.current_app.payment_service.allocate_funds_to_family")
+    mock_allocate.return_value = mocker.Mock(
+        transfer=mocker.Mock(
+            id="test-transfer-123", created=datetime.now(timezone.utc)  # Provide a real datetime instead of Mock
+        )
+    )
+
+    # Mock refresh_provider_settings used in provider_payment_settings
+    mock_refresh = mocker.patch(
+        "app.models.provider_payment_settings.current_app.payment_service.refresh_provider_settings"
+    )
+    mock_refresh.return_value = None
+
+    # Mock refresh_family_settings used in family_payment_settings
+    mock_refresh_family = mocker.patch(
+        "app.models.family_payment_settings.current_app.payment_service.refresh_family_settings"
+    )
+    mock_refresh_family.return_value = None
+
+    return {
+        "process_payment": mock_process,
+        "allocate_funds_to_family": mock_allocate,
+        "refresh_provider_settings": mock_refresh,
+        "refresh_family_settings": mock_refresh_family,
+    }
 
 
 @pytest.fixture(autouse=True)
@@ -30,8 +60,9 @@ def mock_clerk_authentication(mocker: MockerFixture):
         "sid": "session_id_123",
         "data": {"types": ["family"], "family_id": "family123", "provider_id": None},
     }
-    # Patch the authenticate_request method of the Clerk class
-    mocker.patch("clerk_backend_api.Clerk.authenticate_request", return_value=mock_request_state)
+    # Mock at the decorator level to bypass Clerk client check
+    # This works regardless of whether CLERK_SECRET_KEY is set
+    mocker.patch("app.auth.decorators._authenticate_request", return_value=mock_request_state)
 
 
 @pytest.fixture

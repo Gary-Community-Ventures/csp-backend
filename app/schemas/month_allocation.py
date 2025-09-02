@@ -11,11 +11,10 @@ class MonthAllocationResponse(BaseModel):
     date: date
     allocation_cents: int
     google_sheets_child_id: str
-    used_days: float
-    used_cents: float
-    remaining_cents: float
-    over_allocation: bool
+    remaining_unselected_cents: float
+    remaining_unpaid_cents: float
     locked_until_date: date
+    locked_past_date: date
     created_at: datetime
     updated_at: datetime
     care_days: List[AllocatedCareDayResponse]

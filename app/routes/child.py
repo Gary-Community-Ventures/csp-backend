@@ -1,18 +1,28 @@
 from datetime import date
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 
 from app.auth.decorators import (
     ClerkUserType,
     auth_required,
 )
-from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation
 from app.schemas.care_day import AllocatedCareDayResponse
 from app.schemas.month_allocation import (
     MonthAllocationResponse,
 )
-from app.utils.email_service import send_submission_notification
+from app.schemas.payment import PaymentErrorResponse, PaymentProcessedResponse
+from app.sheets.mappings import (
+    ChildColumnNames,
+    ProviderColumnNames,
+    get_child,
+    get_children,
+    get_provider,
+    get_providers,
+)
+from app.utils.email_service import (
+    send_care_days_payment_email,
+)
 from app.utils.json_utils import custom_jsonify
 
 bp = Blueprint("child", __name__)
@@ -27,9 +37,12 @@ def get_month_allocation(child_id, month, year):
     provider_id = request.args.get("provider_id")
     try:
         month_date = date(year, month, 1)
-        allocation = MonthAllocation.get_or_create_for_month(child_id, month_date)
+        allocation = MonthAllocation.get_for_month(child_id, month_date)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+
+    if not allocation:
+        return jsonify({"error": "Allocation not found"}), 400
 
     if provider_id:
         care_days_query = AllocatedCareDay.query.filter_by(
@@ -68,50 +81,87 @@ def submit_care_days(child_id, provider_id, month, year):
     if not allocation:
         return jsonify({"error": "Allocation not found"}), 404
 
-    if allocation.over_allocation:
+    if allocation.selected_over_allocation:
         return jsonify({"error": "Cannot submit: allocation exceeded"}), 400
+
+    # Get child data to find the family ID
+    child_data = get_child(child_id, get_children())
+    if not child_data:
+        return jsonify({"error": "Child not found"}), 404
+
+    if not child_data.get(ChildColumnNames.PAYMENT_ENABLED):
+        return jsonify({"error": "Cannot submit: child payment not enabled"}), 400
+
+    provider_data = get_provider(provider_id, get_providers())
+    if not provider_data:
+        return jsonify({"error": "Provider not found"}), 404
+
+    if not provider_data.get(ProviderColumnNames.PAYMENT_ENABLED):
+        return jsonify({"error": "Cannot submit: provider payment not enabled"}), 400
 
     care_days_to_submit = AllocatedCareDay.query.filter(
         AllocatedCareDay.care_month_allocation_id == allocation.id,
         AllocatedCareDay.provider_google_sheets_id == provider_id,
         AllocatedCareDay.deleted_at.is_(None),  # Don't submit deleted days
+        AllocatedCareDay.last_submitted_at.is_(None),  # Don't submit already submitted days
     ).all()
 
-    new_days = [day for day in care_days_to_submit if day.is_new]
-    modified_days = [day for day in care_days_to_submit if day.needs_resubmission and not day.is_new]
+    # Only process payment for care days that have an amount
+    if not care_days_to_submit:
+        return jsonify({"error": "No care days to submit"}), 400
 
-    removed_days = AllocatedCareDay.query.filter(
-        AllocatedCareDay.care_month_allocation_id == allocation.id,
-        AllocatedCareDay.provider_google_sheets_id == provider_id,
-        AllocatedCareDay.deleted_at.isnot(None),
-    ).all()
-    removed_days_where_delete_not_submitted = [day for day in removed_days if day.delete_not_submitted]
+    # Get provider and child data for payment processing and email
+    all_providers_data = get_providers()
+    all_children_data = get_children()
 
-    # Send email notification
-    send_submission_notification(
-        provider_id=provider_id,
-        child_id=child_id,
-        new_days=new_days,
-        modified_days=modified_days,
-        removed_days=removed_days_where_delete_not_submitted,
+    provider_data = get_provider(provider_id, all_providers_data)
+    child_data = get_child(child_id, all_children_data)
+
+    if not provider_data:
+        return jsonify({"error": "Provider not found"}), 404
+    if not child_data:
+        return jsonify({"error": "Child not found"}), 404
+
+    # Calculate total amount for email (before payment processing)
+    total_amount_cents = sum(day.amount_cents for day in care_days_to_submit)
+
+    # Process payment for submitted care days
+    # PaymentService now handles marking care days as submitted within the same transaction
+    payment_successful = current_app.payment_service.process_payment(
+        external_provider_id=provider_id,
+        external_child_id=child_id,
+        month_allocation=allocation,
+        allocated_care_days=care_days_to_submit,
     )
 
-    for day in care_days_to_submit:
-        day.mark_as_submitted()
-    db.session.commit()
+    if not payment_successful:
+        error_response = PaymentErrorResponse(error="Payment processing failed. Please try again.")
+        return error_response.model_dump_json(), 500, {"Content-Type": "application/json"}
 
-    for day in removed_days_where_delete_not_submitted:
-        day.last_submitted_at = None  # Reset last submitted date for deleted days
-    db.session.commit()
+    # Send payment notification email (after successful payment)
+    # If email fails, we log it but don't fail the request since payment succeeded
+    # TODO leave so whe know when payments happen but remove in future
+    try:
+        send_care_days_payment_email(
+            provider_name=provider_data.get(ProviderColumnNames.NAME),
+            google_sheets_provider_id=provider_id,
+            child_first_name=child_data.get(ChildColumnNames.FIRST_NAME),
+            child_last_name=child_data.get(ChildColumnNames.LAST_NAME),
+            google_sheets_child_id=child_id,
+            amount_in_cents=total_amount_cents,
+            care_days=care_days_to_submit,
+        )
+    except Exception as email_error:
+        # Log email failure as warning, but payment was successful so continue
+        current_app.logger.warning(
+            f"Payment processed successfully for provider {provider_id}, child {child_id} "
+            f"(${total_amount_cents / 100:.2f}), but email notification failed: {email_error}"
+        )
 
-    return jsonify(
-        {
-            "message": "Submission successful",
-            "new_days": [AllocatedCareDayResponse.model_validate(day).model_dump() for day in new_days],
-            "modified_days": [AllocatedCareDayResponse.model_validate(day).model_dump() for day in modified_days],
-            "removed_days": [
-                AllocatedCareDayResponse.model_validate(day).model_dump()
-                for day in removed_days_where_delete_not_submitted
-            ],
-        }
+    response = PaymentProcessedResponse(
+        message="Payment processed successfully",
+        total_amount=f"${total_amount_cents / 100:.2f}",
+        care_days=[AllocatedCareDayResponse.model_validate(day) for day in care_days_to_submit],
     )
+
+    return response.model_dump_json(), 200, {"Content-Type": "application/json"}

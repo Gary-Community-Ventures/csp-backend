@@ -11,6 +11,7 @@ from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 from supabase import create_client, Client
 
+from app.services.payment.payment_service import PaymentService
 from app.sheets.integration import SheetsManager
 
 # Import models to ensure they are registered with SQLAlchemy
@@ -19,6 +20,7 @@ from .config import ENV_DEVELOPMENT, ENV_PRODUCTION, ENV_STAGING, ENV_TESTING
 
 # Import extensions from the extensions module
 from .extensions import cors, csrf, db, migrate
+from .integrations.chek import ChekService
 
 
 def create_app(config_class=None):
@@ -115,6 +117,12 @@ def create_app(config_class=None):
 
         app.sheets_manager = SheetsManager(app)
 
+    # --- Chek Integration ---
+    app.chek_service = ChekService(app)
+
+    # --- Payment Service ---
+    app.payment_service = PaymentService(app)
+
     # --- CORS Configuration ---
     # For production, use the configured origins, credentials, and headers
     if app.config["FLASK_ENV"] == ENV_PRODUCTION or app.config["FLASK_ENV"] == ENV_STAGING:
@@ -165,7 +173,8 @@ def create_app(config_class=None):
     from .routes.family import bp as family_bp
     from .routes.lump_sum import bp as lump_sum_bp
     from .routes.main import bp as main_bp
-    from .routes.payment_rate import payment_rate_bp
+    from .routes.payment_rate import bp as payment_rate_bp
+    from .routes.payments import bp as payments_bp
     from .routes.provider import bp as provider_bp
 
     app.register_blueprint(main_bp)
@@ -186,5 +195,7 @@ def create_app(config_class=None):
     csrf.exempt(attendance_bp)
     app.register_blueprint(lump_sum_bp)
     csrf.exempt(lump_sum_bp)
+    app.register_blueprint(payments_bp)
+    csrf.exempt(payments_bp)
 
     return app

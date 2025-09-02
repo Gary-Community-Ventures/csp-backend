@@ -4,7 +4,13 @@ import pytest
 
 from app.enums.care_day_type import CareDayType
 from app.extensions import db
-from app.models import AllocatedCareDay, MonthAllocation, PaymentRate, PaymentRequest
+from app.models import (
+    AllocatedCareDay,
+    FamilyPaymentSettings,
+    MonthAllocation,
+    PaymentRate,
+    ProviderPaymentSettings,
+)
 from app.scripts.run_payment_requests import run_payment_requests
 from app.sheets.mappings import ChildColumnNames, KeyMap, ProviderColumnNames
 
@@ -35,49 +41,70 @@ def setup_payment_request_data(app):
             half_day_rate_cents=35000,
         )
         db.session.add_all([payment_rate_1, payment_rate_2])
+
+        # Create ProviderPaymentSettings for the providers
+        provider_settings_1 = ProviderPaymentSettings.new("201")
+        provider_settings_2 = ProviderPaymentSettings.new("202")
+        db.session.add_all([provider_settings_1, provider_settings_2])
+
+        # Create FamilyPaymentSettings for the family (assuming family_id is "family123" based on the child)
+        family_settings = FamilyPaymentSettings.new("family123")
+        family_settings.chek_wallet_balance = 1000000  # Set a high balance so payment doesn't fail
+        db.session.add(family_settings)
+
         db.session.commit()
 
         # Create submitted care days for processing
-        care_day_1 = AllocatedCareDay.create_care_day(
-            allocation=allocation,
-            provider_id="201",
-            care_date=date.today() + timedelta(days=10),
-            day_type=CareDayType.FULL_DAY,
+        # Use a date from last week so its locked_date (Monday 23:59:59) is in the past
+        # We create directly instead of using create_care_day since that prevents past dates
+        care_day_1 = AllocatedCareDay(
+            care_month_allocation_id=allocation.id,
+            provider_google_sheets_id="201",
+            date=date.today() - timedelta(days=7),
+            type=CareDayType.FULL_DAY,
+            amount_cents=60000,
+            last_submitted_at=datetime.now(timezone.utc) - timedelta(days=5),
+            payment_distribution_requested=False,
         )
-        care_day_1.last_submitted_at = datetime.now(timezone.utc) - timedelta(days=5)
-        care_day_1.payment_distribution_requested = False
-        care_day_1.locked_date = datetime.now(timezone.utc) - timedelta(days=1)
+        db.session.add(care_day_1)
 
-        care_day_2 = AllocatedCareDay.create_care_day(
-            allocation=allocation,
-            provider_id="201",
-            care_date=date.today() + timedelta(days=11),
-            day_type=CareDayType.HALF_DAY,
+        # Use another date from last week
+        care_day_2 = AllocatedCareDay(
+            care_month_allocation_id=allocation.id,
+            provider_google_sheets_id="201",
+            date=date.today() - timedelta(days=6),
+            type=CareDayType.HALF_DAY,
+            amount_cents=40000,
+            last_submitted_at=datetime.now(timezone.utc) - timedelta(days=4),
+            payment_distribution_requested=False,
         )
-        care_day_2.last_submitted_at = datetime.now(timezone.utc) - timedelta(days=4)
-        care_day_2.payment_distribution_requested = False
-        care_day_2.locked_date = datetime.now(timezone.utc) - timedelta(days=1)
+        db.session.add(care_day_2)
 
         # Care day for a different provider/child that should NOT be processed by this run
-        care_day_3 = AllocatedCareDay.create_care_day(
-            allocation=allocation,
-            provider_id="202",
-            care_date=date.today() + timedelta(days=12),
-            day_type=CareDayType.FULL_DAY,
+        # Use a date from last week so it's locked
+        care_day_3 = AllocatedCareDay(
+            care_month_allocation_id=allocation.id,
+            provider_google_sheets_id="202",
+            date=date.today() - timedelta(days=5),
+            type=CareDayType.FULL_DAY,
+            amount_cents=60000,
+            last_submitted_at=datetime.now(timezone.utc) - timedelta(days=3),
+            payment_distribution_requested=False,
         )
-        care_day_3.last_submitted_at = datetime.now(timezone.utc) - timedelta(days=3)
-        care_day_3.payment_distribution_requested = False
-        care_day_3.locked_date = datetime.now(timezone.utc) - timedelta(days=1)
+        db.session.add(care_day_3)
 
         # Care day that is already processed
-        care_day_4 = AllocatedCareDay.create_care_day(
-            allocation=allocation,
-            provider_id="201",
-            care_date=date.today() + timedelta(days=13),
-            day_type=CareDayType.FULL_DAY,
+        care_day_4 = AllocatedCareDay(
+            care_month_allocation_id=allocation.id,
+            provider_google_sheets_id="201",
+            date=date.today() - timedelta(days=4),
+            type=CareDayType.FULL_DAY,
+            amount_cents=60000,
+            last_submitted_at=datetime.now(timezone.utc) - timedelta(days=2),
+            payment_distribution_requested=True,
         )
-        care_day_4.last_submitted_at = datetime.now(timezone.utc) - timedelta(days=2)
-        care_day_4.payment_distribution_requested = True
+        db.session.add(care_day_4)
+        db.session.commit()
 
         # Care day that is submitted but not yet locked (locked_date in future)
         future_date = date.today() + timedelta(days=7)  # A week from now
@@ -97,7 +124,7 @@ def setup_payment_request_data(app):
 
 
 def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
-    _, care_day_1, care_day_2, care_day_3, care_day_4, care_day_5 = setup_payment_request_data
+    allocation, care_day_1, care_day_2, care_day_3, care_day_4, care_day_5 = setup_payment_request_data
 
     # Mock external dependencies
     mocker.patch.dict("os.environ", {"GOOGLE_SHEETS_CREDENTIALS": '{"type": "service_account"}'})
@@ -109,6 +136,7 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
                     ChildColumnNames.ID.key: "101",
                     ChildColumnNames.FIRST_NAME.key: "Test",
                     ChildColumnNames.LAST_NAME.key: "Child",
+                    ChildColumnNames.FAMILY_ID.key: "family123",
                 }
             )
         ],
@@ -142,8 +170,9 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
             (p for p in providers if p.get(ProviderColumnNames.ID) == provider_id), None
         ),
     )
-    mock_send_email = mocker.patch(
-        "app.scripts.run_payment_requests.send_care_days_payment_request_email", return_value=True
+    # Mock the payment service process_payment method
+    mock_payment_service = mocker.patch(
+        "app.scripts.run_payment_requests.payment_service.process_payment", return_value=True
     )
 
     # Run the script
@@ -152,24 +181,6 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
     with app.app_context():
         # Refresh the objects from the database to get the latest state
         db.session.expire_all()
-
-        # Verify PaymentRequest was created
-        payment_requests = PaymentRequest.query.order_by(PaymentRequest.google_sheets_provider_id).all()
-        assert len(payment_requests) == 2
-
-        pr1 = payment_requests[0]  # For provider 201, child 101
-        assert pr1.google_sheets_provider_id == "201"
-        assert pr1.google_sheets_child_id == "101"
-        assert pr1.care_days_count == 2
-        assert pr1.amount_in_cents == (care_day_1.amount_cents + care_day_2.amount_cents)
-        assert set(pr1.care_day_ids) == {care_day_1.id, care_day_2.id}
-
-        pr2 = payment_requests[1]  # For provider 202, child 101
-        assert pr2.google_sheets_provider_id == "202"
-        assert pr2.google_sheets_child_id == "101"
-        assert pr2.care_days_count == 1
-        assert pr2.amount_in_cents == care_day_3.amount_cents
-        assert set(pr2.care_day_ids) == {care_day_3.id}
 
         # Verify care days were marked as processed
         processed_care_day_1 = db.session.get(AllocatedCareDay, care_day_1.id)
@@ -184,23 +195,18 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
         assert already_processed_care_day_4.payment_distribution_requested is True
         assert not_yet_locked_care_day_5.payment_distribution_requested is False
 
-    # Verify that the email sending function was called
-    assert mock_send_email.call_count == 2
-    mock_send_email.assert_any_call(
-        provider_name="Test Provider",
-        google_sheets_provider_id="201",
-        child_first_name="Test",
-        child_last_name="Child",
-        google_sheets_child_id="101",
-        amount_in_cents=care_day_1.amount_cents + care_day_2.amount_cents,
-        care_days=[care_day_1, care_day_2],
+    # Verify that the payment service was called
+    assert mock_payment_service.call_count == 2
+    # The payment service would be called with provider and child IDs
+    mock_payment_service.assert_any_call(
+        external_provider_id="201",
+        external_child_id="101",
+        month_allocation=allocation,
+        allocated_care_days=[care_day_1, care_day_2],
     )
-    mock_send_email.assert_any_call(
-        provider_name="Another Provider",
-        google_sheets_provider_id="202",
-        child_first_name="Test",
-        child_last_name="Child",
-        google_sheets_child_id="101",
-        amount_in_cents=care_day_3.amount_cents,
-        care_days=[care_day_3],
+    mock_payment_service.assert_any_call(
+        external_provider_id="202",
+        external_child_id="101",
+        month_allocation=allocation,
+        allocated_care_days=[care_day_3],
     )
