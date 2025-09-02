@@ -27,6 +27,8 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
         db.DateTime(timezone=True), nullable=True
     )  # Timestamp of last payment method change
     last_chek_sync_at = db.Column(db.DateTime(timezone=True), nullable=True)  # Timestamp of last sync
+    card_initialization_attempted_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    ach_initialization_attempted_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     def validate_payment_method_status(self) -> tuple[bool, str]:
         """

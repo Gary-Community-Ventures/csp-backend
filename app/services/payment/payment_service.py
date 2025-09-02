@@ -798,6 +798,7 @@ class PaymentService:
                 provider_settings.payment_method = PaymentMethod.CARD
                 provider_settings.payment_method_updated_at = datetime.now(timezone.utc)
                 provider_settings.last_chek_sync_at = datetime.now(timezone.utc)
+                provider_settings.card_initialization_attempted_at = datetime.now(timezone.utc)
                 db.session.commit()
 
                 result["message"] = "Virtual card created successfully"
@@ -834,6 +835,7 @@ class PaymentService:
                 provider_settings.payment_method = PaymentMethod.ACH
                 provider_settings.payment_method_updated_at = datetime.now(timezone.utc)
                 provider_settings.last_chek_sync_at = datetime.now(timezone.utc)
+                provider_settings.ach_initialization_attempted_at = datetime.now(timezone.utc)
                 db.session.commit()
 
                 result["message"] = "ACH invite sent successfully"
