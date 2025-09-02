@@ -259,14 +259,14 @@ class PaymentService:
         # 1. Initiate Chek transfer (Wallet to Wallet)
         transfer_request = TransferBalanceRequest(
             flow_direction=FlowDirection.WALLET_TO_WALLET.value,
-            program_id=family_payment_settings.chek_user_id,  # Documentation says program_id but API uses counterparty_id
-            counterparty_id=family_payment_settings.chek_user_id,  # Set both for safety
+            program_id=provider_payment_settings.chek_user_id,  # Documentation says program_id but API uses counterparty_id
+            counterparty_id=provider_payment_settings.chek_user_id,  # Set both for safety
             amount=intent.amount_cents,
             description=description,
             metadata=metadata,
         )
         transfer_response = self.chek_service.transfer_balance(
-            user_id=int(provider_payment_settings.chek_user_id), request=transfer_request
+            user_id=int(family_payment_settings.chek_user_id), request=transfer_request
         )
 
         # Record successful wallet funding
