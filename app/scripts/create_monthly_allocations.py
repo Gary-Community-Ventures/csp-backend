@@ -22,6 +22,7 @@ from app import create_app
 from app.config import DAYS_TO_NEXT_MONTH
 from app.extensions import db
 from app.models.month_allocation import MonthAllocation
+from app.sheets.helpers import format_name
 from app.sheets.mappings import ChildColumnNames, get_children
 
 # Create Flask app context
@@ -68,7 +69,7 @@ def create_allocations_for_month(target_month: date, dry_run: bool = False) -> D
         # Process each child
         for child_data in all_children:
             child_id = child_data.get(ChildColumnNames.ID)
-            child_name = f"{child_data.get(ChildColumnNames.FIRST_NAME)} {child_data.get(ChildColumnNames.LAST_NAME)}"
+            child_name = format_name(child_data)
 
             if not child_id:
                 print(f"⚠️  Skipping child with missing ID: {child_name}")
