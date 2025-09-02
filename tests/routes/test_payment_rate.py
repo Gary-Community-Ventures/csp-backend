@@ -91,11 +91,6 @@ def mock_auth_and_helpers(mocker, request, app):
 
 # --- POST /payment-rates/<child_id> ---
 def test_create_payment_rate_success(client, app):
-    # Debug: Check if Clerk client is initialized
-    print(f"Clerk client initialized: {app.clerk_client is not None}")
-    print(f"Flask ENV: {app.config.get('FLASK_ENV')}")
-    print(f"CLERK_SECRET_KEY present: {bool(app.config.get('CLERK_SECRET_KEY'))}")
-
     response = client.post(
         "/payment-rates/2",
         json={
@@ -104,10 +99,6 @@ def test_create_payment_rate_success(client, app):
         },
         headers={"Authorization": "Bearer test-token"},
     )
-    if response.status_code != 201:
-        print(f"Response status: {response.status_code}")
-        print(f"Response data: {response.get_json()}")
-        print(f"Response text: {response.text}")
     assert response.status_code == 201
     # Response only has id and the rate cents, not provider/child IDs based on PaymentRateResponse schema
     assert response.json["half_day_rate_cents"] == 3000

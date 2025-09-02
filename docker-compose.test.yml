@@ -1,6 +1,6 @@
 services:
   backend:
-    command: pytest -xvs --tb=long
+    command: pytest
     environment:
       - FLASK_ENV=testing
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_test:5432/${POSTGRES_DB}_test
