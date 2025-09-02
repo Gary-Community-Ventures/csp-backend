@@ -10,6 +10,7 @@ Flask-WTF==1.2.1
 Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.1.0
 psycopg2-binary==2.9.10
+supabase==2.18.1
 
 # Authentication
 clerk-backend-api==3.0.5

@@ -9,6 +9,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+from supabase import create_client, Client
 
 from app.sheets.integration import SheetsManager
 
@@ -79,6 +80,16 @@ def create_app(config_class=None):
     else:
         app.clerk_client = Clerk(bearer_auth=clerk_secret_key)
         print("Clerk SDK initialized successfully.")
+
+    # --- Supabase Client Initialization ---
+    supabase_url = app.config.get("SUPABASE_URL")
+    supabase_key = app.config.get("SUPABASE_KEY")
+
+    if not supabase_url or not supabase_key:
+        print("WARNING: SUPABASE_URL or SUPABASE_KEY not found. Supabase client will not be initialized.")
+        app.supabase_client = None
+    else:
+        app.supabase_client = create_client(supabase_url, supabase_key)
 
     app.config["API_KEY"] = os.environ.get("API_KEY")
     if not app.config["API_KEY"]:
