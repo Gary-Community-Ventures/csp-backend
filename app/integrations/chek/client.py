@@ -223,8 +223,18 @@ class ChekClient:
 
     def transfer_balance(self, user_id, transfer_data):
         """
-        Transfers balance between users or accounts.
+        Transfers funds between wallets or program to wallet.
         """
-        return self._request(
-            "POST", f"public_admin/accounts/{self.account_id}/users/{user_id}/transfer_balance", json=transfer_data
-        )
+        return self._request("POST", f"users/{user_id}/transfer_balance/", json=transfer_data)
+
+    def send_ach_payment(self, user_id, payment_data):
+        """
+        Initiates a Same-Day ACH transfer to a recipient's linked bank account.
+        """
+        return self._request("POST", f"directpay_accounts/{user_id}/send_payment/", json=payment_data)
+
+    def transfer_funds_to_card(self, card_id, transfer_data):
+        """
+        Transfers funds to or from a virtual card.
+        """
+        return self._request("POST", f"cards/{card_id}/transfer_balance/", json=transfer_data)

@@ -105,11 +105,10 @@ class ChekService:
 
     def transfer_balance(self, user_id: int, request: TransferBalanceRequest) -> TransferBalanceResponse:
         """
-        Transfers funds between a Program and a User Wallet.
+        Transfers funds between wallets or program to wallet.
         """
-        endpoint = f"users/{user_id}/transfer_balance/"
         request_data = request.model_dump()
-        response_json = self.client._request("POST", endpoint, json=request_data)
+        response_json = self.client.transfer_balance(user_id, request_data)
         current_app.logger.debug(f"Chek transfer_balance response: {response_json}")
         return TransferBalanceResponse.model_validate(response_json)
 
@@ -120,9 +119,8 @@ class ChekService:
         Initiates a Same-Day ACH transfer to a recipient's linked bank account.
         Requires the DirectPay account to be Active.
         """
-        endpoint = f"directpay_accounts/{user_id}/send_payment/"
         request_data = request.model_dump()
-        response_json = self.client._request("POST", endpoint, json=request_data)
+        response_json = self.client.send_ach_payment(user_id, request_data)
         current_app.logger.debug(f"Chek send_ach_payment response: {response_json}")
         return ACHPaymentResponse.model_validate(response_json)
 
@@ -131,9 +129,8 @@ class ChekService:
         Transfers funds to or from a virtual card.
         Can allocate funds to a card or remit funds from a card back to wallet.
         """
-        endpoint = f"cards/{card_id}/transfer_balance/"
         request_data = request.model_dump()
-        response_json = self.client._request("POST", endpoint, json=request_data)
+        response_json = self.client.transfer_funds_to_card(card_id, request_data)
         current_app.logger.debug(f"Chek transfer_funds_to_card response: {response_json}")
         return TransferFundsToCardResponse.model_validate(response_json)
 
