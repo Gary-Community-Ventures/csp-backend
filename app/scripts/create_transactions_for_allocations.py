@@ -39,8 +39,8 @@ def get_child_name(child_id: str, all_children: List) -> str:
     if not child_data:
         return "Unknown"
 
-    first_name = child_data.get(ChildColumnNames.FIRST_NAME, "")
-    last_name = child_data.get(ChildColumnNames.LAST_NAME, "")
+    first_name = child_data.get(ChildColumnNames.FIRST_NAME)
+    last_name = child_data.get(ChildColumnNames.LAST_NAME)
     return f"{first_name} {last_name}"
 
 
