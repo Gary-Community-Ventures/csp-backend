@@ -16,9 +16,9 @@ from app.constants import MAX_CHILDREN_PER_PROVIDER
 from app.extensions import db
 from app.models.attendance import Attendance
 from app.models.family_payment_settings import FamilyPaymentSettings
-from app.models.month_allocation import MonthAllocation
 from app.models.provider_invitation import ProviderInvitation
 from app.models.provider_payment_settings import ProviderPaymentSettings
+from app.services.allocation_service import AllocationService
 from app.sheets.helpers import KeyMap, format_name, get_row
 from app.sheets.mappings import (
     ChildColumnNames,
@@ -53,12 +53,10 @@ bp = Blueprint("family", __name__)
 
 
 def create_allocations(family_children: List[KeyMap], month) -> None:
-    for child in family_children:
-        # Create a new MonthAllocation for each child
-        MonthAllocation.get_or_create_for_month(
-            child.get(ChildColumnNames.ID),
-            month,
-        )
+    """Create allocations for a list of children for a specific month."""
+    child_ids = [child.get(ChildColumnNames.ID) for child in family_children]
+    allocation_service = AllocationService(current_app)
+    allocation_service.create_allocations_for_specific_children(child_ids, month)
 
 
 @bp.post("/family")

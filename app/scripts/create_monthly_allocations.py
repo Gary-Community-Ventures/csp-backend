@@ -19,10 +19,7 @@ from typing import Any, Dict
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from app import create_app
-from app.extensions import db
-from app.models.month_allocation import MonthAllocation
-from app.sheets.helpers import format_name
-from app.sheets.mappings import ChildColumnNames, get_children
+from app.services.allocation_service import AllocationService
 from app.utils.date_utils import get_current_month_start, get_next_month_start
 
 # Create Flask app context
@@ -48,122 +45,70 @@ def create_allocations_for_month(target_month: date, dry_run: bool = False) -> D
         print(f"\n{'[DRY RUN] ' if dry_run else ''}Creating monthly allocations for {target_month.strftime('%B %Y')}")
         print("-" * 60)
 
-        # Get all children from Google Sheets
-        try:
-            all_children = get_children()
-        except Exception as e:
-            print(f"❌ Failed to fetch children from Google Sheets: {e}")
-            raise
+        # Progress callback to print updates for each child
+        def print_progress(child_data, status):
+            from app.sheets.helpers import format_name
+            from app.sheets.mappings import ChildColumnNames
 
-        if not all_children:
-            print("⚠️  No children found in Google Sheets")
-            return {"status": "success", "created_count": 0, "skipped_count": 0, "error_count": 0}
-
-        created_count = 0
-        skipped_count = 0
-        error_count = 0
-        errors = []
-
-        print(f"Found {len(all_children)} children to process\n")
-
-        # Process each child
-        for child_data in all_children:
             child_id = child_data.get(ChildColumnNames.ID)
             child_name = format_name(child_data)
 
-            if not child_id:
-                print(f"⚠️  Skipping child with missing ID: {child_name}")
-                error_count += 1
-                errors.append(f"Missing ID for child: {child_name}")
-                continue
+            if status == "created":
+                # Try to get the allocation amount if available
+                try:
+                    from app.models.month_allocation import get_allocation_amount
 
-            try:
-                # Check if allocation already exists for target month
-                existing_allocation = MonthAllocation.query.filter_by(
-                    google_sheets_child_id=child_id, date=target_month
-                ).first()
-
-                if existing_allocation:
-                    print(
-                        f"⏭️  {child_name} ({child_id}) - Already exists (${existing_allocation.allocation_cents / 100:.2f})"
-                    )
-                    skipped_count += 1
-                    continue
+                    allocation_cents = get_allocation_amount(child_id)
+                    amount_str = f" (${allocation_cents / 100:.2f})"
+                except:
+                    amount_str = ""
 
                 if dry_run:
-                    # In dry run, just show what would be created
-                    try:
-                        # Get allocation amount that would be created
-                        from app.models.month_allocation import get_allocation_amount
-
-                        allocation_cents = get_allocation_amount(child_id)
-                        print(f"✨ {child_name} ({child_id}) - Would create ${allocation_cents / 100:.2f}")
-                        created_count += 1
-                    except Exception as e:
-                        print(f"❌ {child_name} ({child_id}) - Would fail: {e}")
-                        error_count += 1
-                        errors.append(f"{child_name} ({child_id}): {str(e)}")
+                    print(f"✨ {child_name} ({child_id}) - Would create{amount_str}")
                 else:
-                    # Create new allocation using the existing method
-                    allocation = MonthAllocation.get_or_create_for_month(child_id, target_month)
-                    print(f"✅ {child_name} ({child_id}) - Created ${allocation.allocation_cents / 100:.2f}")
-                    created_count += 1
+                    print(f"✅ {child_name} ({child_id}) - Created{amount_str}")
+            elif status == "skipped":
+                print(f"⏭️  {child_name} ({child_id}) - Already exists")
+            elif status == "error":
+                print(f"❌ {child_name} ({child_id}) - Failed")
 
-            except ValueError as e:
-                # Handle specific validation errors from get_or_create_for_month
-                print(f"❌ {child_name} ({child_id}) - Validation error: {e}")
-                error_count += 1
-                errors.append(f"{child_name} ({child_id}): {str(e)}")
-                continue
+        # Use AllocationService
+        allocation_service = AllocationService(app)
+        result = allocation_service.create_allocations_for_all_children(
+            target_month=target_month, dry_run=dry_run, progress_callback=print_progress
+        )
 
-            except Exception as e:
-                # Handle unexpected errors
-                print(f"❌ {child_name} ({child_id}) - Unexpected error: {e}")
-                error_count += 1
-                errors.append(f"{child_name} ({child_id}): {str(e)}")
-                continue
-
-        # Final commit for all successful allocations (unless dry run)
-        if not dry_run:
-            try:
-                db.session.commit()
-            except Exception as e:
-                db.session.rollback()
-                print(f"❌ Failed to commit monthly allocations: {e}")
-                raise
-
-        result = {
-            "status": "success",
+        # Build final result dict
+        result_dict = {
+            "status": "success" if result.error_count == 0 else "completed_with_errors",
             "month": target_month.strftime("%B %Y"),
-            "created_count": created_count,
-            "skipped_count": skipped_count,
-            "error_count": error_count,
-            "total_children": len(all_children),
-            "errors": errors,
+            "created_count": result.created_count,
+            "skipped_count": result.skipped_count,
+            "error_count": result.error_count,
+            "total_children": result.created_count + result.skipped_count + result.error_count,
+            "errors": result.errors,
             "dry_run": dry_run,
         }
 
         # Print summary
         print(f"\n{'=' * 60}")
         print(f"{'DRY RUN ' if dry_run else ''}SUMMARY for {target_month.strftime('%B %Y')}:")
-        print(f"  ✅ {'Would create' if dry_run else 'Created'}: {created_count}")
-        print(f"  ⏭️  Skipped (already exists): {skipped_count}")
-        print(f"  ❌ Errors: {error_count}")
-        print(f"  📊 Total children: {len(all_children)}")
+        print(f"  ✅ {'Would create' if dry_run else 'Created'}: {result_dict['created_count']}")
+        print(f"  ⏭️  Skipped (already exists): {result_dict['skipped_count']}")
+        print(f"  ❌ Errors: {result_dict['error_count']}")
+        print(f"  📊 Total children: {result_dict['total_children']}")
 
-        if errors and error_count > 0:
+        if result_dict["errors"] and result_dict["error_count"] > 0:
             print(f"\nFirst few errors:")
-            for error in errors[:5]:
+            for error in result_dict["errors"][:5]:
                 print(f"  • {error}")
-            if len(errors) > 5:
-                print(f"  ... and {len(errors) - 5} more errors")
+            if len(result_dict["errors"]) > 5:
+                print(f"  ... and {len(result_dict['errors']) - 5} more errors")
 
-        return result
+        return result_dict
 
     except Exception as e:
         print(f"❌ Failed to create monthly allocations: {str(e)}")
-        if not dry_run:
-            db.session.rollback()
         raise
 
 

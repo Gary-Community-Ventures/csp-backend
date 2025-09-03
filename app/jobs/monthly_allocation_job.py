@@ -5,10 +5,7 @@ from typing import Any, Dict
 from flask import current_app
 
 from ..constants import BUSINESS_TIMEZONE
-from ..extensions import db
-from ..models.month_allocation import MonthAllocation
-from ..sheets.helpers import format_name
-from ..sheets.mappings import ChildColumnNames, get_children
+from ..services.allocation_service import AllocationService
 from ..utils.date_utils import get_next_month_start
 from . import job_manager
 
@@ -27,97 +24,31 @@ def create_monthly_allocations(from_info: str = "scheduler", **kwargs) -> Dict[s
             f"{datetime.now()} Starting monthly allocation creation from {from_info} for {next_month.strftime('%B %Y')}"
         )
 
-        # Get all children from Google Sheets
-        try:
-            all_children = get_children()
-        except Exception as e:
-            current_app.logger.error(f"Failed to fetch children from Google Sheets: {e}")
-            raise
+        # Use AllocationService to create allocations
+        allocation_service = AllocationService(current_app)
+        result = allocation_service.create_allocations_for_all_children(target_month=next_month)
 
-        if not all_children:
-            current_app.logger.warning("No children found in Google Sheets")
-            return {"status": "success", "created_count": 0, "skipped_count": 0, "error_count": 0}
-
-        created_count = 0
-        skipped_count = 0
-        error_count = 0
-        errors = []
-
-        # Process each child
-        for child_data in all_children:
-            child_id = child_data.get(ChildColumnNames.ID)
-            child_name = format_name(child_data)
-
-            if not child_id:
-                current_app.logger.warning(f"Skipping child with missing ID: {child_name}")
-                error_count += 1
-                errors.append(f"Missing ID for child: {child_name}")
-                continue
-
-            try:
-                # Check if allocation already exists for next month
-                existing_allocation = MonthAllocation.query.filter_by(
-                    google_sheets_child_id=child_id, date=next_month
-                ).first()
-
-                if existing_allocation:
-                    current_app.logger.debug(
-                        f"Allocation already exists for {child_name} ({child_id}) for {next_month}"
-                    )
-                    skipped_count += 1
-                    continue
-
-                # Create new allocation using the existing method
-                allocation = MonthAllocation.get_or_create_for_month(child_id, next_month)
-
-                current_app.logger.info(
-                    f"Created allocation for {child_name} ({child_id}): ${allocation.allocation_cents / 100:.2f}"
-                )
-                created_count += 1
-
-            except ValueError as e:
-                # Handle specific validation errors from get_for_month
-                current_app.logger.error(f"Validation error creating allocation for {child_name} ({child_id}): {e}")
-                error_count += 1
-                errors.append(f"{child_name} ({child_id}): {str(e)}")
-                continue
-
-            except Exception as e:
-                # Handle unexpected errors
-                current_app.logger.error(f"Unexpected error creating allocation for {child_name} ({child_id}): {e}")
-                error_count += 1
-                errors.append(f"{child_name} ({child_id}): {str(e)}")
-                continue
-
-        # Final commit for all successful allocations
-        try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"Failed to commit monthly allocations: {e}")
-            raise
-
-        result = {
-            "status": "success",
+        # Build response in the expected format
+        response = {
+            "status": "success" if result.error_count == 0 else "completed_with_errors",
             "month": next_month.strftime("%B %Y"),
-            "created_count": created_count,
-            "skipped_count": skipped_count,
-            "error_count": error_count,
-            "total_children": len(all_children),
-            "errors": errors[:10],  # Limit error list to first 10 for logging
+            "created_count": result.created_count,
+            "skipped_count": result.skipped_count,
+            "error_count": result.error_count,
+            "total_children": result.created_count + result.skipped_count + result.error_count,
+            "errors": result.errors[:10],  # Limit error list to first 10 for logging
         }
 
         current_app.logger.info(
             f"{datetime.now()} Monthly allocation creation completed: "
-            f"Created {created_count}, Skipped {skipped_count}, Errors {error_count} "
+            f"Created {result.created_count}, Skipped {result.skipped_count}, Errors {result.error_count} "
             f"for {next_month.strftime('%B %Y')}"
         )
 
-        return result
+        return response
 
     except Exception as e:
         current_app.logger.error(f"Failed to create monthly allocations from {from_info}: {str(e)}")
-        db.session.rollback()
         raise
 
 
