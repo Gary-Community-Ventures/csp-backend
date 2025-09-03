@@ -1,1 +1,2 @@
 MAX_CHILDREN_PER_PROVIDER = 2
+UNKNOWN = "[Unknown]"

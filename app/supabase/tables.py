@@ -1,47 +1,12 @@
 from flask import current_app
 from postgrest import SyncRequestBuilder, SyncSelectRequestBuilder
 from app.supabase.helpers import Language, ProviderType, Status, cols, date_column, datetime_column, enum_column
-from typing import Any, Callable, Generic, TypeVar
-
-T = TypeVar("T")
-
-
-class Column(Generic[T]):
-    def __init__(self, name: str, converter: Callable[[Any], T] = str):
-        self.name = name
-        self._converter = converter
-
-    def __str__(self):
-        return self.name
-
-    def __repr__(self):
-        return f"Column({self.name}<{self._converter.__name__}>)"
-
-    def __call__(self, data: dict) -> T:
-        """
-        Convert the value to the correct data type.
-        """
-        value = data[self.name]
-
-        if value is None:
-            return None
-        return self._converter(value)
-
-    def __hash__(self) -> int:
-        return hash(self.name)
-
-    def __eq__(self, other):
-        if isinstance(other, str):  # Allow it to be used as a key in a dict
-            return self.name == other
-        if isinstance(other, Column):
-            return self.name == other.name
-
-        return False
+from app.supabase.columns import Column, date_column, datetime_column, enum_column, Language, ProviderType, Status
 
 
 class Table:
-    TABLE_NAME: str = ""
-    ID: str = Column("id")
+    TABLE_NAME = ""
+    ID = Column("id")
 
     @classmethod
     def query(cls) -> SyncRequestBuilder:
@@ -52,12 +17,12 @@ class Table:
         return f"{cls.TABLE_NAME}({cols(*columns)})"
 
     @classmethod
-    def select_by_id(cls, columns: str, id: str) -> SyncSelectRequestBuilder:
+    def select_by_id(cls, columns: str, id: int) -> SyncSelectRequestBuilder:
         return cls.query().select(columns).eq(cls.ID, id).single()
 
     @classmethod
     def unwrap(cls, data: dict):
-        return data.get(cls.TABLE_NAME)
+        return data[cls.TABLE_NAME]
 
 
 class Family(Table):
@@ -90,6 +55,14 @@ class Guardian(Table):
     # Foreign keys
     FAMILY_ID = Column("family", int)
 
+    @classmethod
+    def get_primary_guardian(cls, data: list[dict]) -> dict:
+        for g in data:
+            if cls.IS_PRIMARY(g):
+                return g
+
+        return None
+
 
 class Child(Table):
     TABLE_NAME = "child"
@@ -106,6 +79,10 @@ class Child(Table):
 
     # Foreign keys
     FAMILY_ID = Column("family_id")
+
+    @classmethod
+    def select_by_family_id(cls, columns: str, family_id: int) -> SyncSelectRequestBuilder:
+        return cls.query().select(columns).eq(cls.FAMILY_ID, family_id)
 
 
 class Provider(Table):

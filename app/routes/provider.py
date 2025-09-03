@@ -15,7 +15,7 @@ from app.auth.decorators import (
 )
 from app.auth.helpers import get_current_user, get_family_user, get_provider_user
 from app.config import CHEK_STATUS_STALE_MINUTES
-from app.constants import MAX_CHILDREN_PER_PROVIDER
+from app.constants import MAX_CHILDREN_PER_PROVIDER, UNKNOWN
 from app.enums.payment_method import PaymentMethod
 from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation
@@ -30,27 +30,8 @@ from app.schemas.provider_payment import (
     PaymentMethodUpdateResponse,
     PaymentSettingsResponse,
 )
-from app.sheets.helpers import KeyMap, format_name, get_row
-from app.sheets.mappings import (
-    ChildColumnNames,
-    FamilyColumnNames,
-    ProviderChildMappingColumnNames,
-    ProviderColumnNames,
-    TransactionColumnNames,
-    get_child,
-    get_children,
-    get_families,
-    get_family,
-    get_family_children,
-    get_provider,
-    get_provider_child_mapping_child,
-    get_provider_child_mappings,
-    get_provider_child_mappings_by_provider_id,
-    get_provider_children,
-    get_provider_transactions,
-    get_providers,
-    get_transactions,
-)
+from app.supabase.helpers import cols, format_name, unwrap_or_abort
+from app.supabase.tables import Child, Provider, Family, Guardian
 from app.utils.email_service import (
     get_from_email_internal,
     html_link,
@@ -69,17 +50,19 @@ def new_provider():
     data = request.json
 
     # Validate required fields
-    if "google_sheet_id" not in data:
-        abort(400, description="Missing required fields: google_sheet_id")
+    if "provider_id" not in data:
+        abort(400, description="Missing required fields: provider_id")
 
     if "email" not in data:
         abort(400, description="Missing required field: email")
 
+    provider_id = data["provider_id"]
+
     # Create Chek user and ProviderPaymentSettings
     payment_service = current_app.payment_service
-    provider_settings = payment_service.onboard_provider(provider_external_id=data["google_sheet_id"])
+    provider_settings = payment_service.onboard_provider(provider_external_id=provider_id)
     current_app.logger.info(
-        f"Created ProviderPaymentSettings for provider {data['google_sheet_id']} with Chek user {provider_settings.chek_user_id}"
+        f"Created ProviderPaymentSettings for provider {provider_id} with Chek user {provider_settings.chek_user_id}"
     )
 
     # send clerk invite
@@ -87,7 +70,7 @@ def new_provider():
     fe_domain = current_app.config.get("FRONTEND_DOMAIN")
     meta_data = {
         "types": [ClerkUserType.PROVIDER],  # NOTE: list in case we need to have people who fit into multiple categories
-        "provider_id": data["google_sheet_id"],
+        "provider_id": provider_id,
     }
 
     clerk.invitations.create(
@@ -105,63 +88,56 @@ def new_provider():
 @auth_required(ClerkUserType.PROVIDER)
 def get_provider_data():
     user = get_provider_user()
-
-    provider_rows = get_providers()
-    child_rows = get_children()
-    provider_child_mapping_rows = get_provider_child_mappings()
-    transaction_rows = get_transactions()
-
     provider_id = user.user_data.provider_id
 
-    provider_data = get_provider(provider_id, provider_rows)
-    children_data = get_provider_children(provider_id, provider_child_mapping_rows, child_rows)
-    transaction_data = get_provider_transactions(provider_id, provider_child_mapping_rows, transaction_rows)
+    provider_result = Provider.select_by_id(
+        cols(
+            Provider.ID,
+            Provider.FIRST_NAME,
+            Provider.LAST_NAME,
+            Provider.PAYMENT_ENABLED,
+            Provider.STATUS,
+            Child.join(Child.ID, Child.FIRST_NAME, Child.LAST_NAME),
+        ),
+        int(provider_id),
+    ).execute()
+
+    provider_data = unwrap_or_abort(provider_result)
+    if not provider_data:
+        abort(404, description=f"Provider with ID {provider_id} not found.")
+
+    children_data = Child.unwrap(provider_data)
 
     provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
 
     provider_info = {
-        "id": provider_data.get(ProviderColumnNames.ID),
-        "first_name": provider_data.get(ProviderColumnNames.FIRST_NAME),
-        "last_name": provider_data.get(ProviderColumnNames.LAST_NAME),
-        "is_payment_enabled": provider_data.get(ProviderColumnNames.PAYMENT_ENABLED),
+        "id": Provider.ID(provider_data),
+        "first_name": Provider.FIRST_NAME(provider_data),
+        "last_name": Provider.LAST_NAME(provider_data),
+        "is_payment_enabled": Provider.PAYMENT_ENABLED(provider_data),
         "is_payable": provider_payment_settings.is_payable if provider_payment_settings else False,
     }
 
     children = []
-    for c in children_data:
-        payment_rate = PaymentRate.get(provider_id=provider_id, child_id=c.get(ChildColumnNames.ID))
+    for child in children_data:
+        child_id = Child.ID(child)
+        payment_rate = PaymentRate.get(provider_id=provider_id, child_id=child_id)
 
         children.append(
             {
-                "id": c.get(ChildColumnNames.ID),
-                "first_name": c.get(ChildColumnNames.FIRST_NAME),
-                "last_name": c.get(ChildColumnNames.LAST_NAME),
+                "id": child_id,
+                "first_name": Child.FIRST_NAME(child),
+                "last_name": Child.LAST_NAME(child),
                 "half_day_rate_cents": payment_rate.half_day_rate_cents if payment_rate is not None else None,
                 "full_day_rate_cents": payment_rate.full_day_rate_cents if payment_rate is not None else None,
             }
         )
 
-    transactions = []
-    for t in transaction_data:
-        transaction_child = get_provider_child_mapping_child(
-            t.get(TransactionColumnNames.PROVIDER_CHILD_ID),
-            provider_child_mapping_rows,
-            child_rows,
-        )
-        transactions.append(
-            {
-                "id": t.get(TransactionColumnNames.ID),
-                "name": f"{transaction_child.get(ChildColumnNames.FIRST_NAME)} {transaction_child.get(ChildColumnNames.LAST_NAME)}",
-                "amount": t.get(TransactionColumnNames.AMOUNT),
-                "date": t.get(TransactionColumnNames.DATETIME).isoformat(),
-            }
-        )
-
     notifications = []
-    provider_status = provider_data.get(ProviderColumnNames.STATUS).lower()
-    if provider_status == "pending":
+    provider_status = Provider.STATUS(provider_data)
+    if provider_status and provider_status.lower() == "pending":
         notifications.append({"type": "application_pending"})
-    elif provider_status == "denied":
+    elif provider_status and provider_status.lower() == "denied":
         notifications.append({"type": "application_denied"})
 
     needs_attendance = Attendance.filter_by_provider_id(provider_id).count() > 0
@@ -172,7 +148,6 @@ def get_provider_data():
         {
             "provider_info": provider_info,
             "children": children,
-            "transactions": transactions,
             "curriculum": None,
             "notifications": notifications,
             "max_child_count": MAX_CHILDREN_PER_PROVIDER,
@@ -451,14 +426,14 @@ def invite_family():
         data["lang"] = "en"
 
     user = get_provider_user()
-
     provider_id = user.user_data.provider_id
 
-    proivder_rows = get_providers()
+    provider_result = Provider.select_by_id(
+        cols(Provider.ID, Provider.FIRST_NAME, Provider.LAST_NAME), int(provider_id)
+    ).execute()
 
-    provider = get_provider(provider_id, proivder_rows)
-
-    if provider is None:
+    provider = unwrap_or_abort(provider_result)
+    if not provider:
         abort(404, description=f"Provider with ID {provider_id} not found.")
 
     id = str(uuid4())
@@ -469,9 +444,11 @@ def invite_family():
         domain = current_app.config.get("FRONTEND_DOMAIN")
         link = f"{domain}/invite/family/{id}"
 
+        provider_name = format_name(provider)
+
         message = get_invite_family_message(
             data["lang"],
-            format_name(provider),
+            provider_name,
             link,
         )
 
@@ -487,33 +464,33 @@ def invite_family():
     finally:
         db.session.commit()
 
-    send_family_invited_email(format_name(provider), provider.get(ProviderColumnNames.ID), invitation.public_id)
+    send_family_invited_email(provider_name, Provider.ID(provider), invitation.public_id)
 
     return jsonify({"message": "Success"}, 201)
 
 
 @dataclass
 class InviteData:
-    provider_data: KeyMap
-    child_provider_mappings: list[KeyMap]
+    provider_data: dict
+    child_count: int
     remaining_slots: int
 
 
-def get_invite_data(provider_id: int):
-    provider_rows = get_providers()
-    provider_child_mapping_rows = get_provider_child_mappings()
+def get_invite_data(provider_id: str):
+    provider_result = Provider.select_by_id(
+        cols(Provider.ID, Provider.FIRST_NAME, Provider.LAST_NAME, Provider.NAME, Child.join(Child.ID)),
+        int(provider_id),
+    ).execute()
 
-    provider = get_provider(provider_id, provider_rows)
-
-    if provider is None:
+    provider = unwrap_or_abort(provider_result)
+    if not provider:
         abort(500, description=f"Provider with ID {provider_id} not found.")
 
-    current_children_mappings = get_provider_child_mappings_by_provider_id(provider_id, provider_child_mapping_rows)
-    remaining_slots = MAX_CHILDREN_PER_PROVIDER - len(current_children_mappings)
+    children_data = Child.unwrap(provider)
+    child_count = len(children_data)
+    remaining_slots = MAX_CHILDREN_PER_PROVIDER - child_count
 
-    return InviteData(
-        provider_data=provider, child_provider_mappings=current_children_mappings, remaining_slots=remaining_slots
-    )
+    return InviteData(provider_data=provider, child_count=child_count, remaining_slots=remaining_slots)
 
 
 @bp.get("/provider/family-invite/<invite_id>")
@@ -535,9 +512,9 @@ def family_invite(invite_id: str):
     invite_data = get_invite_data(invitation.provider_google_sheet_id)
 
     provider = {
-        "id": invite_data.provider_data.get(ProviderColumnNames.ID),
-        "first_name": invite_data.provider_data.get(ProviderColumnNames.FIRST_NAME),
-        "last_name": invite_data.provider_data.get(ProviderColumnNames.LAST_NAME),
+        "id": Provider.ID(invite_data.provider_data),
+        "first_name": Provider.FIRST_NAME(invite_data.provider_data),
+        "last_name": Provider.LAST_NAME(invite_data.provider_data),
     }
 
     is_already_provider = False
@@ -545,27 +522,29 @@ def family_invite(invite_id: str):
     if user is None or user.user_data.family_id is None:
         children = None
     else:
-        child_rows = get_children()
-        child_data = get_family_children(user.user_data.family_id, child_rows)
+        family_children_result = Child.select_by_family_id(
+            cols(Child.ID, Child.FIRST_NAME, Child.LAST_NAME, Provider.join(Provider.ID)), int(user.user_data.family_id)
+        ).execute()
+
+        child_data = unwrap_or_abort(family_children_result)
 
         children = []
         for child in child_data:
-            if (
-                get_row(
-                    invite_data.child_provider_mappings,
-                    child.get(ChildColumnNames.ID),
-                    id_key=ProviderChildMappingColumnNames.CHILD_ID,
-                )
-                is not None
-            ):
+            child_id = Child.ID(child)
+
+            # Check if this child already has the inviting provider
+            child_providers = Provider.unwrap(child)
+            child_has_provider = any(Provider.ID(p) == invitation.provider_google_sheet_id for p in child_providers)
+
+            if child_has_provider:
                 is_already_provider = True
                 continue
 
             children.append(
                 {
-                    "id": child.get(ChildColumnNames.ID),
-                    "first_name": child.get(ChildColumnNames.FIRST_NAME),
-                    "last_name": child.get(ChildColumnNames.LAST_NAME),
+                    "id": child_id,
+                    "first_name": Child.FIRST_NAME(child),
+                    "last_name": Child.LAST_NAME(child),
                 }
             )
 
@@ -609,36 +588,52 @@ def accept_family_invite(invite_id: str):
     if invite_data.remaining_slots - len(data["child_ids"]) < 0:
         abort(400, description="Provider already has maximum number of children.")
 
-    family_rows = get_families()
-    child_rows = get_children()
+    child_ids_int = [int(child_id) for child_id in data["child_ids"]]
 
-    family_data = get_family(user.user_data.family_id, family_rows)
+    family_result = Family.select_by_id(
+        cols(
+            Family.ID,
+            Guardian.join(Guardian.FIRST_NAME, Guardian.LAST_NAME),
+            Child.join(Child.ID, Child.FIRST_NAME, Child.LAST_NAME, Child.FAMILY_ID),
+        ),
+        int(user.user_data.family_id),
+    ).execute()
 
-    if family_data is None:
+    family_data = unwrap_or_abort(family_result)
+    if not family_data:
         abort(404, description=f"Family with ID {user.user_data.family_id} not found.")
 
-    children: list[KeyMap] = []
-    for child_id in data["child_ids"]:
-        child = get_child(child_id, child_rows)
+    all_children_data = Child.unwrap(family_data)
 
-        if child is None:
-            abort(404, description=f"Child with ID {child_id} not found.")
-        if family_data.get(FamilyColumnNames.ID) != child.get(ChildColumnNames.FAMILY_ID):
-            abort(404, description=f"Child with ID {child_id} not found.")
+    # Filter to only the requested children and verify they exist
+    children = []
+    requested_child_ids = set(child_ids_int)
+    found_child_ids = set()
 
-        children.append(child)
+    for child in all_children_data:
+        child_id = Child.ID(child)
+        if child_id in requested_child_ids:
+            children.append(child)
+            found_child_ids.add(child_id)
+
+    # Verify all requested children were found
+    if len(found_child_ids) != len(child_ids_int):
+        missing_ids = requested_child_ids - found_child_ids
+        abort(404, description=f"Children with IDs {list(missing_ids)} not found.")
+
+    primary_guardian = Guardian.get_primary_guardian(Guardian.unwrap(family_data))
 
     accept_request = send_family_invite_accept_email(
-        provider_name=invite_data.provider_data.get(ProviderColumnNames.NAME),
-        provider_id=invite_data.provider_data.get(ProviderColumnNames.ID),
-        parent_name=format_name(family_data),
-        parent_id=family_data.get(FamilyColumnNames.ID),
+        provider_name=Provider.NAME(invite_data.provider_data),
+        provider_id=Provider.ID(invite_data.provider_data),
+        parent_name=format_name(primary_guardian) if primary_guardian else UNKNOWN,
+        parent_id=Family.ID(family_data),
         children=children,
     )
 
     if not accept_request:
         current_app.logger.error(
-            f"Failed to send family invite accept email for family ID {user.user_data.family_id} and provider ID {invite_data.provider_data.get(ProviderColumnNames.ID)}.",
+            f"Failed to send family invite accept email for family ID {user.user_data.family_id} and provider ID {Provider.ID(invite_data.provider_data)}.",
         )
 
     invitation.record_accepted()
