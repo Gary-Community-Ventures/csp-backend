@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.schema import ForeignKey
 
+from ..enums.payment_attempt_status import PaymentAttemptStatus
 from ..enums.payment_method import PaymentMethod
 from ..extensions import db
 from .mixins import TimestampMixin
@@ -50,17 +51,17 @@ class PaymentAttempt(db.Model, TimestampMixin):
     def status(self):
         """Compute status from facts"""
         if self.ach_payment_id:
-            return "success"
+            return PaymentAttemptStatus.SUCCESS
         elif self.card_transfer_id:
-            return "success"
+            return PaymentAttemptStatus.SUCCESS
         elif self.wallet_transfer_id and self.payment_method == PaymentMethod.ACH:
-            return "wallet_funded"  # Transfer succeeded, ACH pending
+            return PaymentAttemptStatus.WALLET_FUNDED  # Transfer succeeded, ACH pending
         elif self.wallet_transfer_id and self.payment_method == PaymentMethod.CARD:
-            return "wallet_funded"  # Transfer succeeded, card transfer pending
+            return PaymentAttemptStatus.WALLET_FUNDED  # Transfer succeeded, card transfer pending
         elif self.error_message:
-            return "failed"
+            return PaymentAttemptStatus.FAILED
         else:
-            return "pending"
+            return PaymentAttemptStatus.PENDING
 
     @property
     def is_successful(self):
