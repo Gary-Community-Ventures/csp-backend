@@ -25,6 +25,7 @@ def seed_db(app):
 def mock_auth_and_helpers(mocker, request, app):
     # Mock _authenticate_request directly to bypass Clerk client check
     # Determine which type of auth to use based on test name
+    mocker.patch("app.routes.payment_rate.send_new_payment_rate_email", return_value=True)
     if "get_payment_rate" in request.node.name:
         # Family auth for GET endpoints
         mock_request_state = mocker.Mock()
