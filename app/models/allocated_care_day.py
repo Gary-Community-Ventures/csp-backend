@@ -5,7 +5,7 @@ from datetime import timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 
-from ..config import BUSINESS_TIMEZONE
+from ..constants import BUSINESS_TIMEZONE
 from ..enums.care_day_type import CareDayType
 from ..extensions import db
 from .mixins import TimestampMixin
@@ -105,6 +105,12 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     # Provider info
     provider_google_sheets_id = db.Column(db.String(64), nullable=False, index=True)
 
+    # Payment tracking
+    payment_id = db.Column(
+        db.UUID(as_uuid=True), db.ForeignKey("payment.id", name="fk_allocated_care_day_payment_id"), nullable=True
+    )
+    payment = db.relationship("Payment", back_populates="allocated_care_days")
+
     # Status tracking
     payment_distribution_requested = db.Column(db.Boolean, default=False)
     last_submitted_at = db.Column(db.DateTime(timezone=True), nullable=True)
@@ -121,6 +127,11 @@ class AllocatedCareDay(db.Model, TimestampMixin):
             name="unique_allocation_provider_date",
         ),
     )
+
+    @property
+    def is_submitted(self):
+        """Check if this care day is submitted"""
+        return self.last_submitted_at is not None
 
     @property
     def day_count(self):

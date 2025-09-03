@@ -2,7 +2,7 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from app.config import ENV_TESTING
+from app.constants import ENV_TESTING
 
 
 @dataclass

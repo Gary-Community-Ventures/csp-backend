@@ -1,16 +1,5 @@
 import os
 
-# --- Environment Constants ---
-ENV_DEVELOPMENT = "development"
-ENV_STAGING = "staging"
-ENV_PRODUCTION = "production"
-ENV_TESTING = "testing"
-# --- End Environment Constants ---
-
-# --- Timezone Constants ---
-BUSINESS_TIMEZONE = "America/Denver"  # Mountain Time for care day locking and business rules
-# --- End Timezone Constants ---
-
 
 class Config:
     """Base configuration."""
@@ -46,6 +35,13 @@ class Config:
 
     # For Flask-Admin
     SECRET_KEY = os.getenv("SECRET_KEY")
+
+    # Chek Configuration
+    CHEK_BASE_URL = os.getenv("CHEK_BASE_URL")
+    CHEK_ACCOUNT_ID = os.getenv("CHEK_ACCOUNT_ID")
+    CHEK_API_KEY = os.getenv("CHEK_API_KEY")
+    CHEK_WRITE_KEY = os.getenv("CHEK_WRITE_KEY")
+    CHEK_PROGRAM_ID = os.getenv("CHEK_PROGRAM_ID")
 
 
 class DevelopmentConfig(Config):

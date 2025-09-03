@@ -1,10 +1,11 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timezone
 from uuid import uuid4
 
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, current_app, jsonify, request
+from pydantic import ValidationError
 
 from app.auth.decorators import (
     ClerkUserType,
@@ -13,12 +14,21 @@ from app.auth.decorators import (
     auth_required,
 )
 from app.auth.helpers import get_current_user, get_family_user, get_provider_user
-from app.constants import MAX_CHILDREN_PER_PROVIDER
+from app.constants import CHEK_STATUS_STALE_MINUTES, MAX_CHILDREN_PER_PROVIDER
+from app.enums.payment_method import PaymentMethod
 from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation
 from app.models.attendance import Attendance
 from app.models.family_invitation import FamilyInvitation
 from app.models.payment_rate import PaymentRate
+from app.models.provider_payment_settings import ProviderPaymentSettings
+from app.schemas.payment import PaymentInitializationResponse
+from app.schemas.provider_payment import (
+    PaymentMethodInitializeRequest,
+    PaymentMethodUpdateRequest,
+    PaymentMethodUpdateResponse,
+    PaymentSettingsResponse,
+)
 from app.sheets.helpers import KeyMap, format_name, get_row
 from app.sheets.mappings import (
     ChildColumnNames,
@@ -64,6 +74,13 @@ def new_provider():
     if "email" not in data:
         abort(400, description="Missing required field: email")
 
+    # Create Chek user and ProviderPaymentSettings
+    payment_service = current_app.payment_service
+    provider_settings = payment_service.onboard_provider(provider_external_id=data["google_sheet_id"])
+    current_app.logger.info(
+        f"Created ProviderPaymentSettings for provider {data['google_sheet_id']} with Chek user {provider_settings.chek_user_id}"
+    )
+
     # send clerk invite
     clerk: Clerk = current_app.clerk_client
     fe_domain = current_app.config.get("FRONTEND_DOMAIN")
@@ -99,10 +116,14 @@ def get_provider_data():
     children_data = get_provider_children(provider_id, provider_child_mapping_rows, child_rows)
     transaction_data = get_provider_transactions(provider_id, provider_child_mapping_rows, transaction_rows)
 
+    provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
+
     provider_info = {
         "id": provider_data.get(ProviderColumnNames.ID),
         "first_name": provider_data.get(ProviderColumnNames.FIRST_NAME),
         "last_name": provider_data.get(ProviderColumnNames.LAST_NAME),
+        "is_payment_enabled": provider_data.get(ProviderColumnNames.PAYMENT_ENABLED),
+        "is_payable": provider_payment_settings.is_payable if provider_payment_settings else False,
     }
 
     children = []
@@ -157,6 +178,204 @@ def get_provider_data():
             "is_also_family": ClerkUserType.FAMILY.value in user.user_data.types,
         }
     )
+
+
+@bp.get("/provider/payment-settings")
+@auth_required(ClerkUserType.PROVIDER)
+def get_payment_settings():
+    """Get provider's payment settings including payment method and status."""
+    user = get_provider_user()
+    provider_id = user.user_data.provider_id
+
+    # Get or create ProviderPaymentSettings record
+    provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
+
+    if not provider_payment_settings:
+        # Onboard provider to Chek when first accessing payment settings
+        try:
+            payment_service = current_app.payment_service
+            provider_payment_settings = payment_service.onboard_provider(provider_external_id=provider_id)
+            current_app.logger.info(f"Onboarded provider {provider_id} to Chek via payment-settings endpoint")
+        except Exception as e:
+            current_app.logger.error(f"Failed to onboard provider {provider_id} to Chek: {e}")
+            # Return empty settings if onboarding fails
+            error_response = PaymentSettingsResponse(
+                provider_id=provider_id,
+                chek_user_id=None,
+                payment_method=None,
+                payment_method_updated_at=None,
+                is_payable=False,
+                needs_refresh=False,
+                last_sync=None,
+                card={"available": False, "status": None, "id": None},
+                ach={"available": False, "status": None, "id": None},
+                validation={"is_valid": False, "message": "Onboarding to Chek failed"},
+            )
+            return error_response.model_dump_json(), 500, {"Content-Type": "application/json"}
+
+    # Check if status is stale and needs refresh
+    needs_refresh = False
+    if provider_payment_settings.last_chek_sync_at:
+        time_since_sync = datetime.now(timezone.utc) - provider_payment_settings.last_chek_sync_at
+        if time_since_sync.total_seconds() > CHEK_STATUS_STALE_MINUTES * 60:
+            needs_refresh = True
+
+    payment_settings = PaymentSettingsResponse(
+        provider_id=provider_id,
+        chek_user_id=provider_payment_settings.chek_user_id,
+        payment_method=(
+            provider_payment_settings.payment_method.value if provider_payment_settings.payment_method else None
+        ),
+        payment_method_updated_at=(
+            provider_payment_settings.payment_method_updated_at.isoformat()
+            if provider_payment_settings.payment_method_updated_at
+            else None
+        ),
+        is_payable=provider_payment_settings.is_payable,
+        needs_refresh=needs_refresh,
+        last_sync=(
+            provider_payment_settings.last_chek_sync_at.isoformat()
+            if provider_payment_settings.last_chek_sync_at
+            else None
+        ),
+        card={
+            "available": provider_payment_settings.chek_card_id is not None,
+            "status": provider_payment_settings.chek_card_status,
+            "id": provider_payment_settings.chek_card_id,
+        },
+        ach={
+            "available": provider_payment_settings.chek_direct_pay_id is not None,
+            "status": provider_payment_settings.chek_direct_pay_status,
+            "id": provider_payment_settings.chek_direct_pay_id,
+        },
+        validation={
+            "is_valid": provider_payment_settings.validate_payment_method_status()[0],
+            "message": provider_payment_settings.validate_payment_method_status()[1],
+        },
+    )
+
+    return payment_settings.model_dump_json(), 200, {"Content-Type": "application/json"}
+
+
+@bp.put("/provider/payment-settings")
+@auth_required(ClerkUserType.PROVIDER)
+def update_payment_settings():
+    """Update provider's payment method (switch between card and ACH)."""
+    user = get_provider_user()
+    provider_id = user.user_data.provider_id
+
+    try:
+        request_data = PaymentMethodUpdateRequest.model_validate(request.get_json())
+    except ValidationError as e:
+        return jsonify({"error": e.errors()}), 400
+
+    # Validate payment method
+    try:
+        new_payment_method = PaymentMethod(request_data.payment_method)
+    except ValueError:
+        return jsonify({"error": f"Invalid payment method. Must be one of: {[e.value for e in PaymentMethod]}"}), 400
+
+    # Get provider payment settings record
+    existing_provider_payment_settings = ProviderPaymentSettings.query.filter_by(
+        provider_external_id=provider_id
+    ).first()
+
+    if not existing_provider_payment_settings:
+        abort(404, description="Provider payment settings not found. Please complete onboarding first.")
+
+    # Check if the payment method is available
+    if new_payment_method == PaymentMethod.CARD and not existing_provider_payment_settings.chek_card_id:
+        abort(400, description="Virtual card not available. Please set up a virtual card first.")
+
+    if new_payment_method == PaymentMethod.ACH and not existing_provider_payment_settings.chek_direct_pay_id:
+        abort(400, description="ACH not available. Please set up ACH payment first.")
+
+    # Update payment method
+    old_payment_method = existing_provider_payment_settings.payment_method
+    existing_provider_payment_settings.payment_method = new_payment_method
+    existing_provider_payment_settings.payment_method_updated_at = datetime.now(timezone.utc)
+
+    # If switching methods, might want to refresh status
+    if old_payment_method != new_payment_method:
+        # Trigger a status refresh for the new payment method
+        try:
+            payment_service = current_app.payment_service
+            payment_service.refresh_provider_settings(existing_provider_payment_settings)
+        except Exception as e:
+            current_app.logger.warning(f"Failed to refresh provider status during payment method update: {e}")
+            # Don't fail the request if refresh fails
+
+    db.session.commit()
+
+    response = PaymentMethodUpdateResponse(
+        message="Payment method updated successfully",
+        provider_id=provider_id,
+        payment_method=existing_provider_payment_settings.payment_method.value,
+        payment_method_updated_at=existing_provider_payment_settings.payment_method_updated_at.isoformat(),
+        is_payable=existing_provider_payment_settings.is_payable,
+    )
+
+    return response.model_dump_json(), 200, {"Content-Type": "application/json"}
+
+
+@bp.post("/provider/<string:provider_id>/initialize-payment")
+@api_key_required
+def initialize_provider_payment(provider_id: str):
+    """
+    Initialize a provider's Chek account and set up their payment method.
+    Can create either a virtual card or send ACH invite.
+    Protected by API key for admin use.
+    """
+    try:
+        request_data = PaymentMethodInitializeRequest.model_validate(request.get_json() or {"payment_method": "card"})
+    except ValidationError as e:
+        return jsonify({"error": e.errors()}), 400
+
+    payment_method = request_data.payment_method
+
+    try:
+        payment_service = current_app.payment_service
+        result = payment_service.initialize_provider_payment_method(provider_id, payment_method)
+
+        # Convert the result to PaymentInitializationResponse
+        response = PaymentInitializationResponse(**result)
+        return response.model_dump_json(), 200, {"Content-Type": "application/json"}
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        current_app.logger.error(f"Failed to initialize payment for provider {provider_id}: {e}")
+        return jsonify({"error": f"Failed to initialize payment: {str(e)}"}), 500
+
+
+@bp.post("/provider/initialize-my-payment")
+@auth_required(ClerkUserType.PROVIDER)
+def initialize_my_payment():
+    """
+    Initialize the authenticated provider's payment method.
+    Provider can set up their own card or ACH.
+    """
+    user = get_provider_user()
+    provider_id = user.user_data.provider_id
+
+    try:
+        request_data = PaymentMethodInitializeRequest.model_validate(request.get_json() or {"payment_method": "card"})
+    except ValidationError as e:
+        return jsonify({"error": e.errors()}), 400
+
+    payment_method = request_data.payment_method
+
+    try:
+        payment_service = current_app.payment_service
+        result = payment_service.initialize_provider_payment_method(provider_id, payment_method)
+
+        # Convert the result to PaymentInitializationResponse for consistency
+        response = PaymentInitializationResponse(**result)
+        return response.model_dump_json(), 200, {"Content-Type": "application/json"}
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        current_app.logger.error(f"Failed to initialize payment for provider {provider_id}: {e}")
+        return jsonify({"error": f"Failed to initialize payment: {str(e)}"}), 500
 
 
 @bp.route("/provider/<string:provider_id>/allocated_care_days", methods=["GET"])

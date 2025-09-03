@@ -67,6 +67,9 @@ def update_care_day(care_day_id):
     if care_day.is_locked:
         return jsonify({"error": "Cannot modify a locked care day"}), 403
 
+    if care_day.is_submitted:
+        return jsonify({"error": "Cannot modify a care day that has been submitted"}), 403
+
     data = request.get_json()
     day_type_str = data.get("type")
 
@@ -77,9 +80,6 @@ def update_care_day(care_day_id):
         new_day_type = CareDayType(day_type_str)
     except ValueError:
         return jsonify({"error": f"Invalid care day type: {day_type_str}"}), 400
-
-    if care_day.is_locked:
-        return jsonify({"error": "Cannot modify a locked care day"}), 403
 
     was_deleted = care_day.is_deleted
 
@@ -96,7 +96,7 @@ def update_care_day(care_day_id):
         )
         # If changing the type results in over-allocation, soft delete the care day
         # As that resets the day to the default empty state
-        if care_day.care_month_allocation.remaining_cents < cost:
+        if care_day.care_month_allocation.remaining_unselected_cents < cost:
             care_day.soft_delete()
             return jsonify(AllocatedCareDayResponse.model_validate(care_day).model_dump())
         else:
@@ -117,6 +117,9 @@ def delete_care_day(care_day_id):
 
     if care_day.is_locked:
         return jsonify({"error": "Cannot delete a locked care day"}), 403
+
+    if care_day.is_submitted:
+        return jsonify({"error": "Cannot delete a care day that has been submitted and paid"}), 403
 
     care_day.soft_delete()
     return "", 204

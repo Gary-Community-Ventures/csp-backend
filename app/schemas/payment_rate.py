@@ -1,14 +1,11 @@
 from pydantic import BaseModel, Field
 
-
-CENTS_PER_DOLLAR = 100
-MIN_RATE = 1 * CENTS_PER_DOLLAR
-MAX_RATE = 160 * CENTS_PER_DOLLAR
+from app.constants import MAX_PAYMENT_RATE, MIN_PAYMENT_RATE
 
 
 class PaymentRateBase(BaseModel):
-    half_day_rate_cents: int = Field(..., ge=MIN_RATE, le=MAX_RATE)
-    full_day_rate_cents: int = Field(..., ge=MIN_RATE, le=MAX_RATE)
+    half_day_rate_cents: int = Field(..., ge=MIN_PAYMENT_RATE, le=MAX_PAYMENT_RATE)
+    full_day_rate_cents: int = Field(..., ge=MIN_PAYMENT_RATE, le=MAX_PAYMENT_RATE)
 
 
 class PaymentRateCreate(PaymentRateBase):
