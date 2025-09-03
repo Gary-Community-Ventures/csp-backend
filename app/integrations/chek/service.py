@@ -41,8 +41,9 @@ class ChekService:
         results of the list endpoint, as the API's server-side
         filtering appears to be unreliable.
         """
-        # We pass the email parameter optimistically, but don't rely on it.
-        # TODO talk to Chek about improving this endpoint.
+        # We pass the email parameter as their documentation suggests it should filter,
+        # but we don't rely on it and filter ourselves because it doesn't work.
+        # TODO talk to Chek about fixing this issue.
         users_response = self.client.list_users(email=email)
         results = users_response.get("results")
         current_app.logger.debug(f"Chek list_users results: {results}")
@@ -112,9 +113,7 @@ class ChekService:
         current_app.logger.debug(f"Chek transfer_balance response: {response_json}")
         return TransferBalanceResponse.model_validate(response_json)
 
-    def send_ach_payment(
-        self, user_id: int, direct_pay_account_id: str, request: ACHPaymentRequest
-    ) -> ACHPaymentResponse:
+    def send_ach_payment(self, user_id: int, request: ACHPaymentRequest) -> ACHPaymentResponse:
         """
         Initiates a Same-Day ACH transfer to a recipient's linked bank account.
         Requires the DirectPay account to be Active.

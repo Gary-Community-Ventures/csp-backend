@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
-from app.config import BUSINESS_TIMEZONE
+from app.constants import BUSINESS_TIMEZONE
 from app.enums.care_day_type import CareDayType
 from app.enums.payment_method import PaymentMethod
 from app.extensions import db

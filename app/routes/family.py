@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Optional
 from uuid import uuid4
 
@@ -21,7 +20,8 @@ from app.models.month_allocation import MonthAllocation
 from app.models.provider_invitation import ProviderInvitation
 from app.models.provider_payment_settings import ProviderPaymentSettings
 from app.supabase.helpers import cols, format_name, unwrap_or_abort
-from app.supabase.tables import Child, Family, Guardian, Provider, ProviderChildMapping
+from app.supabase.tables import Child, Family, Guardian, Provider
+from app.utils.date_utils import get_current_month_start, get_next_month_start
 from app.utils.email_service import (
     get_from_email_internal,
     html_link,
@@ -61,11 +61,16 @@ def new_family():
 
     for child in family_children:
         # Create a new MonthAllocation for each child
+        # Create for this month
         MonthAllocation.get_or_create_for_month(
             Child.ID(child),
-            datetime.today().replace(day=1),
+            get_current_month_start(),
         )
-
+        # Create for next month
+        MonthAllocation.get_or_create_for_month(
+            Child.ID(child),
+            get_next_month_start(),
+        )
     db.session.commit()
 
     # send clerk invite

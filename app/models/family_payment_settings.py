@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from flask import current_app
 from sqlalchemy.orm import Query
 
-from ..config import CHEK_STATUS_STALE_MINUTES
+from ..constants import CHEK_STATUS_STALE_MINUTES
 from ..extensions import db
 from .mixins import TimestampMixin
 

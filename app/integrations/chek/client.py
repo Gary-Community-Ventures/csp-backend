@@ -26,13 +26,17 @@ class ChekClient:
         Sanitize request data by masking sensitive fields for logging/debugging.
         Returns a copy with sensitive data masked.
         """
+        if isinstance(data, list):
+            return [self._sanitize_request_data(item) for item in data]
         if not isinstance(data, dict):
             return data
 
         # Fields to mask for security
         sensitive_fields = {
             "api_key",
+            "api-key",
             "write_key",
+            "write-key",
             "password",
             "token",
             "secret",
@@ -94,10 +98,11 @@ class ChekClient:
             log_message = f"Chek API Request Details:\n"
             log_message += f"  Method: {method}\n"
             log_message += f"  URL: {url}\n"
+            log_message += f"  Headers: {self._sanitize_request_data(headers)}\n"
             if "json" in kwargs:
-                log_message += f"  Body (JSON): {kwargs['json']}\n"
+                log_message += f"  Body (JSON): {self._sanitize_request_data(kwargs['json'])}\n"
             elif "data" in kwargs:
-                log_message += f"  Body (Form Data): {kwargs['data']}\n"
+                log_message += f"  Body (Form Data): {self._sanitize_request_data(kwargs['data'])}\n"
 
             logger.info(log_message)
 
@@ -111,9 +116,9 @@ class ChekClient:
                 "method": method,
                 "url": url,
                 "status_code": e.response.status_code,
-                "response_headers": dict(e.response.headers),
+                "response_headers": self._sanitize_request_data(dict(e.response.headers)),
                 "response_body": e.response.text,
-                "request_headers": dict(e.response.request.headers),
+                "request_headers": self._sanitize_request_data(dict(e.response.request.headers)),
             }
 
             # Add request body if present (but sanitize sensitive data)

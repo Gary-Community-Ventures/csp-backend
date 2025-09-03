@@ -9,6 +9,7 @@ from app.schemas.payment import (
     ProviderPaymentHistoryItem,
     ProviderPaymentHistoryResponse,
 )
+from app.sheets.helpers import format_name
 from app.sheets.mappings import (
     ChildColumnNames,
     ProviderColumnNames,
@@ -69,11 +70,7 @@ def get_family_payment_history():
 
         # Get child name
         child_data = next((c for c in family_children if c.get(ChildColumnNames.ID) == payment.external_child_id), None)
-        child_name = (
-            f"{child_data.get(ChildColumnNames.FIRST_NAME)} {child_data.get(ChildColumnNames.LAST_NAME)}".strip()
-            if child_data
-            else "Unknown Child"
-        )
+        child_name = format_name(child_data) if child_data else "Unknown Child"
 
         # Get month from allocation
         month_allocation = MonthAllocation.query.get(payment.month_allocation_id)
@@ -154,11 +151,7 @@ def get_provider_payment_history():
 
         # Get child name
         child_data = get_child(payment.external_child_id, all_children_data)
-        child_name = (
-            f"{child_data.get(ChildColumnNames.FIRST_NAME)} {child_data.get(ChildColumnNames.LAST_NAME)}".strip()
-            if child_data
-            else "Unknown Child"
-        )
+        child_name = format_name(child_data) if child_data else "Unknown Child"
 
         # Get month from allocation
         month_allocation = MonthAllocation.query.get(payment.month_allocation_id)

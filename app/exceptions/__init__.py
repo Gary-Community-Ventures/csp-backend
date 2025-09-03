@@ -4,13 +4,13 @@ These provide consistent error handling across the application.
 """
 
 
-class CAPBackendException(Exception):
+class CapBackendException(Exception):
     """Base exception for all CSP Backend exceptions."""
 
     pass
 
 
-class PaymentException(CAPBackendException):
+class PaymentException(CapBackendException):
     """Base exception for payment-related errors."""
 
     pass
@@ -88,13 +88,13 @@ class ChekACHException(ChekServiceException):
     pass
 
 
-class ValidationException(CAPBackendException):
+class ValidationException(CapBackendException):
     """Raised for validation errors."""
 
     pass
 
 
-class DataNotFoundException(CAPBackendException):
+class DataNotFoundException(CapBackendException):
     """Raised when required data is not found."""
 
     pass

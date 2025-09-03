@@ -17,6 +17,7 @@ from app.sheets.mappings import (
     get_family_children,
     get_provider_child_mappings,
 )
+from app.utils.email_service import send_new_payment_rate_email
 
 bp = Blueprint("payment_rate_bp", __name__, url_prefix="/payment-rates")
 
@@ -56,6 +57,13 @@ def create_payment_rate(child_id: str):
         child_id=child_id,
         half_day_rate=payment_rate_data.half_day_rate_cents,
         full_day_rate=payment_rate_data.full_day_rate_cents,
+    )
+
+    send_new_payment_rate_email(
+        provider_id=provider_id,
+        child_id=child_id,
+        half_day_rate_cents=payment_rate_data.half_day_rate_cents,
+        full_day_rate_cents=payment_rate_data.full_day_rate_cents,
     )
 
     db.session.add(payment_rate)

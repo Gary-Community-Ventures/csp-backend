@@ -1,18 +1,14 @@
-import zoneinfo
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from flask import current_app
 
-from app.config import (
-    BUSINESS_TIMEZONE,
-    DAYS_TO_NEXT_MONTH,
-    MAX_ALLOCATION_AMOUNT_CENTS,
-)
+from app.constants import MAX_ALLOCATION_AMOUNT_CENTS
 from app.sheets.mappings import (
     ChildColumnNames,
     get_child,
     get_children,
 )
+from app.utils.date_utils import get_current_month_start, get_next_month_start
 
 from ..enums.care_day_type import CareDayType
 from ..extensions import db
@@ -121,18 +117,13 @@ class MonthAllocation(db.Model, TimestampMixin):
         # Normalize to first of month
         month_start = month_date.replace(day=1)
 
-        # Prevent creating allocations for past months (using business timezone)
-        business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
-        today_business = datetime.now(business_tz).date()
-        if month_start < today_business.replace(day=1):
-            raise ValueError(f"Cannot create allocation for a past month. {today_business} vs {month_start}")
+        # Prevent creating allocations for past months
+        current_month_start = get_current_month_start()
+        if month_start < current_month_start:
+            raise ValueError(f"Cannot create allocation for a past month. {current_month_start} vs {month_start}")
 
         # Prevent creating allocations for months more than one month in the future
-        current_month_start = today_business.replace(day=1)
-        next_month_start = (current_month_start + timedelta(days=DAYS_TO_NEXT_MONTH)).replace(
-            day=1
-        )  # Get first day of next month
-
+        next_month_start = get_next_month_start()
         if month_start > next_month_start:
             raise ValueError(f"Cannot create allocation for a month more than one month in the future.")
 
@@ -154,12 +145,7 @@ class MonthAllocation(db.Model, TimestampMixin):
                     f"of ${MAX_ALLOCATION_AMOUNT_CENTS / 100:.2f} for child {child_id}"
                 )
 
-            transaction = current_app.payment_service.allocate_funds_to_family(
-                child_external_id=child_id, amount=allocation_cents, date=month_start
-            )
-            if not transaction or not transaction.transfer or not transaction.transfer.id:
-                raise RuntimeError(f"Failed to allocate funds to family for child {child_id}: {transaction}")
-
+            # Create new allocation
             allocation = MonthAllocation(
                 google_sheets_child_id=child_id,
                 date=month_start,
@@ -167,6 +153,18 @@ class MonthAllocation(db.Model, TimestampMixin):
                 chek_transfer_id=transaction.transfer.id,
                 chek_transfer_date=transaction.transfer.created,
             )
+
+            # Allocate funds to family wallet if allocation is greater than zero
+            if allocation_cents > 0:
+                transaction = current_app.payment_service.allocate_funds_to_family(
+                    child_external_id=child_id, amount=allocation_cents, date=month_start
+                )
+                if not transaction or not transaction.transfer or not transaction.transfer.id:
+                    raise RuntimeError(f"Failed to allocate funds to family for child {child_id}: {transaction}")
+
+                allocation.chek_transfer_id = transaction.transfer.id
+                allocation.chek_transfer_date = transaction.transfer.created
+
             db.session.add(allocation)
             db.session.commit()
             return allocation

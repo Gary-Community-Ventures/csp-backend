@@ -127,7 +127,11 @@ def process_month_allocations(
 def fetch_missing_allocations(cutoff_date: date, limit: Optional[int] = None) -> List[MonthAllocation]:
     """Fetch all allocations missing transfer IDs from the cutoff date."""
     query = MonthAllocation.query.filter(
-        and_(MonthAllocation.date >= cutoff_date, MonthAllocation.chek_transfer_id.is_(None))
+        and_(
+            MonthAllocation.date >= cutoff_date,
+            MonthAllocation.chek_transfer_id.is_(None),
+            MonthAllocation.allocation_cents > 0,
+        )
     ).order_by(MonthAllocation.date, MonthAllocation.google_sheets_child_id)
 
     if limit:

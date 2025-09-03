@@ -33,12 +33,10 @@ def run_payment_requests():
             AllocatedCareDay.last_submitted_at.isnot(None),
             AllocatedCareDay.payment_distribution_requested.is_(False),
             AllocatedCareDay.deleted_at.is_(None),
+            AllocatedCareDay.payment_id.is_(None),
         )
         .all()
     )
-
-    # Filter out care days that are not yet locked
-    care_days_to_process = [cd for cd in care_days_to_process if cd.is_locked]
 
     if not care_days_to_process:
         app.logger.warning("run_payment_requests: No submitted and unprocessed care days found.")

@@ -4,7 +4,7 @@ from typing import Optional, Union
 import sentry_sdk
 from flask import current_app
 
-from app.config import MAX_PAYMENT_AMOUNT_CENTS
+from app.constants import MAX_PAYMENT_AMOUNT_CENTS
 from app.enums.payment_method import PaymentMethod
 from app.exceptions import (
     AllocationExceededException,
@@ -286,7 +286,6 @@ class PaymentService:
 
             ach_response = self.chek_service.send_ach_payment(
                 user_id=int(provider_payment_settings.chek_user_id),
-                direct_pay_account_id=provider_payment_settings.chek_direct_pay_id,
                 request=ach_request,
             )
 
@@ -575,7 +574,6 @@ class PaymentService:
 
                     ach_response = self.chek_service.send_ach_payment(
                         user_id=int(provider_payment_settings.chek_user_id),
-                        direct_pay_account_id=provider_payment_settings.chek_direct_pay_id,
                         request=ach_request,
                     )
 

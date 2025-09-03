@@ -16,12 +16,6 @@ def format_phone_to_e164(phone: Optional[str], default_country: str = "US") -> O
     if not phone:
         return None
 
-    # Generate random phone number for testing
-    # TODO remove this in production
-    import random
-
-    phone = f"303590{random.randint(1000, 9999)}"
-
     # Remove all non-digit characters
     digits = re.sub(r"\D", "", phone)
 
