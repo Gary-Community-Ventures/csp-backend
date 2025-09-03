@@ -352,6 +352,44 @@ def send_provider_invite_accept_email(
     )
 
 
+def send_new_payment_rate_email(provider_id: str, child_id: str, half_day_rate_cents: int, full_day_rate_cents: int):
+    from_email, to_emails = get_internal_emails()
+
+    current_app.logger.info(
+        f"Sending new payment rate email to {to_emails} for child ID: {child_id} for provider ID: {provider_id}"
+    )
+
+    rows = [
+        SystemMessageRow(
+            title="Provider ID",
+            value=provider_id,
+        ),
+        SystemMessageRow(
+            title="Child ID",
+            value=child_id,
+        ),
+        SystemMessageRow(
+            title="Half Day Rate",
+            value=f"${half_day_rate_cents / 100:.2f}",
+        ),
+        SystemMessageRow(
+            title="Full Day Rate",
+            value=f"${full_day_rate_cents / 100:.2f}",
+        ),
+    ]
+
+    subject = "New Payment Rate Created"
+    description = f"A new payment rate has been created by provider {provider_id} for child {child_id}."
+    html_content = system_message(subject, description, rows)
+
+    return send_email(
+        from_email=from_email,
+        to_emails=to_emails,
+        subject=subject,
+        html_content=html_content,
+    )
+
+
 def send_payment_notification(
     provider_id: str,
     child_id: str,

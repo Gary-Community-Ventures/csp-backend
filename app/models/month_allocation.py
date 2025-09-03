@@ -147,19 +147,24 @@ class MonthAllocation(db.Model, TimestampMixin):
                     f"of ${MAX_ALLOCATION_AMOUNT_CENTS / 100:.2f} for child {child_id}"
                 )
 
-            transaction = current_app.payment_service.allocate_funds_to_family(
-                child_external_id=child_id, amount=allocation_cents, date=month_start
-            )
-            if not transaction or not transaction.transfer or not transaction.transfer.id:
-                raise RuntimeError(f"Failed to allocate funds to family for child {child_id}: {transaction}")
-
+            # Create new allocation
             allocation = MonthAllocation(
                 google_sheets_child_id=child_id,
                 date=month_start,
                 allocation_cents=allocation_cents,
-                chek_transfer_id=transaction.transfer.id,
-                chek_transfer_date=transaction.transfer.created,
             )
+
+            # Allocate funds to family wallet if allocation is greater than zero
+            if allocation_cents > 0:
+                transaction = current_app.payment_service.allocate_funds_to_family(
+                    child_external_id=child_id, amount=allocation_cents, date=month_start
+                )
+                if not transaction or not transaction.transfer or not transaction.transfer.id:
+                    raise RuntimeError(f"Failed to allocate funds to family for child {child_id}: {transaction}")
+
+                allocation.chek_transfer_id = transaction.transfer.id
+                allocation.chek_transfer_date = transaction.transfer.created
+
             db.session.add(allocation)
             db.session.commit()
             return allocation
