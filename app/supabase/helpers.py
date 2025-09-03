@@ -1,6 +1,6 @@
 import sentry_sdk
 from flask import abort, current_app
-from app.constants import UNKOWN
+from app.constants import UNKNOWN
 from app.supabase.columns import Column
 
 
@@ -51,6 +51,6 @@ def format_name(data: dict) -> str:
     last_name = LAST_NAME_COLUMN(data)
 
     if first_name is None or last_name is None:
-        return UNKOWN
+        return UNKNOWN
 
     return f"{first_name} {last_name}"

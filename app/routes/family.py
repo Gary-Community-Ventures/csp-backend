@@ -21,7 +21,7 @@ from app.models.month_allocation import MonthAllocation
 from app.models.provider_invitation import ProviderInvitation
 from app.models.provider_payment_settings import ProviderPaymentSettings
 from app.supabase.helpers import cols, format_name, unwrap_or_abort
-from app.supabase.tables import Child, Family, Guardian, Provider
+from app.supabase.tables import Child, Family, Guardian, Provider, ProviderChildMapping
 from app.utils.email_service import (
     get_from_email_internal,
     html_link,
@@ -92,6 +92,7 @@ def new_family():
 def default_child_id():
     user = get_family_user()
     family_id = user.user_data.family_id
+    print(family_id)
 
     children_result = Child.select_by_family_id(cols(Child.ID), int(family_id)).execute()
     children_data = unwrap_or_abort(children_result)
@@ -126,6 +127,7 @@ def family_data(child_id: Optional[str] = None):
     ).execute()
 
     family_children = unwrap_or_abort(family_children_result)
+    print(family_children)
 
     if not family_children or len(family_children) == 0:
         abort(404, description="No children found for this family.")

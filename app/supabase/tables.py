@@ -1,6 +1,6 @@
 from flask import current_app
 from postgrest import SyncRequestBuilder, SyncSelectRequestBuilder
-from app.supabase.helpers import Language, ProviderType, Status, cols, date_column, datetime_column, enum_column
+from app.supabase.helpers import cols
 from app.supabase.columns import Column, date_column, datetime_column, enum_column, Language, ProviderType, Status
 
 
@@ -102,3 +102,11 @@ class Provider(Table):
     CITY = Column("city")
     STATE = Column("state")
     ZIP = Column("zip")
+
+
+class ProviderChildMapping(Table):
+    TABLE_NAME = "provider_child_mapping"
+
+    CREATED_AT = Column("created_at", datetime_column)
+    PROVIDER_ID = Column("provider_id")
+    CHILD_ID = Column("child_id")
