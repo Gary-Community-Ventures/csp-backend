@@ -33,12 +33,10 @@ def run_payment_requests():
             AllocatedCareDay.last_submitted_at.isnot(None),
             AllocatedCareDay.payment_distribution_requested.is_(False),
             AllocatedCareDay.deleted_at.is_(None),
+            AllocatedCareDay.payment_id.is_(None),
         )
         .all()
     )
-
-    # Filter out care days that are not yet locked
-    care_days_to_process = [cd for cd in care_days_to_process if cd.is_locked]
 
     if not care_days_to_process:
         app.logger.warning("run_payment_requests: No submitted and unprocessed care days found.")
@@ -56,6 +54,10 @@ def run_payment_requests():
 
     all_children_data = get_children()
     all_providers_data = get_providers()
+
+    print(f"Processing payments for {len(grouped_care_days)} provider-child groups.")
+    print("-" * 60)
+    print(grouped_care_days)
 
     for (provider_id, child_id), days in grouped_care_days.items():
         provider_data = get_provider(provider_id, all_providers_data)
@@ -82,6 +84,8 @@ def run_payment_requests():
 
         # Process payment using the PaymentService
         month_allocation = days[0].care_month_allocation  # All care days belong to same month allocation
+        print(f"Processing payment for provider {provider_id} and child {child_id}...")
+        print(f"Allocated care days: {days}")
         payment_successful = payment_service.process_payment(
             external_provider_id=provider_id,
             external_child_id=child_id,

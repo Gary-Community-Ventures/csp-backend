@@ -178,8 +178,40 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
     # Run the script
     run_payment_requests()
 
+    # Verify that the payment service was called BEFORE refreshing objects
+    assert mock_payment_service.call_count == 2
+
+    # Get the actual calls to check what was passed
+    calls = mock_payment_service.call_args_list
+
+    # Check that both provider groups were processed
+    provider_ids_called = {call.kwargs["external_provider_id"] for call in calls}
+    assert provider_ids_called == {"201", "202"}
+
+    # Check each call has the expected structure
+    for call in calls:
+        kwargs = call.kwargs
+        assert "external_provider_id" in kwargs
+        assert "external_child_id" in kwargs
+        assert kwargs["external_child_id"] == "101"
+        assert "month_allocation" in kwargs
+        assert kwargs["month_allocation"] == allocation
+        assert "allocated_care_days" in kwargs
+        assert len(kwargs["allocated_care_days"]) > 0
+
+        # Check the specific provider calls
+        if kwargs["external_provider_id"] == "201":
+            # Should have 3 care days for provider 201
+            assert len(kwargs["allocated_care_days"]) == 3
+            care_day_ids = {day.id for day in kwargs["allocated_care_days"]}
+            assert care_day_ids == {care_day_1.id, care_day_2.id, care_day_5.id}
+        elif kwargs["external_provider_id"] == "202":
+            # Should have 1 care day for provider 202
+            assert len(kwargs["allocated_care_days"]) == 1
+            assert kwargs["allocated_care_days"][0].id == care_day_3.id
+
     with app.app_context():
-        # Refresh the objects from the database to get the latest state
+        # NOW refresh the objects from the database to get the latest state
         db.session.expire_all()
 
         # Verify care days were marked as processed
@@ -193,20 +225,4 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
         assert processed_care_day_2.payment_distribution_requested is True
         assert processed_care_day_3.payment_distribution_requested is True
         assert already_processed_care_day_4.payment_distribution_requested is True
-        assert not_yet_locked_care_day_5.payment_distribution_requested is False
-
-    # Verify that the payment service was called
-    assert mock_payment_service.call_count == 2
-    # The payment service would be called with provider and child IDs
-    mock_payment_service.assert_any_call(
-        external_provider_id="201",
-        external_child_id="101",
-        month_allocation=allocation,
-        allocated_care_days=[care_day_1, care_day_2],
-    )
-    mock_payment_service.assert_any_call(
-        external_provider_id="202",
-        external_child_id="101",
-        month_allocation=allocation,
-        allocated_care_days=[care_day_3],
-    )
+        assert not_yet_locked_care_day_5.payment_distribution_requested is True
