@@ -31,7 +31,7 @@ from app.schemas.provider_payment import (
     PaymentSettingsResponse,
 )
 from app.supabase.helpers import cols, format_name, unwrap_or_abort
-from app.supabase.tables import Child, Provider, Family, Guardian
+from app.supabase.tables import Child, Family, Guardian, Provider
 from app.utils.email_service import (
     get_from_email_internal,
     html_link,

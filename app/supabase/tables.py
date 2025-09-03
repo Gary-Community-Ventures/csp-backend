@@ -1,7 +1,16 @@
 from flask import current_app
 from postgrest import SyncRequestBuilder, SyncSelectRequestBuilder
+
+from app.supabase.columns import (
+    Column,
+    Language,
+    ProviderType,
+    Status,
+    date_column,
+    datetime_column,
+    enum_column,
+)
 from app.supabase.helpers import cols
-from app.supabase.columns import Column, date_column, datetime_column, enum_column, Language, ProviderType, Status
 
 
 class Table:

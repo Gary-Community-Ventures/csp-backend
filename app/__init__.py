@@ -9,7 +9,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
-from supabase import create_client, Client
+from supabase import Client, create_client
 
 from app.services.payment.payment_service import PaymentService
 from app.sheets.integration import SheetsManager

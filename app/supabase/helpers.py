@@ -1,5 +1,6 @@
 import sentry_sdk
 from flask import abort, current_app
+
 from app.constants import UNKNOWN
 from app.supabase.columns import Column
 

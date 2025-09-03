@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Generic, TypeVar, Type
+from typing import Any, Callable, Generic, Type, TypeVar
 
 T = TypeVar("T")
 
