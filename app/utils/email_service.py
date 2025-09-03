@@ -29,7 +29,9 @@ def add_subject_prefix(subject: str):
     return f"{prefix} {subject}"
 
 
-def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, html_content: str) -> bool:
+def send_email(
+    from_email: str, to_emails: Union[str, List[str]], subject: str, html_content: str, from_name: str = "CAP Support"
+) -> bool:
     """
     Send an email using SendGrid.
 
@@ -41,7 +43,7 @@ def send_email(from_email: str, to_emails: Union[str, List[str]], subject: str, 
     """
     try:
         message = Mail(
-            from_email=from_email,
+            from_email=(from_email, from_name),
             to_emails=to_emails,
             subject=add_subject_prefix(subject),
             html_content=html_content,
