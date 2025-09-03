@@ -1,11 +1,8 @@
-import zoneinfo
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from flask import current_app
 
 from app.constants import (
-    BUSINESS_TIMEZONE,
-    DAYS_TO_NEXT_MONTH,
     MAX_ALLOCATION_AMOUNT_CENTS,
 )
 from app.sheets.mappings import (
@@ -16,6 +13,7 @@ from app.sheets.mappings import (
 
 from ..enums.care_day_type import CareDayType
 from ..extensions import db
+from ..utils.date_utils import get_current_month_start, get_next_month_start
 from .mixins import TimestampMixin
 from .utils import get_care_day_cost
 
@@ -121,18 +119,13 @@ class MonthAllocation(db.Model, TimestampMixin):
         # Normalize to first of month
         month_start = month_date.replace(day=1)
 
-        # Prevent creating allocations for past months (using business timezone)
-        business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
-        today_business = datetime.now(business_tz).date()
-        if month_start < today_business.replace(day=1):
-            raise ValueError(f"Cannot create allocation for a past month. {today_business} vs {month_start}")
+        # Prevent creating allocations for past months
+        current_month_start = get_current_month_start()
+        if month_start < current_month_start:
+            raise ValueError(f"Cannot create allocation for a past month. {current_month_start} vs {month_start}")
 
         # Prevent creating allocations for months more than one month in the future
-        current_month_start = today_business.replace(day=1)
-        next_month_start = (current_month_start + timedelta(days=DAYS_TO_NEXT_MONTH)).replace(
-            day=1
-        )  # Get first day of next month
-
+        next_month_start = get_next_month_start()
         if month_start > next_month_start:
             raise ValueError(f"Cannot create allocation for a month more than one month in the future.")
 

@@ -12,18 +12,18 @@ Usage:
 import argparse
 import os
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from typing import Any, Dict
 
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from app import create_app
-from app.constants import DAYS_TO_NEXT_MONTH
 from app.extensions import db
 from app.models.month_allocation import MonthAllocation
 from app.sheets.helpers import format_name
 from app.sheets.mappings import ChildColumnNames, get_children
+from app.utils.date_utils import get_current_month_start, get_next_month_start
 
 # Create Flask app context
 app = create_app()
@@ -169,15 +169,13 @@ def create_allocations_for_month(target_month: date, dry_run: bool = False) -> D
 
 def create_allocations_for_current_month(dry_run: bool = False) -> Dict[str, Any]:
     """Create allocations for the current month."""
-    current_month = date.today().replace(day=1)
+    current_month = get_current_month_start()
     return create_allocations_for_month(current_month, dry_run)
 
 
 def create_allocations_for_next_month(dry_run: bool = False) -> Dict[str, Any]:
     """Create allocations for the next month."""
-    today = date.today()
-    current_month = today.replace(day=1)
-    next_month = (current_month + timedelta(days=DAYS_TO_NEXT_MONTH)).replace(day=1)
+    next_month = get_next_month_start()
     return create_allocations_for_month(next_month, dry_run)
 
 

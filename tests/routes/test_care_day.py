@@ -328,7 +328,7 @@ def test_update_care_day_selected_over_allocation_soft_deletes(client, seed_db):
     days_until_next_monday = (7 - date.today().weekday()) % 7
     if days_until_next_monday == 0:
         days_until_next_monday = 7
-    next_week_date = date.today() + timedelta(days=days_until_next_monday + 4)
+    next_week_date = date.today() + timedelta(days=days_until_next_monday + 15)
     care_day = AllocatedCareDay(
         care_month_allocation_id=allocation.id,
         provider_google_sheets_id="1",

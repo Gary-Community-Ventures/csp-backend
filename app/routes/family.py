@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from uuid import uuid4
 
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
@@ -40,6 +39,7 @@ from app.sheets.mappings import (
     get_providers,
     get_transactions,
 )
+from app.utils.date_utils import get_current_month_start, get_next_month_start
 from app.utils.email_service import (
     get_from_email_internal,
     html_link,
@@ -50,6 +50,15 @@ from app.utils.email_service import (
 from app.utils.sms_service import send_sms
 
 bp = Blueprint("family", __name__)
+
+
+def create_allocations(family_children: List[KeyMap], month) -> None:
+    for child in family_children:
+        # Create a new MonthAllocation for each child
+        MonthAllocation.get_or_create_for_month(
+            child.get(ChildColumnNames.ID),
+            month,
+        )
 
 
 @bp.post("/family")
@@ -79,13 +88,12 @@ def new_family():
         f"Created FamilyPaymentSettings for family {data['google_sheet_id']} with Chek user {family_settings.chek_user_id}"
     )
 
-    for child in family_children:
-        # Create a new MonthAllocation for each child
-        MonthAllocation.get_or_create_for_month(
-            child.get(ChildColumnNames.ID),
-            datetime.today().replace(day=1),
-        )
+    # Create for this month
+    create_allocations(family_children, get_current_month_start())
+    db.session.commit()
 
+    # Create for next month
+    create_allocations(family_children, get_next_month_start())
     db.session.commit()
 
     # send clerk invite

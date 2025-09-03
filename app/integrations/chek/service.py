@@ -113,9 +113,7 @@ class ChekService:
         current_app.logger.debug(f"Chek transfer_balance response: {response_json}")
         return TransferBalanceResponse.model_validate(response_json)
 
-    def send_ach_payment(
-        self, user_id: int, direct_pay_account_id: str, request: ACHPaymentRequest
-    ) -> ACHPaymentResponse:
+    def send_ach_payment(self, user_id: int, request: ACHPaymentRequest) -> ACHPaymentResponse:
         """
         Initiates a Same-Day ACH transfer to a recipient's linked bank account.
         Requires the DirectPay account to be Active.

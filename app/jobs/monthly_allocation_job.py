@@ -1,14 +1,15 @@
 import zoneinfo
-from datetime import date, datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict
 
 from flask import current_app
 
-from ..constants import BUSINESS_TIMEZONE, DAYS_TO_NEXT_MONTH
+from ..constants import BUSINESS_TIMEZONE
 from ..extensions import db
 from ..models.month_allocation import MonthAllocation
 from ..sheets.helpers import format_name
 from ..sheets.mappings import ChildColumnNames, get_children
+from ..utils.date_utils import get_next_month_start
 from . import job_manager
 
 
@@ -19,11 +20,8 @@ def create_monthly_allocations(from_info: str = "scheduler", **kwargs) -> Dict[s
     This ensures all children have allocations ready for the new month.
     """
     try:
-        # Calculate next month (the month we want to create allocations for)
-        today = date.today()
-        current_month = today.replace(day=1)
         # Get first day of next month
-        next_month = (current_month + timedelta(days=DAYS_TO_NEXT_MONTH)).replace(day=1)
+        next_month = get_next_month_start()
 
         current_app.logger.info(
             f"{datetime.now()} Starting monthly allocation creation from {from_info} for {next_month.strftime('%B %Y')}"

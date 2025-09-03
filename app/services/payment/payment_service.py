@@ -286,7 +286,6 @@ class PaymentService:
 
             ach_response = self.chek_service.send_ach_payment(
                 user_id=int(provider_payment_settings.chek_user_id),
-                direct_pay_account_id=provider_payment_settings.chek_direct_pay_id,
                 request=ach_request,
             )
 
@@ -575,7 +574,6 @@ class PaymentService:
 
                     ach_response = self.chek_service.send_ach_payment(
                         user_id=int(provider_payment_settings.chek_user_id),
-                        direct_pay_account_id=provider_payment_settings.chek_direct_pay_id,
                         request=ach_request,
                     )
 
