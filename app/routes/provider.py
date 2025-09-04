@@ -480,9 +480,9 @@ def get_invite_data(provider_id: str):
         cols(Provider.ID, Provider.FIRST_NAME, Provider.LAST_NAME, Provider.NAME, Child.join(Child.ID)),
         int(provider_id),
     ).execute()
-
     provider = unwrap_or_abort(provider_result)
-    if not provider:
+
+    if provider is None:
         abort(500, description=f"Provider with ID {provider_id} not found.")
 
     children_data = Child.unwrap(provider)
@@ -496,7 +496,6 @@ def get_invite_data(provider_id: str):
 @auth_optional
 def family_invite(invite_id: str):
     invitation_query = FamilyInvitation.invitation_by_id(invite_id)
-
     invitation = invitation_query.first()
 
     if invitation is None:
@@ -573,7 +572,6 @@ def accept_family_invite(invite_id: str):
     user = get_family_user()
 
     invitation_query = FamilyInvitation.invitation_by_id(invite_id)
-
     invitation = invitation_query.first()
 
     if invitation is None:
@@ -587,12 +585,12 @@ def accept_family_invite(invite_id: str):
     if invite_data.remaining_slots - len(data["child_ids"]) < 0:
         abort(400, description="Provider already has maximum number of children.")
 
-    child_ids_int = [int(child_id) for child_id in data["child_ids"]]
+    child_ids = [int(child_id) for child_id in data["child_ids"]]
 
     family_result = Family.select_by_id(
         cols(
             Family.ID,
-            Guardian.join(Guardian.FIRST_NAME, Guardian.LAST_NAME),
+            Guardian.join(Guardian.FIRST_NAME, Guardian.LAST_NAME, Guardian.IS_PRIMARY),
             Child.join(Child.ID, Child.FIRST_NAME, Child.LAST_NAME, Child.FAMILY_ID),
         ),
         int(user.user_data.family_id),
@@ -606,17 +604,17 @@ def accept_family_invite(invite_id: str):
 
     # Filter to only the requested children and verify they exist
     children = []
-    requested_child_ids = set(child_ids_int)
+    requested_child_ids = set(child_ids)
     found_child_ids = set()
 
     for child in all_children_data:
-        child_id = Child.ID(child)
+        child_id = int(Child.ID(child))
         if child_id in requested_child_ids:
             children.append(child)
             found_child_ids.add(child_id)
 
     # Verify all requested children were found
-    if len(found_child_ids) != len(child_ids_int):
+    if len(found_child_ids) != len(child_ids):
         missing_ids = requested_child_ids - found_child_ids
         abort(404, description=f"Children with IDs {list(missing_ids)} not found.")
 

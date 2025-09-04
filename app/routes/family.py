@@ -360,22 +360,24 @@ def get_invite_data(child_id: str, provider_id: Optional[str] = None):
             Child.FIRST_NAME,
             Child.LAST_NAME,
             Child.FAMILY_ID,
-            Family.join(Family.ID),
-            Guardian.join(
-                Guardian.FIRST_NAME, Guardian.LAST_NAME, Guardian.EMAIL, Guardian.PHONE_NUMBER, Guardian.IS_PRIMARY
+            Family.join(
+                Family.ID,
+                Guardian.join(
+                    Guardian.FIRST_NAME, Guardian.LAST_NAME, Guardian.EMAIL, Guardian.PHONE_NUMBER, Guardian.IS_PRIMARY
+                ),
             ),
             Provider.join(Provider.ID, Child.join(Child.ID)),
         ),
         int(child_id),
     ).execute()
-
     child_data = unwrap_or_abort(child_result)
-    if not child_data:
+
+    if child_data is None:
         abort(404, description=f"Child with ID {child_id} not found.")
 
     family_data = Family.unwrap(child_data)
 
-    guardians = Guardian.unwrap(child_data)
+    guardians = Guardian.unwrap(family_data)
     primary_guardian = Guardian.get_primary_guardian(guardians)
 
     # Check if provider already has this child and count their total children
@@ -405,7 +407,6 @@ def get_invite_data(child_id: str, provider_id: Optional[str] = None):
 @auth_optional
 def provider_invite(invite_id: str):
     invitation_query = ProviderInvitation.invitations_by_id(invite_id)
-
     invitation = invitation_query.first()
 
     if invitation is None:
@@ -450,7 +451,6 @@ def accept_provider_invite(invite_id: str):
     user = get_provider_user()
 
     invitation_query = ProviderInvitation.invitations_by_id(invite_id)
-
     invitation = invitation_query.first()
 
     if invitation.accepted:
