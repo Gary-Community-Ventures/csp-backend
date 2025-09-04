@@ -12,7 +12,7 @@ class ClerkUserType(Enum):
     ADMIN = "admin"
     FAMILY = "family"
     PROVIDER = "provider"
-    NONE = None
+    NONE = None  # Special case for no user type required
 
 
 class AuthenticationError(Exception):

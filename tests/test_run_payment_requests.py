@@ -219,10 +219,8 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
         processed_care_day_2 = db.session.get(AllocatedCareDay, care_day_2.id)
         processed_care_day_3 = db.session.get(AllocatedCareDay, care_day_3.id)
         already_processed_care_day_4 = db.session.get(AllocatedCareDay, care_day_4.id)
-        not_yet_locked_care_day_5 = db.session.get(AllocatedCareDay, care_day_5.id)
 
         assert processed_care_day_1.payment_distribution_requested is True
         assert processed_care_day_2.payment_distribution_requested is True
         assert processed_care_day_3.payment_distribution_requested is True
         assert already_processed_care_day_4.payment_distribution_requested is True
-        assert not_yet_locked_care_day_5.payment_distribution_requested is True

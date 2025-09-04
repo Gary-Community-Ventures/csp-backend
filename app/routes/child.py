@@ -139,7 +139,6 @@ def submit_care_days(child_id, provider_id, month, year):
         return error_response.model_dump_json(), 500, {"Content-Type": "application/json"}
 
     # Send payment notification email (after successful payment)
-    # If email fails, we log it but don't fail the request since payment succeeded
     # TODO leave so whe know when payments happen but remove in future
     send_care_days_payment_email(
         provider_name=provider_data.get(ProviderColumnNames.NAME),

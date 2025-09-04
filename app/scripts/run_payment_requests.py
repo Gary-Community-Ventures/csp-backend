@@ -55,10 +55,6 @@ def run_payment_requests():
     all_children_data = get_children()
     all_providers_data = get_providers()
 
-    print(f"Processing payments for {len(grouped_care_days)} provider-child groups.")
-    print("-" * 60)
-    print(grouped_care_days)
-
     for (provider_id, child_id), days in grouped_care_days.items():
         provider_data = get_provider(provider_id, all_providers_data)
         child_data = get_child(child_id, all_children_data)
@@ -84,8 +80,6 @@ def run_payment_requests():
 
         # Process payment using the PaymentService
         month_allocation = days[0].care_month_allocation  # All care days belong to same month allocation
-        print(f"Processing payment for provider {provider_id} and child {child_id}...")
-        print(f"Allocated care days: {days}")
         payment_successful = payment_service.process_payment(
             external_provider_id=provider_id,
             external_child_id=child_id,
