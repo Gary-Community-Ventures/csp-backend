@@ -288,6 +288,8 @@ class AllocatedCareDay(db.Model, TimestampMixin):
 
     @property
     def status(self):
+        if self.payment_id:
+            return "submitted"
         if self.delete_not_submitted:
             return "delete_not_submitted"
         if self.is_deleted:
