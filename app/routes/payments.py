@@ -74,7 +74,7 @@ def get_family_payment_history():
 
         # Get month from allocation
         month_allocation = MonthAllocation.query.get(payment.month_allocation_id)
-        month_str = month_allocation.date.strftime("%Y-%m") if month_allocation else "Unknown"
+        month_str = month_allocation.date.strftime("%Y-%m-%d") if month_allocation else "Unknown"
 
         # Determine payment type
         payment_type = (
@@ -155,7 +155,7 @@ def get_provider_payment_history():
 
         # Get month from allocation
         month_allocation = MonthAllocation.query.get(payment.month_allocation_id)
-        month_str = month_allocation.date.strftime("%Y-%m") if month_allocation else "Unknown"
+        month_str = month_allocation.date.strftime("%Y-%m-%d") if month_allocation else "Unknown"
 
         # Get payment method used for this payment
         payment_method = "unknown"

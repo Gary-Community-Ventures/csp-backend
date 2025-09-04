@@ -150,8 +150,6 @@ class MonthAllocation(db.Model, TimestampMixin):
                 google_sheets_child_id=child_id,
                 date=month_start,
                 allocation_cents=allocation_cents,
-                chek_transfer_id=transaction.transfer.id,
-                chek_transfer_date=transaction.transfer.created,
             )
 
             # Allocate funds to family wallet if allocation is greater than zero

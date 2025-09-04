@@ -34,6 +34,13 @@ from app.utils.sms_service import send_sms
 bp = Blueprint("family", __name__)
 
 
+def create_allocations_for_children(family_children, months):
+    for child in family_children:
+        child_id = Child.ID(child)
+        for month in months:
+            MonthAllocation.get_or_create_for_month(child_id, month)
+
+
 @bp.post("/family")
 @api_key_required
 def new_family():
@@ -59,18 +66,7 @@ def new_family():
         f"Created FamilyPaymentSettings for family {family_id} with Chek user {family_settings.chek_user_id}"
     )
 
-    for child in family_children:
-        # Create a new MonthAllocation for each child
-        # Create for this month
-        MonthAllocation.get_or_create_for_month(
-            Child.ID(child),
-            get_current_month_start(),
-        )
-        # Create for next month
-        MonthAllocation.get_or_create_for_month(
-            Child.ID(child),
-            get_next_month_start(),
-        )
+    create_allocations_for_children(family_children, [get_current_month_start(), get_next_month_start()])
     db.session.commit()
 
     # send clerk invite
@@ -97,7 +93,6 @@ def new_family():
 def default_child_id():
     user = get_family_user()
     family_id = user.user_data.family_id
-    print(family_id)
 
     children_result = Child.select_by_family_id(cols(Child.ID), int(family_id)).execute()
     children_data = unwrap_or_abort(children_result)
@@ -158,7 +153,6 @@ def family_data(child_id: Optional[str] = None):
         "id": Child.ID(child_data),
         "first_name": Child.FIRST_NAME(child_data),
         "last_name": Child.LAST_NAME(child_data),
-        "balance": None,  # Balance no longer used
         "monthly_allocation": Child.MONTHLY_ALLOCATION(child_data),
         "prorated_first_month_allocation": Child.PRORATED_ALLOCATION(child_data),
         "is_payment_enabled": Child.PAYMENT_ENABLED(child_data),

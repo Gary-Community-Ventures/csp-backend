@@ -104,23 +104,17 @@ def create_lump_sum():
 
         # Send payment notification email (after successful payment)
         # If email fails, we log it but don't fail the request since payment succeeded
-        try:
-            send_lump_sum_payment_email(
-                provider_name=Provider.NAME(provider_data),
-                google_sheets_provider_id=provider_id,
-                child_first_name=Child.FIRST_NAME(associated_child),
-                child_last_name=Child.LAST_NAME(associated_child),
-                google_sheets_child_id=allocation_child_id,
-                amount_in_cents=amount_cents,
-                hours=hours,
-                month=allocation.date.strftime("%B %Y"),
-            )
-        except Exception as email_error:
-            # Log email failure as warning, but payment was successful so continue
-            current_app.logger.warning(
-                f"Lump sum payment processed successfully for provider {provider_id}, child {allocation_child_id} "
-                f"(${amount_cents / 100:.2f}), but email notification failed: {email_error}"
-            )
+        send_lump_sum_payment_email(
+            provider_name=Provider.NAME(provider_data),
+            google_sheets_provider_id=provider_id,
+            child_first_name=Child.FIRST_NAME(associated_child),
+            child_last_name=Child.LAST_NAME(associated_child),
+            google_sheets_child_id=allocation_child_id,
+            amount_in_cents=amount_cents,
+            hours=hours,
+            month=allocation.date.strftime("%B %Y"),
+        )
+
         return (
             AllocatedLumpSumResponse.model_validate(lump_sum).model_dump_json(),
             201,

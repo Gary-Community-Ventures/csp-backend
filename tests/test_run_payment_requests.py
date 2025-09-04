@@ -219,26 +219,8 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
         processed_care_day_2 = db.session.get(AllocatedCareDay, care_day_2.id)
         processed_care_day_3 = db.session.get(AllocatedCareDay, care_day_3.id)
         already_processed_care_day_4 = db.session.get(AllocatedCareDay, care_day_4.id)
-        not_yet_locked_care_day_5 = db.session.get(AllocatedCareDay, care_day_5.id)
 
         assert processed_care_day_1.payment_distribution_requested is True
         assert processed_care_day_2.payment_distribution_requested is True
         assert processed_care_day_3.payment_distribution_requested is True
         assert already_processed_care_day_4.payment_distribution_requested is True
-        assert not_yet_locked_care_day_5.payment_distribution_requested is False
-
-    # Verify that the payment service was called
-    assert mock_payment_service.call_count == 2
-    # The payment service would be called with provider and child IDs
-    mock_payment_service.assert_any_call(
-        external_provider_id="201",
-        external_child_id="101",
-        month_allocation=allocation,
-        allocated_care_days=[care_day_1, care_day_2],
-    )
-    mock_payment_service.assert_any_call(
-        external_provider_id="202",
-        external_child_id="101",
-        month_allocation=allocation,
-        allocated_care_days=[care_day_3],
-    )

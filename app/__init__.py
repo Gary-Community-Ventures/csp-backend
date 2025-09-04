@@ -9,13 +9,12 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
-from supabase import Client, create_client
+from supabase import create_client
 
 from app.services.payment.payment_service import PaymentService
 from app.sheets.integration import SheetsManager
 
 # Import models to ensure they are registered with SQLAlchemy
-from . import models
 from .constants import ENV_DEVELOPMENT, ENV_PRODUCTION, ENV_STAGING, ENV_TESTING
 
 # Import extensions from the extensions module
