@@ -36,7 +36,7 @@ bp = Blueprint("family", __name__)
 
 def create_allocations(family_children, month) -> None:
     """Create allocations for a list of children for a specific month.
-    
+
     Args:
         family_children: List of child data from Supabase query
         month: The month to create allocations for
