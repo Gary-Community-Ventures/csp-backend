@@ -134,7 +134,6 @@ def family_data(child_id: Optional[str] = None):
     ).execute()
 
     family_children = unwrap_or_abort(family_children_result)
-    print(family_children)
 
     if not family_children or len(family_children) == 0:
         abort(404, description="No children found for this family.")

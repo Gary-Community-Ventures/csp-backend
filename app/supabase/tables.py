@@ -111,6 +111,7 @@ class Provider(Table):
     CITY = Column("city")
     STATE = Column("state")
     ZIP = Column("zip")
+    LANGUAGE = Column("language", enum_column(Language))
 
 
 class ProviderChildMapping(Table):
