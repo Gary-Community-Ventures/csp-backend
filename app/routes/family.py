@@ -16,9 +16,9 @@ from app.constants import MAX_CHILDREN_PER_PROVIDER, UNKNOWN
 from app.extensions import db
 from app.models.attendance import Attendance
 from app.models.family_payment_settings import FamilyPaymentSettings
-from app.models.month_allocation import MonthAllocation
 from app.models.provider_invitation import ProviderInvitation
 from app.models.provider_payment_settings import ProviderPaymentSettings
+from app.services.allocation_service import AllocationService
 from app.supabase.helpers import cols, format_name, unwrap_or_abort
 from app.supabase.tables import Child, Family, Guardian, Provider
 from app.utils.date_utils import get_current_month_start, get_next_month_start
@@ -34,11 +34,16 @@ from app.utils.sms_service import send_sms
 bp = Blueprint("family", __name__)
 
 
-def create_allocations_for_children(family_children, months):
-    for child in family_children:
-        child_id = Child.ID(child)
-        for month in months:
-            MonthAllocation.get_or_create_for_month(child_id, month)
+def create_allocations(family_children, month) -> None:
+    """Create allocations for a list of children for a specific month.
+    
+    Args:
+        family_children: List of child data from Supabase query
+        month: The month to create allocations for
+    """
+    child_ids = [Child.ID(child) for child in family_children]
+    allocation_service = AllocationService(current_app)
+    allocation_service.create_allocations_for_specific_children(child_ids, month)
 
 
 @bp.post("/family")
@@ -66,7 +71,9 @@ def new_family():
         f"Created FamilyPaymentSettings for family {family_id} with Chek user {family_settings.chek_user_id}"
     )
 
-    create_allocations_for_children(family_children, [get_current_month_start(), get_next_month_start()])
+    # Create allocations for current and next month
+    create_allocations(family_children, get_current_month_start())
+    create_allocations(family_children, get_next_month_start())
     db.session.commit()
 
     # send clerk invite
