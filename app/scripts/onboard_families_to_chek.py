@@ -71,10 +71,7 @@ def get_families_needing_onboarding(
     2. Don't have payment settings at all
     """
     # Get all existing payment settings
-    existing_settings = {
-        settings.family_external_id: settings
-        for settings in FamilyPaymentSettings.query.filter(FamilyPaymentSettings.chek_user_id.is_(None)).all()
-    }
+    existing_settings = {settings.family_external_id: settings for settings in FamilyPaymentSettings.query.all()}
 
     families_to_onboard = []
 
