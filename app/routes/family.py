@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional
 from uuid import uuid4
 
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
@@ -15,7 +15,10 @@ from app.auth.helpers import get_current_user, get_family_user, get_provider_use
 from app.constants import MAX_CHILDREN_PER_PROVIDER
 from app.extensions import db
 from app.models.attendance import Attendance
+from app.models.family_payment_settings import FamilyPaymentSettings
 from app.models.provider_invitation import ProviderInvitation
+from app.models.provider_payment_settings import ProviderPaymentSettings
+from app.services.allocation_service import AllocationService
 from app.sheets.helpers import KeyMap, format_name, get_row
 from app.sheets.mappings import (
     ChildColumnNames,
@@ -36,6 +39,7 @@ from app.sheets.mappings import (
     get_providers,
     get_transactions,
 )
+from app.utils.date_utils import get_current_month_start, get_next_month_start
 from app.utils.email_service import (
     get_from_email_internal,
     html_link,
@@ -48,10 +52,22 @@ from app.utils.sms_service import send_sms
 bp = Blueprint("family", __name__)
 
 
+def create_allocations(family_children: List[KeyMap], month) -> None:
+    """Create allocations for a list of children for a specific month."""
+    child_ids = [child.get(ChildColumnNames.ID) for child in family_children]
+    allocation_service = AllocationService(current_app)
+    allocation_service.create_allocations_for_specific_children(child_ids, month)
+
+
 @bp.post("/family")
 @api_key_required
 def new_family():
     data = request.json
+
+    google_sheet_id = data.get("google_sheet_id")
+
+    # TODO should we replace this with getting from the google sheet?
+    email = data.get("email")
 
     # Validate required fields
     if "google_sheet_id" not in data:
@@ -59,6 +75,24 @@ def new_family():
 
     if "email" not in data:
         abort(400, description="Missing required field: email")
+
+    all_children_data = get_children()
+    family_children = get_family_children(google_sheet_id, all_children_data)
+
+    # Create Chek user and FamilyPaymentSettings
+    payment_service = current_app.payment_service
+    family_settings = payment_service.onboard_family(family_external_id=data["google_sheet_id"])
+    current_app.logger.info(
+        f"Created FamilyPaymentSettings for family {data['google_sheet_id']} with Chek user {family_settings.chek_user_id}"
+    )
+
+    # Create for this month
+    create_allocations(family_children, get_current_month_start())
+    db.session.commit()
+
+    # Create for next month
+    create_allocations(family_children, get_next_month_start())
+    db.session.commit()
 
     # send clerk invite
     clerk: Clerk = current_app.clerk_client
@@ -70,7 +104,7 @@ def new_family():
 
     clerk.invitations.create(
         request=CreateInvitationRequestBody(
-            email_address=data["email"],
+            email_address=email,
             redirect_url=f"{fe_domain}/auth/sign-up",
             public_metadata=meta_data,
         )
@@ -138,16 +172,23 @@ def family_data(child_id: Optional[str] = None):
         "is_payment_enabled": child_data.get(ChildColumnNames.PAYMENT_ENABLED),
     }
 
-    providers = [
-        {
-            "id": c.get(ProviderColumnNames.ID),
-            "name": c.get(ProviderColumnNames.NAME),
-            "status": c.get(ProviderColumnNames.STATUS).lower(),
-            "type": c.get(ProviderColumnNames.TYPE).lower(),
-            "is_payment_enabled": c.get(ProviderColumnNames.PAYMENT_ENABLED),
-        }
-        for c in provider_data
-    ]
+    providers = []
+    for c in provider_data:
+        provider_id = c.get(ProviderColumnNames.ID)
+        # Look up the ProviderPaymentSettings to get is_payable status
+        provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
+        current_app.logger.error(f"Provider {provider_id} payment settings: {provider_payment_settings}")
+
+        providers.append(
+            {
+                "id": provider_id,
+                "name": c.get(ProviderColumnNames.NAME),
+                "status": c.get(ProviderColumnNames.STATUS).lower(),
+                "type": c.get(ProviderColumnNames.TYPE).lower(),
+                "is_payable": provider_payment_settings.is_payable if provider_payment_settings else False,
+                "is_payment_enabled": c.get(ProviderColumnNames.PAYMENT_ENABLED),
+            }
+        )
 
     transactions = [
         {
@@ -184,6 +225,8 @@ def family_data(child_id: Optional[str] = None):
     if needs_attendance:
         notifications.append({"type": "attendance"})
 
+    family_payment_settings = FamilyPaymentSettings.query.filter_by(family_external_id=family_id).first()
+
     return jsonify(
         {
             "selected_child_info": selected_child_info,
@@ -192,6 +235,7 @@ def family_data(child_id: Optional[str] = None):
             "children": children,
             "notifications": notifications,
             "is_also_provider": ClerkUserType.PROVIDER.value in user.user_data.types,
+            "can_make_payments": family_payment_settings.can_make_payments if family_payment_settings else False,
         }
     )
 

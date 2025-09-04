@@ -85,7 +85,7 @@ def test_get_or_create_for_month_next_month_allowed(db_session, mock_get_child, 
         }
     )
     # Simulate being on the first day of the month
-    with patch("app.models.month_allocation.datetime") as mock_dt:
+    with patch("app.utils.date_utils.datetime") as mock_dt:
         mock_dt.now.return_value = datetime(date.today().year, date.today().month, 1)
         mock_dt.date.today.return_value = date(date.today().year, date.today().month, 1)
         mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)  # Ensure other datetime calls work

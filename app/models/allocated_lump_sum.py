@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+from ..constants import MAX_PAYMENT_AMOUNT_CENTS
 from ..extensions import db
 from .mixins import TimestampMixin
 from .month_allocation import MonthAllocation
@@ -24,6 +25,10 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
     # Provider info
     provider_google_sheets_id = db.Column(db.String(64), nullable=False, index=True)
 
+    # Payment tracking
+    payment_id = db.Column(
+        db.UUID(as_uuid=True), db.ForeignKey("payment.id", name="fk_allocated_lump_sum_payment_id"), nullable=True
+    )
     paid_at = db.Column(db.DateTime(timezone=True), nullable=True)
     submitted_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
@@ -48,6 +53,13 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
 
         if not isinstance(hours, float) or hours < 0:
             raise ValueError("Hours must be a positive float")
+
+        # Check if lump sum exceeds maximum payment amount
+        if amount_cents > MAX_PAYMENT_AMOUNT_CENTS:
+            raise ValueError(
+                f"Lump sum amount ${amount_cents / 100:.2f} exceeds maximum allowed payment "
+                f"of ${MAX_PAYMENT_AMOUNT_CENTS / 100:.2f}"
+            )
 
         # Check if allocation can handle this lump sum
         if not allocation.can_add_lump_sum(amount_cents):

@@ -1,4 +1,7 @@
-from flask import Blueprint, jsonify, request
+import traceback
+
+import sentry_sdk
+from flask import Blueprint, current_app, jsonify, request
 from pydantic import ValidationError
 
 from app.auth.decorators import (
@@ -19,7 +22,7 @@ from app.sheets.mappings import (
     get_provider_child_mappings,
     get_providers,
 )
-from app.utils.email_service import send_lump_sum_payment_request_email
+from app.utils.email_service import send_lump_sum_payment_email
 
 bp = Blueprint("lump_sum", __name__, url_prefix="/lump-sums")
 
@@ -87,9 +90,27 @@ def create_lump_sum():
             hours=hours,
         )
         db.session.add(lump_sum)
+        db.session.flush()  # Flush to get lump_sum ID before payment processing
+
+        # Process payment using the PaymentService
+        payment_successful = current_app.payment_service.process_payment(
+            external_provider_id=provider_id,
+            external_child_id=allocation_child_id,
+            month_allocation=allocation,
+            allocated_lump_sums=[lump_sum],
+        )
+
+        if not payment_successful:
+            db.session.rollback()
+            return jsonify({"error": "Failed to process payment for lump sum."}), 500
+
         db.session.commit()
-        send_lump_sum_payment_request_email(
-            provider_name=provider.get(ProviderColumnNames.NAME),
+
+        # Send payment notification email (after successful payment)
+        # If email fails, we log it but don't fail the request since payment succeeded
+        # TODO leave so whe know when payments happen but remove in future
+        send_lump_sum_payment_email(
+            provider_name=provider_data.get(ProviderColumnNames.NAME),
             google_sheets_provider_id=provider_id,
             child_first_name=associated_child.get(ChildColumnNames.FIRST_NAME),
             child_last_name=associated_child.get(ChildColumnNames.LAST_NAME),
@@ -104,4 +125,13 @@ def create_lump_sum():
             {"Content-Type": "application/json"},
         )
     except ValueError as e:
+        db.session.rollback()
+        sentry_sdk.capture_exception(e)
+        current_app.logger.error(f"Validation error creating lump sum or processing payment: {e}")
         return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        sentry_sdk.capture_exception(e)
+        current_app.logger.error(f"Error creating lump sum or processing payment: {e}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({"error": "An unexpected error occurred."}), 500

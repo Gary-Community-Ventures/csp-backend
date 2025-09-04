@@ -2,20 +2,25 @@ from collections import defaultdict
 
 from app import create_app
 from app.extensions import db
-from app.models import AllocatedCareDay, MonthAllocation, PaymentRequest
+from app.models import (
+    AllocatedCareDay,
+    MonthAllocation,
+    ProviderPaymentSettings,
+)
+from app.services.payment.payment_service import PaymentService
 from app.sheets.mappings import (
-    ChildColumnNames,
-    ProviderColumnNames,
     get_child,
     get_children,
     get_provider,
     get_providers,
 )
-from app.utils.email_service import send_care_days_payment_request_email
 
 # Create Flask app context
 app = create_app()
 app.app_context().push()
+
+# Initialize PaymentService within the app context
+payment_service = PaymentService(app)
 
 
 def run_payment_requests():
@@ -28,12 +33,10 @@ def run_payment_requests():
             AllocatedCareDay.last_submitted_at.isnot(None),
             AllocatedCareDay.payment_distribution_requested.is_(False),
             AllocatedCareDay.deleted_at.is_(None),
+            AllocatedCareDay.payment_id.is_(None),
         )
         .all()
     )
-
-    # Filter out care days that are not yet locked
-    care_days_to_process = [cd for cd in care_days_to_process if cd.is_locked]
 
     if not care_days_to_process:
         app.logger.warning("run_payment_requests: No submitted and unprocessed care days found.")
@@ -52,63 +55,55 @@ def run_payment_requests():
     all_children_data = get_children()
     all_providers_data = get_providers()
 
-    for (provider_id, child_id), days in grouped_care_days.items():
-        total_amount_cents = sum(day.amount_cents for day in days)
+    print(f"Processing payments for {len(grouped_care_days)} provider-child groups.")
+    print("-" * 60)
+    print(grouped_care_days)
 
+    for (provider_id, child_id), days in grouped_care_days.items():
         provider_data = get_provider(provider_id, all_providers_data)
         child_data = get_child(child_id, all_children_data)
 
         if not provider_data:
             app.logger.warning(
-                f"run_payment_requests: Skipping payment request for provider ID {provider_id}: Provider not found in Google Sheets."
+                f"run_payment_requests: Skipping payment for provider ID {provider_id}: Provider not found in Google Sheets."
             )
             continue
         if not child_data:
             app.logger.warning(
-                f"run_payment_requests: Skipping payment request for child ID {child_id}: Child not found in Google Sheets."
+                f"run_payment_requests: Skipping payment for child ID {child_id}: Child not found in Google Sheets."
             )
             continue
 
-        provider_name = (
-            provider_data.get(ProviderColumnNames.NAME)
-            or f"{provider_data.get(ProviderColumnNames.FIRST_NAME)} {provider_data.get(ProviderColumnNames.LAST_NAME)}"
-        )
-        child_first_name = child_data.get(ChildColumnNames.FIRST_NAME)
-        child_last_name = child_data.get(ChildColumnNames.LAST_NAME)
+        # Retrieve the ProviderPaymentSettings object
+        provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
+        if not provider_payment_settings:
+            app.logger.warning(
+                f"run_payment_requests: Skipping payment for provider ID {provider_id}: Provider not found in database."
+            )
+            continue
 
-        # Create PaymentRequest record
-        payment_request = PaymentRequest(
-            google_sheets_provider_id=provider_id,
-            google_sheets_child_id=child_id,
-            care_days_count=len(days),
-            amount_in_cents=total_amount_cents,
-            care_day_ids=[day.id for day in days],
+        # Process payment using the PaymentService
+        month_allocation = days[0].care_month_allocation  # All care days belong to same month allocation
+        print(f"Processing payment for provider {provider_id} and child {child_id}...")
+        print(f"Allocated care days: {days}")
+        payment_successful = payment_service.process_payment(
+            external_provider_id=provider_id,
+            external_child_id=child_id,
+            month_allocation=month_allocation,
+            allocated_care_days=days,
         )
-        db.session.add(payment_request)
 
-        # TODO Write payment request information to a spreadsheet for James
-        sent_email = send_care_days_payment_request_email(
-            provider_name=provider_name,
-            google_sheets_provider_id=provider_id,
-            child_first_name=child_first_name,
-            child_last_name=child_last_name,
-            google_sheets_child_id=child_id,
-            amount_in_cents=total_amount_cents,
-            care_days=days,
-        )
-        if not sent_email:
+        if payment_successful:
+            # Mark care days as payment_distribution_requested only if payment was successful
+            for day in days:
+                day.payment_distribution_requested = True
+        else:
             app.logger.error(
-                f"run_payment_requests: Failed to send payment request email for provider {provider_name} (ID: {provider_id}) and child {child_first_name} {child_last_name} (ID: {child_id})."
+                f"run_payment_requests: Failed to process payment for provider {provider_id} and child {child_id}."
             )
-            payment_request.is_email_sent = False
-            continue
-
-        # Mark care days as payment_distribution_requested
-        for day in days:
-            day.payment_distribution_requested = True
 
     db.session.commit()
-    app.logger.info("run_payment_requests: Payment request processing finished.")
+    app.logger.info("run_payment_requests: Payment processing finished.")
 
 
 if __name__ == "__main__":
