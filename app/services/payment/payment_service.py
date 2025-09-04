@@ -782,7 +782,7 @@ class PaymentService:
                 card_request = CardCreateRequest(
                     program_id=int(chek_program_id),
                     funding_method="program_balance",
-                    amount=1,  # Initial amount in cents
+                    amount=0,  # Initial amount in cents
                 )
 
                 card_response = self.chek_service.create_card(int(provider_settings.chek_user_id), card_request)
