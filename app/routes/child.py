@@ -1,6 +1,6 @@
 from datetime import date
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, abort, current_app, jsonify, request
 
 from app.auth.decorators import (
     ClerkUserType,
@@ -13,7 +13,7 @@ from app.schemas.month_allocation import (
     MonthAllocationResponse,
 )
 from app.schemas.payment import PaymentErrorResponse, PaymentProcessedResponse
-from app.supabase.helpers import cols, unwrap_or_abort
+from app.supabase.helpers import UnwrapError, cols, unwrap_or_abort
 from app.supabase.tables import Child, Provider
 from app.utils.email_service import (
     send_care_days_payment_email,
@@ -127,12 +127,15 @@ def submit_care_days(child_id, provider_id, month, year):
 
     # Process payment for submitted care days
     # PaymentService now handles marking care days as submitted within the same transaction
-    payment_successful = current_app.payment_service.process_payment(
-        external_provider_id=provider_id,
-        external_child_id=child_id,
-        month_allocation=allocation,
-        allocated_care_days=care_days_to_submit,
-    )
+    try:
+        payment_successful = current_app.payment_service.process_payment(
+            external_provider_id=provider_id,
+            external_child_id=child_id,
+            month_allocation=allocation,
+            allocated_care_days=care_days_to_submit,
+        )
+    except UnwrapError:
+        abort(502, description="Database query failed")
 
     if not payment_successful:
         error_response = PaymentErrorResponse(error="Payment processing failed. Please try again.")

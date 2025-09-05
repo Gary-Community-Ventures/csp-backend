@@ -9,6 +9,8 @@ from app.exceptions import ProviderNotFoundException
 from app.models import ProviderPaymentSettings
 from app.services.payment.base_onboarding import BaseOnboarding
 from app.sheets.mappings import ProviderColumnNames, get_provider, get_providers
+from app.supabase.helpers import cols, unwrap_or_error
+from app.supabase.tables import Provider
 
 
 class ProviderOnboarding(BaseOnboarding):
@@ -20,27 +22,41 @@ class ProviderOnboarding(BaseOnboarding):
     def get_existing_settings(self, external_id: str) -> Optional[ProviderPaymentSettings]:
         return ProviderPaymentSettings.query.filter_by(provider_external_id=external_id).first()
 
-    def get_entity_data_from_sheets(self, external_id: str) -> Dict:
-        provider_rows = get_providers()
-        provider_data = get_provider(external_id, provider_rows)
+    def get_entity_data(self, external_id: str) -> Dict:
+        provider_result = Provider.select_by_id(
+            cols(
+                Provider.ID,
+                Provider.EMAIL,
+                Provider.PHONE_NUMBER,
+                Provider.FIRST_NAME,
+                Provider.LAST_NAME,
+                Provider.ADDRESS_1,
+                Provider.ADDRESS_2,
+                Provider.CITY,
+                Provider.STATE,
+                Provider.ZIP,
+            ),
+            int(external_id),
+        )
+        provider = unwrap_or_error(provider_result)
 
-        if not provider_data:
+        if provider is None:
             raise ProviderNotFoundException(f"Provider {external_id} not found in Google Sheets")
 
-        return provider_data
+        return provider
 
     def extract_entity_fields(self, entity_data: Dict) -> Dict:
         return {
-            "email": entity_data.get(ProviderColumnNames.EMAIL),
-            "phone_raw": entity_data.get(ProviderColumnNames.PHONE_NUMBER),
-            "first_name": entity_data.get(ProviderColumnNames.FIRST_NAME),
-            "last_name": entity_data.get(ProviderColumnNames.LAST_NAME),
-            "address_line1": entity_data.get(ProviderColumnNames.ADDRESS_LINE_1),
-            "address_line2": entity_data.get(ProviderColumnNames.ADDRESS_LINE_2),
-            "city": entity_data.get(ProviderColumnNames.CITY),
-            "state": entity_data.get(ProviderColumnNames.STATE),
-            "zip_code": entity_data.get(ProviderColumnNames.ZIP_CODE),
-            "country_code": entity_data.get(ProviderColumnNames.COUNTRY_CODE),
+            "email": Provider.EMAIL(entity_data),
+            "phone_raw": Provider.PHONE_NUMBER(entity_data),
+            "first_name": Provider.FIRST_NAME(entity_data),
+            "last_name": Provider.LAST_NAME(entity_data),
+            "address_line1": Provider.ADDRESS_1(entity_data),
+            "address_line2": Provider.ADDRESS_2(entity_data),
+            "city": Provider.CITY(entity_data),
+            "state": Provider.STATE(entity_data),
+            "zip_code": Provider.ZIP(entity_data),
+            "country_code": "US",
         }
 
     def create_payment_settings(self, external_id: str, chek_user_id: str, balance: int) -> ProviderPaymentSettings:

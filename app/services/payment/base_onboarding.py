@@ -34,7 +34,7 @@ class BaseOnboarding(ABC):
         pass
 
     @abstractmethod
-    def get_entity_data_from_sheets(self, external_id: str) -> Dict:
+    def get_entity_data(self, external_id: str) -> Dict:
         """Get entity data from Google Sheets."""
         pass
 
@@ -83,8 +83,7 @@ class BaseOnboarding(ABC):
                 )
                 return existing_settings
 
-            # Get entity data from Google Sheets
-            entity_data = self.get_entity_data_from_sheets(external_id)
+            entity_data = self.get_entity_data(external_id)
 
             # Extract fields
             fields = self.extract_entity_fields(entity_data)

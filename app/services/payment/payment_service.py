@@ -37,6 +37,8 @@ from app.models import (
 from app.services.payment.family_onboarding import FamilyOnboarding
 from app.services.payment.provider_onboarding import ProviderOnboarding
 from app.services.payment.schema import PaymentResult
+from app.supabase.helpers import cols, format_name, unwrap_or_abort, unwrap_or_error
+from app.supabase.tables import Child, Provider
 
 
 class PaymentService:
@@ -193,19 +195,29 @@ class PaymentService:
                 lump_sum.submitted_at = datetime.now(timezone.utc)
                 lump_sum.paid_at = datetime.now(timezone.utc)
 
+        provider_result = Provider.select_by_id(
+            cols(
+                Provider.ID,
+                Provider.FIRST_NAME,
+                Provider.LAST_NAME,
+                Provider.EMAIL,
+                Child.join(Child.ID, Child.FIRST_NAME, Child.LAST_NAME),
+            ),
+            int(intent.provider_external_id),
+        ).execute()
+        provider = unwrap_or_abort(provider_result)
+
         # Send payment notification email to provider
-        try:
-            send_payment_notification(
-                provider_id=intent.provider_external_id,
-                child_id=intent.child_external_id,
-                amount_cents=intent.amount_cents,
-                payment_method=attempt.payment_method.value,
-            )
-            current_app.logger.info(f"Payment notification sent for Payment {payment.id}")
-        except Exception as e:
-            # Log error but don't fail the payment
-            current_app.logger.error(f"Failed to send payment notification for Payment {payment.id}: {e}")
-            sentry_sdk.capture_exception(e)
+        send_payment_notification(
+            provider_name=format_name(provider),
+            provider_email=Provider.EMAIL(provider),
+            provider_id=intent.provider_external_id,
+            child_name=format_name(intent.child),
+            child_id=intent.child_external_id,
+            amount_cents=intent.amount_cents,
+            payment_method=attempt.payment_method.value,
+        )
+        current_app.logger.info(f"Payment notification sent for Payment {payment.id}")
 
         return payment
 
@@ -732,7 +744,7 @@ class PaymentService:
         Initialize a provider's payment method (card or ACH).
 
         Args:
-            provider_external_id: Provider ID from Google Sheets
+            provider_external_id: Provider ID
             payment_method: Either "card" or "ach"
 
         Returns:
@@ -742,7 +754,6 @@ class PaymentService:
             CardCreateRequest,
             DirectPayAccountInviteRequest,
         )
-        from app.sheets.mappings import ProviderColumnNames, get_provider, get_providers
 
         try:
             # Ensure provider is onboarded to Chek
@@ -810,14 +821,13 @@ class PaymentService:
                     result["already_exists"] = True
                     return result
 
-                # Get provider email from Google Sheets
-                provider_rows = get_providers()
-                provider_data = get_provider(provider_external_id, provider_rows)
+                provider_result = Provider.select_by_id(cols(Provider.EMAIL), int(provider_external_id)).execute()
+                provider = unwrap_or_error(provider_result)
 
-                if not provider_data:
-                    raise ProviderNotFoundException(f"Provider {provider_external_id} not found in Google Sheets")
+                if provider is None:
+                    raise ProviderNotFoundException(f"Provider {provider_external_id} not found")
 
-                provider_email = provider_data.get(ProviderColumnNames.EMAIL)
+                provider_email = Provider.EMAIL(provider)
                 if not provider_email:
                     raise DataNotFoundException(f"Provider {provider_external_id} has no email address")
 
@@ -876,14 +886,14 @@ class PaymentService:
         Helper to get FamilyPaymentSettings from a child external ID.
         Raises FamilyNotFoundException if not found.
         """
-        from app.sheets.mappings import ChildColumnNames, get_child, get_children
+        child_result = Child.select_by_id(cols(Child.FAMILY_ID), int(child_external_id)).execute()
+        child = unwrap_or_error(child_result)
 
-        child_data = get_child(child_external_id, get_children())
-        if not child_data:
-            raise DataNotFoundException(f"Child {child_external_id} not found in Google Sheets")
+        if child is None:
+            raise DataNotFoundException(f"Child {child_external_id} not found")
 
         family_payment_settings = FamilyPaymentSettings.query.filter_by(
-            family_external_id=child_data.get(ChildColumnNames.FAMILY_ID)
+            family_external_id=Child.FAMILY_ID(child)
         ).first()
         if not family_payment_settings:
             return None
@@ -895,15 +905,15 @@ class PaymentService:
         Allocates funds to a family's Chek account.
         """
         from app.integrations.chek.schemas import FlowDirection, TransferBalanceRequest
-        from app.sheets.mappings import ChildColumnNames, get_child, get_children
 
         # If family does not have settings, onboard them
         family_payment_settings = self._get_family_settings_from_child_id(child_external_id)
         if not family_payment_settings or not family_payment_settings.chek_user_id:
-            child_data = get_child(child_external_id, get_children())
-            if not child_data:
-                raise DataNotFoundException(f"Child {child_external_id} not found in Google Sheets")
-            family_payment_settings = self.onboard_family(family_external_id=child_data.get(ChildColumnNames.FAMILY_ID))
+            child_result = Child.select_by_id(cols(Child.FAMILY_ID), int(child_external_id)).execute()
+            child = unwrap_or_error(child_result)
+            if child is None:
+                raise DataNotFoundException(f"Child {child_external_id} not found")
+            family_payment_settings = self.onboard_family(family_external_id=Child.FAMILY_ID(child))
 
         # Transfer funds from program to family's wallet
         transfer_request = TransferBalanceRequest(

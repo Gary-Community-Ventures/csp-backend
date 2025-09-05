@@ -29,7 +29,7 @@ from app.schemas.provider_payment import (
     PaymentMethodUpdateResponse,
     PaymentSettingsResponse,
 )
-from app.supabase.helpers import cols, format_name, unwrap_or_abort
+from app.supabase.helpers import UnwrapError, cols, format_name, unwrap_or_abort
 from app.supabase.tables import Child, Family, Guardian, Provider
 from app.utils.email_service import (
     get_from_email_internal,
@@ -320,6 +320,8 @@ def initialize_provider_payment(provider_id: str):
     except Exception as e:
         current_app.logger.error(f"Failed to initialize payment for provider {provider_id}: {e}")
         return jsonify({"error": f"Failed to initialize payment: {str(e)}"}), 500
+    except UnwrapError:
+        abort(502, description="Database query failed")
 
 
 @bp.post("/provider/initialize-my-payment")
