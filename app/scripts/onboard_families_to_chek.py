@@ -17,6 +17,9 @@ import os
 import sys
 from typing import Any, Dict, List, Optional
 
+from app.supabase.helpers import cols, unwrap_or_error
+from app.supabase.tables import Family
+
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
@@ -24,7 +27,6 @@ from flask import current_app
 
 from app import create_app
 from app.models import FamilyPaymentSettings
-from app.sheets.mappings import FamilyColumnNames, get_families
 
 # Create Flask app context
 app = create_app()
@@ -61,7 +63,7 @@ def onboard_single_family(family_id: str, dry_run: bool) -> Optional[str]:
 
 
 def get_families_needing_onboarding(
-    all_families: List, family_id: Optional[str] = None, limit: Optional[int] = None
+    families: List, family_id: Optional[str] = None, limit: Optional[int] = None
 ) -> List[str]:
     """
     Get list of family IDs that need Chek onboarding.
@@ -82,10 +84,8 @@ def get_families_needing_onboarding(
             families_to_onboard.append(family_id)
     else:
         # Check all families from Google Sheets
-        for family_data in all_families:
-            fid = family_data.get(FamilyColumnNames.ID)
-            if not fid:
-                continue
+        for family in families:
+            fid = Family.ID(family)
 
             settings = existing_settings.get(fid)
             # Include if no settings OR settings exist but no chek_user_id
@@ -115,16 +115,12 @@ def process_families(
     print(f"\n{'[DRY RUN] ' if dry_run else ''}Processing families for Chek onboarding")
     print("=" * 60)
 
-    # Get all family data from Google Sheets
-    try:
-        all_families = get_families()
-        print(f"Found {len(all_families)} total families in Google Sheets")
-    except Exception as e:
-        print(f"❌ Failed to fetch families from Google Sheets: {e}")
-        raise
+    families_result = Family.query().select(cols(Family.ID)).execute()
+    families = unwrap_or_error(families_result)
+    print(f"Found {len(families)} total families")
 
     # Get families needing onboarding
-    families_to_onboard = get_families_needing_onboarding(all_families, family_id, limit)
+    families_to_onboard = get_families_needing_onboarding(families, family_id, limit)
 
     if not families_to_onboard:
         if family_id:

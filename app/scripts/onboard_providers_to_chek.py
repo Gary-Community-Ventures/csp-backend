@@ -17,6 +17,9 @@ import os
 import sys
 from typing import Any, Dict, List, Optional
 
+from app.supabase.helpers import cols, unwrap_or_error
+from app.supabase.tables import Provider
+
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
@@ -24,7 +27,6 @@ from flask import current_app
 
 from app import create_app
 from app.models import ProviderPaymentSettings
-from app.sheets.mappings import ProviderColumnNames, get_providers
 
 # Create Flask app context
 app = create_app()
@@ -61,7 +63,7 @@ def onboard_single_provider(provider_id: str, dry_run: bool) -> Optional[str]:
 
 
 def get_providers_needing_onboarding(
-    all_providers: List, provider_id: Optional[str] = None, limit: Optional[int] = None
+    providers: List, provider_id: Optional[str] = None, limit: Optional[int] = None
 ) -> List[str]:
     """
     Get list of provider IDs that need Chek onboarding.
@@ -81,11 +83,8 @@ def get_providers_needing_onboarding(
         if not settings or not settings.chek_user_id:
             providers_to_onboard.append(provider_id)
     else:
-        # Check all providers from Google Sheets
-        for provider_data in all_providers:
-            pid = provider_data.get(ProviderColumnNames.ID)
-            if not pid:
-                continue
+        for provider in providers:
+            pid = Provider.ID(provider)
 
             settings = existing_settings.get(pid)
             # Include if no settings OR settings exist but no chek_user_id
@@ -115,16 +114,13 @@ def process_providers(
     print(f"\n{'[DRY RUN] ' if dry_run else ''}Processing providers for Chek onboarding")
     print("=" * 60)
 
-    # Get all provider data from Google Sheets
-    try:
-        all_providers = get_providers()
-        print(f"Found {len(all_providers)} total providers in Google Sheets")
-    except Exception as e:
-        print(f"❌ Failed to fetch providers from Google Sheets: {e}")
-        raise
+
+    providers_result = Provider.query().select(cols(Provider.ID)).execute()
+    providers = unwrap_or_error(providers_result)
+    print(f"Found {len(providers)} total providers")
 
     # Get providers needing onboarding
-    providers_to_onboard = get_providers_needing_onboarding(all_providers, provider_id, limit)
+    providers_to_onboard = get_providers_needing_onboarding(providers, provider_id, limit)
 
     if not providers_to_onboard:
         if provider_id:
