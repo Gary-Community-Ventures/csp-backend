@@ -15,6 +15,9 @@ import sys
 from datetime import date, datetime
 from typing import Any, Dict
 
+from app.supabase.helpers import format_name
+from app.supabase.tables import Child
+
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
@@ -47,10 +50,7 @@ def create_allocations_for_month(target_month: date, dry_run: bool = False) -> D
 
         # Progress callback to print updates for each child
         def print_progress(child_data, status):
-            from app.sheets.helpers import format_name
-            from app.sheets.mappings import ChildColumnNames
-
-            child_id = child_data.get(ChildColumnNames.ID)
+            child_id = Child.ID(child_data)
             child_name = format_name(child_data)
 
             if status == "created":
