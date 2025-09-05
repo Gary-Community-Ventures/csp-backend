@@ -33,6 +33,16 @@ class Table:
     def unwrap(cls, data: dict):
         return data[cls.TABLE_NAME]
 
+    @classmethod
+    def find_by_id(cls, data: list[dict], id: str):
+        for row in data:
+            if cls.ID(row) == id:
+                return row
+
+        return None
+
+
+
 
 class Family(Table):
     TABLE_NAME = "family"
