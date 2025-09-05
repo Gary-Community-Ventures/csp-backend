@@ -3,11 +3,8 @@ from datetime import timedelta
 from flask import current_app
 
 from app.constants import MAX_ALLOCATION_AMOUNT_CENTS
-from app.sheets.mappings import (
-    ChildColumnNames,
-    get_child,
-    get_children,
-)
+from app.supabase.helpers import cols, unwrap_or_error
+from app.supabase.tables import Child
 from app.utils.date_utils import get_current_month_start, get_next_month_start
 
 from ..enums.care_day_type import CareDayType
@@ -19,13 +16,17 @@ from .utils import get_care_day_cost
 def get_allocation_amount(child_id: str) -> int:
     """Get the monthly allocation amount for a child"""
 
-    child_data = get_child(child_id, get_children())
-    allocation_dollars = child_data.get(ChildColumnNames.MONTHLY_ALLOCATION)
+    child_results = Child.select_by_id(
+        cols(Child.ID, Child.MONTHLY_ALLOCATION, Child.PRORATED_ALLOCATION), int(child_id)
+    )
+    child = unwrap_or_error(child_results)
+
+    allocation_dollars = Child.MONTHLY_ALLOCATION(child)
 
     # If no prior allocation exists, use prorated amount
     prior_allocation = MonthAllocation.query.filter_by(google_sheets_child_id=child_id).first()
     if not prior_allocation:
-        allocation_dollars = child_data.get(ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION)
+        allocation_dollars = Child.PRORATED_ALLOCATION(child)
 
     if allocation_dollars is None or allocation_dollars == "":
         raise ValueError(f"Child {child_id} does not have a valid monthly allocation amount {allocation_dollars}")
