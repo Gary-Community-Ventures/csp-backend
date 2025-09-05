@@ -1,3 +1,4 @@
+from typing import Optional
 import sentry_sdk
 from flask import abort, current_app
 
@@ -67,7 +68,10 @@ FIRST_NAME_COLUMN = Column("first_name")
 LAST_NAME_COLUMN = Column("last_name")
 
 
-def format_name(data: dict) -> str:
+def format_name(data: Optional[dict]) -> str:
+    if data is None:
+        return UNKNOWN
+
     first_name = FIRST_NAME_COLUMN(data)
     last_name = LAST_NAME_COLUMN(data)
 
