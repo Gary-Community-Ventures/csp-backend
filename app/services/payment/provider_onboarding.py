@@ -8,7 +8,6 @@ from typing import Dict, Optional
 from app.exceptions import ProviderNotFoundException
 from app.models import ProviderPaymentSettings
 from app.services.payment.base_onboarding import BaseOnboarding
-from app.sheets.mappings import ProviderColumnNames, get_provider, get_providers
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Provider
 
@@ -41,7 +40,7 @@ class ProviderOnboarding(BaseOnboarding):
         provider = unwrap_or_error(provider_result)
 
         if provider is None:
-            raise ProviderNotFoundException(f"Provider {external_id} not found in Google Sheets")
+            raise ProviderNotFoundException(f"Provider {external_id} not found")
 
         return provider
 

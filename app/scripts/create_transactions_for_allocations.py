@@ -15,7 +15,7 @@ import argparse
 import os
 import sys
 from datetime import date, datetime
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from app.supabase.helpers import cols, format_name, unwrap_or_error
 from app.supabase.tables import Child

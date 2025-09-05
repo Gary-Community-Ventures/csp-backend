@@ -218,7 +218,7 @@ class AllocationService:
         Simple wrapper around MonthAllocation.get_or_create_for_month with logging.
 
         Args:
-            child_id: The child's Google Sheets ID
+            child_id: The child's external ID
             target_month: The month to get/create allocation for
 
         Returns:

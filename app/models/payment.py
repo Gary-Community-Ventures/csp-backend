@@ -23,8 +23,8 @@ class Payment(db.Model, TimestampMixin):
     )
     successful_attempt = db.relationship("PaymentAttempt", foreign_keys=[successful_attempt_id])
 
-    external_provider_id = db.Column(db.String(64), nullable=False, index=True)  # Google Sheets ID
-    external_child_id = db.Column(db.String(64), nullable=True, index=True)  # Google Sheets ID
+    external_provider_id = db.Column(db.String(64), nullable=False, index=True)  # External ID
+    external_child_id = db.Column(db.String(64), nullable=True, index=True)  # External ID
 
     provider_payment_settings_id = db.Column(
         UUID(as_uuid=True),

@@ -83,7 +83,7 @@ def get_families_needing_onboarding(
         if not settings or not settings.chek_user_id:
             families_to_onboard.append(family_id)
     else:
-        # Check all families from Google Sheets
+        # Check all families
         for family in families:
             fid = Family.ID(family)
 

@@ -35,7 +35,7 @@ class BaseOnboarding(ABC):
 
     @abstractmethod
     def get_entity_data(self, external_id: str) -> Dict:
-        """Get entity data from Google Sheets."""
+        """Get entity data."""
         pass
 
     @abstractmethod
@@ -67,7 +67,7 @@ class BaseOnboarding(ABC):
         Generic onboarding flow for any entity.
 
         Args:
-            external_id: External ID from Google Sheets
+            external_id: External ID
 
         Returns:
             Payment settings record for the entity
@@ -90,7 +90,7 @@ class BaseOnboarding(ABC):
 
             # Validate required fields
             if not fields["email"]:
-                raise DataNotFoundException(f"{entity_type.capitalize()} {external_id} has no email in Google Sheets")
+                raise DataNotFoundException(f"{entity_type.capitalize()} {external_id} has no email")
 
             # Format phone number
             phone = format_phone_to_e164(fields.get("phone_raw"))
