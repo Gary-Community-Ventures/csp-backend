@@ -207,12 +207,14 @@ class PaymentService:
         ).execute()
         provider = unwrap_or_abort(provider_result)
 
+        child = Child.find_by_id(Child.unwrap(provider), intent.child_external_id)
+
         # Send payment notification email to provider
         send_payment_notification(
             provider_name=format_name(provider),
             provider_email=Provider.EMAIL(provider),
             provider_id=intent.provider_external_id,
-            child_name=format_name(intent.child),
+            child_name=format_name(child),
             child_id=intent.child_external_id,
             amount_cents=intent.amount_cents,
             payment_method=attempt.payment_method.value,

@@ -18,7 +18,7 @@ def get_allocation_amount(child_id: str) -> int:
 
     child_results = Child.select_by_id(
         cols(Child.ID, Child.MONTHLY_ALLOCATION, Child.PRORATED_ALLOCATION), int(child_id)
-    )
+    ).execute()
     child = unwrap_or_error(child_results)
 
     allocation_dollars = Child.MONTHLY_ALLOCATION(child)

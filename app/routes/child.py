@@ -27,12 +27,12 @@ bp = Blueprint("child", __name__)
 @auth_required(ClerkUserType.FAMILY)
 def get_month_allocation(child_id, month, year):
     user = get_family_user()
-    family_id = user.family_id
+    family_id = user.user_data.family_id
 
-    child_results = Child.select_by_id(cols(Child.ID, Child.FAMILY_ID), int(child_id))
+    child_results = Child.select_by_id(cols(Child.ID, Child.FAMILY_ID), int(child_id)).execute()
     child = unwrap_or_abort(child_results)
 
-    if child.family_id != family_id:
+    if Child.FAMILY_ID(child) != family_id:
         return jsonify({"error": "Child not found"}), 404
 
     try:
@@ -71,7 +71,7 @@ def get_month_allocation(child_id, month, year):
 @auth_required(ClerkUserType.FAMILY)
 def submit_care_days(child_id, provider_id, month, year):
     user = get_family_user()
-    family_id = user.family_id
+    family_id = user.user_data.family_id
     child_results = Child.select_by_id(
         cols(
             Child.ID,
@@ -82,10 +82,10 @@ def submit_care_days(child_id, provider_id, month, year):
             Provider.join(Provider.ID, Provider.PAYMENT_ENABLED, Provider.NAME),
         ),
         int(child_id),
-    )
+    ).execute()
     child = unwrap_or_abort(child_results)
 
-    if child is None or child.family_id != family_id:
+    if child is None or Child.FAMILY_ID(child) != family_id:
         return jsonify({"error": "Child not found"}), 404
 
     if not Child.PAYMENT_ENABLED(child):

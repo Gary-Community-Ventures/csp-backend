@@ -79,14 +79,14 @@ def get_payment_rate(provider_id, child_id):
     family_id = user.user_data.family_id
 
     child_result = Child.select_by_id(
-        cols(Child.ID, Family.join(Family.ID), Provider.join(Provider.ID)), int(child_id)
+        cols(Child.ID, Child.FAMILY_ID, Provider.join(Provider.ID)), int(child_id)
     ).execute()
     child = unwrap_or_abort(child_result)
 
     if child is None:
         return jsonify({"error": "Child not found"}), 404
 
-    if child.family_id != family_id:
+    if Child.FAMILY_ID(child) != family_id:
         return jsonify({"error": "Child not found"}), 404
 
     child_has_provider = False

@@ -36,7 +36,7 @@ class ProviderOnboarding(BaseOnboarding):
                 Provider.ZIP,
             ),
             int(external_id),
-        )
+        ).execute()
         provider = unwrap_or_error(provider_result)
 
         if provider is None:

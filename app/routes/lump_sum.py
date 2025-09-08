@@ -46,7 +46,14 @@ def create_lump_sum():
 
     # Get family children with associated providers
     family_children_result = Child.select_by_family_id(
-        cols(Child.ID, Child.PAYMENT_ENABLED, Provider.join(Provider.ID, Provider.PAYMENT_ENABLED)), int(family_id)
+        cols(
+            Child.ID,
+            Child.PAYMENT_ENABLED,
+            Child.FIRST_NAME,
+            Child.LAST_NAME,
+            Provider.join(Provider.ID, Provider.PAYMENT_ENABLED, Provider.NAME),
+        ),
+        int(family_id),
     ).execute()
 
     family_children = unwrap_or_abort(family_children_result)

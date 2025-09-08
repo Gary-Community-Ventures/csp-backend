@@ -36,7 +36,7 @@ def unwrap_or_error(response):
         raise UnwrapError(error_msg)
 
     if not hasattr(response, "data"):
-        error_msg = "Supabase response missing data attribute"
+        error_msg = f"Supabase response missing data attribute: {response}"
         current_app.logger.error(error_msg)
         sentry_sdk.capture_message(error_msg, level="error", extras={"response": str(response) if response else None})
         raise UnwrapError(error_msg)
