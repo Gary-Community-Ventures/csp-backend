@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy.dialects.postgresql import JSON, UUID
 
@@ -92,7 +92,7 @@ class PaymentIntent(db.Model, TimestampMixin):
         # Could add more logic here (max retries, time limits, etc.)
         return True
 
-    def get_care_days(self) -> List["AllocatedCareDay"]:
+    def get_care_days(self) -> list["AllocatedCareDay"]:
         """Get the actual AllocatedCareDay objects"""
         from .allocated_care_day import AllocatedCareDay
 
@@ -100,7 +100,7 @@ class PaymentIntent(db.Model, TimestampMixin):
             return []
         return AllocatedCareDay.query.filter(AllocatedCareDay.id.in_(self.care_day_ids)).all()
 
-    def get_lump_sums(self) -> List["AllocatedLumpSum"]:
+    def get_lump_sums(self) -> list["AllocatedLumpSum"]:
         """Get the actual AllocatedLumpSum objects"""
         from .allocated_lump_sum import AllocatedLumpSum
 
@@ -109,7 +109,7 @@ class PaymentIntent(db.Model, TimestampMixin):
         return AllocatedLumpSum.query.filter(AllocatedLumpSum.id.in_(self.lump_sum_ids)).all()
 
     @staticmethod
-    def find_existing(care_day_ids: List[int], lump_sum_ids: List[int]) -> Optional["PaymentIntent"]:
+    def find_existing(care_day_ids: list[int], lump_sum_ids: list[int]) -> Optional["PaymentIntent"]:
         """Find an existing unpaid intent for the same items"""
         # This is a bit tricky with JSON columns - might need a custom query
         # For now, return None and always create new (can optimize later)

@@ -3,7 +3,7 @@ Provider-specific onboarding implementation.
 """
 
 import uuid
-from typing import Dict, Optional
+from typing import Optional
 
 from app.exceptions import ProviderNotFoundException
 from app.models import ProviderPaymentSettings
@@ -21,7 +21,7 @@ class ProviderOnboarding(BaseOnboarding):
     def get_existing_settings(self, external_id: str) -> Optional[ProviderPaymentSettings]:
         return ProviderPaymentSettings.query.filter_by(provider_external_id=external_id).first()
 
-    def get_entity_data(self, external_id: str) -> Dict:
+    def get_entity_data(self, external_id: str) -> dict:
         provider_result = Provider.select_by_id(
             cols(
                 Provider.ID,
@@ -44,7 +44,7 @@ class ProviderOnboarding(BaseOnboarding):
 
         return provider
 
-    def extract_entity_fields(self, entity_data: Dict) -> Dict:
+    def extract_entity_fields(self, entity_data: dict) -> dict:
         return {
             "email": Provider.EMAIL(entity_data),
             "phone_raw": Provider.PHONE_NUMBER(entity_data),
@@ -67,10 +67,10 @@ class ProviderOnboarding(BaseOnboarding):
             chek_wallet_balance=balance,
         )
 
-    def get_chek_status(self, chek_user_id: int) -> Dict:
+    def get_chek_status(self, chek_user_id: int) -> dict:
         return self.chek_service.get_provider_chek_status(chek_user_id)
 
-    def update_settings_from_status(self, settings: ProviderPaymentSettings, status: Dict) -> None:
+    def update_settings_from_status(self, settings: ProviderPaymentSettings, status: dict) -> None:
         settings.chek_direct_pay_id = status.get("direct_pay_id")
         settings.chek_direct_pay_status = status.get("direct_pay_status")
         settings.chek_card_id = status.get("card_id")

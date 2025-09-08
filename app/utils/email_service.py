@@ -1,7 +1,7 @@
 import sys
 import traceback
 from dataclasses import dataclass
-from typing import List, Union
+from typing import Union
 
 from flask import current_app
 from sendgrid import Personalization, SendGridAPIClient, Substitution, To
@@ -23,7 +23,7 @@ def add_subject_prefix(subject: str):
 
 
 def send_email(
-    from_email: str, to_emails: Union[str, List[str]], subject: str, html_content: str, from_name: str = "CAP Support"
+    from_email: str, to_emails: Union[str, list[str]], subject: str, html_content: str, from_name: str = "CAP Support"
 ) -> bool:
     """
     Send an email using SendGrid.
@@ -175,7 +175,7 @@ def send_care_days_payment_email(
     child_last_name: str,
     google_sheets_child_id: str,
     amount_in_cents: int,
-    care_days: List[AllocatedCareDay],
+    care_days: list[AllocatedCareDay],
 ) -> bool:
     amount_dollars = amount_in_cents / 100
 

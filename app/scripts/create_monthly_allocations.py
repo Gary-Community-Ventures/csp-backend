@@ -13,7 +13,7 @@ import argparse
 import os
 import sys
 from datetime import date, datetime
-from typing import Any, Dict
+from typing import Any
 
 from app.supabase.helpers import format_name
 from app.supabase.tables import Child
@@ -30,7 +30,7 @@ app = create_app()
 app.app_context().push()
 
 
-def create_allocations_for_month(target_month: date, dry_run: bool = False) -> Dict[str, Any]:
+def create_allocations_for_month(target_month: date, dry_run: bool = False) -> dict[str, Any]:
     """
     Create monthly allocations for all children for a specific month.
 
@@ -112,13 +112,13 @@ def create_allocations_for_month(target_month: date, dry_run: bool = False) -> D
         raise
 
 
-def create_allocations_for_current_month(dry_run: bool = False) -> Dict[str, Any]:
+def create_allocations_for_current_month(dry_run: bool = False) -> dict[str, Any]:
     """Create allocations for the current month."""
     current_month = get_current_month_start()
     return create_allocations_for_month(current_month, dry_run)
 
 
-def create_allocations_for_next_month(dry_run: bool = False) -> Dict[str, Any]:
+def create_allocations_for_next_month(dry_run: bool = False) -> dict[str, Any]:
     """Create allocations for the next month."""
     next_month = get_next_month_start()
     return create_allocations_for_month(next_month, dry_run)

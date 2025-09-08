@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -39,7 +39,7 @@ class User(BaseModel):
     last_login: Optional[datetime] = None
     directpay: Optional[DirectPayInfo] = None
     b2b_pay: Any = None  # Or a more specific model if needed
-    cards: List[CardInfo]
+    cards: list[CardInfo]
     balance: int  # In cents
 
 
@@ -72,23 +72,23 @@ class Card(BaseModel):
     last4: str
     program: str
     card_art: CardArt
-    metafields: List[Any]
+    metafields: list[Any]
 
 
 class CardCreateResponse(BaseModel):
     """Response from the new card creation endpoint"""
 
-    user: Dict[str, Any] = Field(description="User details including balance")
-    program: Dict[str, Any] = Field(description="Program details including balance")
-    card: Dict[str, Any] = Field(description="Card details including id, last4, status, type, created")
-    transfer: Dict[str, Any] = Field(description="Transfer details including id, amount, created, type")
+    user: dict[str, Any] = Field(description="User details including balance")
+    program: dict[str, Any] = Field(description="Program details including balance")
+    card: dict[str, Any] = Field(description="Card details including id, last4, status, type, created")
+    transfer: dict[str, Any] = Field(description="Transfer details including id, amount, created, type")
 
 
 class DirectPayAccount(BaseModel):
     id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-    user: Dict[str, Any]  # Simplified for now
+    user: dict[str, Any]  # Simplified for now
     status: str
     bank_name: Optional[str] = None
     last4: Optional[str] = None
@@ -96,7 +96,7 @@ class DirectPayAccount(BaseModel):
     billing_address: Optional[Address] = None
     custom_fields: Any = None
     balance_owed: Any = None
-    outbound_payments: List[Any]
+    outbound_payments: list[Any]
 
 
 # --- Request Models ---
@@ -181,7 +181,7 @@ class ProgramListResponse(BaseModel):
     count: int
     page_size: int
     page_count: int
-    results: List[Program]
+    results: list[Program]
 
 
 # --- Transfer Funds to Card Models ---

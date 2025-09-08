@@ -1,5 +1,4 @@
 from datetime import date, datetime
-from typing import List
 
 from pydantic import BaseModel
 
@@ -17,6 +16,6 @@ class MonthAllocationResponse(BaseModel):
     locked_past_date: date
     created_at: datetime
     updated_at: datetime
-    care_days: List[AllocatedCareDayResponse]
+    care_days: list[AllocatedCareDayResponse]
 
     model_config = {"from_attributes": True}

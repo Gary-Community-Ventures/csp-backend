@@ -15,7 +15,7 @@ Usage:
 import argparse
 import os
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Family
@@ -63,8 +63,8 @@ def onboard_single_family(family_id: str, dry_run: bool) -> Optional[str]:
 
 
 def get_families_needing_onboarding(
-    families: List, family_id: Optional[str] = None, limit: Optional[int] = None
-) -> List[str]:
+    families: list, family_id: Optional[str] = None, limit: Optional[int] = None
+) -> list[str]:
     """
     Get list of family IDs that need Chek onboarding.
 
@@ -100,7 +100,7 @@ def get_families_needing_onboarding(
 
 def process_families(
     dry_run: bool = False, family_id: Optional[str] = None, limit: Optional[int] = None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Process families for Chek onboarding.
 

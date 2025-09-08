@@ -15,7 +15,7 @@ Usage:
 import argparse
 import os
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Provider
@@ -63,8 +63,8 @@ def onboard_single_provider(provider_id: str, dry_run: bool) -> Optional[str]:
 
 
 def get_providers_needing_onboarding(
-    providers: List, provider_id: Optional[str] = None, limit: Optional[int] = None
-) -> List[str]:
+    providers: list, provider_id: Optional[str] = None, limit: Optional[int] = None
+) -> list[str]:
     """
     Get list of provider IDs that need Chek onboarding.
 
@@ -99,7 +99,7 @@ def get_providers_needing_onboarding(
 
 def process_providers(
     dry_run: bool = False, provider_id: Optional[str] = None, limit: Optional[int] = None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Process providers for Chek onboarding.
 
@@ -113,7 +113,6 @@ def process_providers(
     """
     print(f"\n{'[DRY RUN] ' if dry_run else ''}Processing providers for Chek onboarding")
     print("=" * 60)
-
 
     providers_result = Provider.query().select(cols(Provider.ID)).execute()
     providers = unwrap_or_error(providers_result)

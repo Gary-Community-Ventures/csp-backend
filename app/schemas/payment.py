@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -10,7 +10,7 @@ class PaymentProcessedResponse(BaseModel):
 
     message: str = "Payment processed successfully"
     total_amount: str = Field(..., description="Total payment amount in dollars (e.g., '$25.00')")
-    care_days: List[AllocatedCareDayResponse] = Field(..., description="List of care days that were paid")
+    care_days: list[AllocatedCareDayResponse] = Field(..., description="List of care days that were paid")
 
     class Config:
         json_schema_extra = {
@@ -127,7 +127,7 @@ class FamilyPaymentHistoryItem(BaseModel):
 class FamilyPaymentHistoryResponse(BaseModel):
     """Response for family payment history endpoint"""
 
-    payments: List[FamilyPaymentHistoryItem] = Field(..., description="List of payments ordered by newest first")
+    payments: list[FamilyPaymentHistoryItem] = Field(..., description="List of payments ordered by newest first")
     total_count: int = Field(..., description="Total number of payments")
     total_amount_cents: int = Field(..., description="Total amount of all payments in cents")
 
@@ -167,7 +167,7 @@ class ProviderPaymentHistoryItem(BaseModel):
 class ProviderPaymentHistoryResponse(BaseModel):
     """Response for provider payment history endpoint"""
 
-    payments: List[ProviderPaymentHistoryItem] = Field(..., description="List of payments ordered by newest first")
+    payments: list[ProviderPaymentHistoryItem] = Field(..., description="List of payments ordered by newest first")
     total_count: int = Field(..., description="Total number of payments")
     total_amount_cents: int = Field(..., description="Total amount of all payments in cents")
     successful_payments_cents: int = Field(..., description="Total amount of successful payments in cents")

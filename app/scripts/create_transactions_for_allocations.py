@@ -15,7 +15,7 @@ import argparse
 import os
 import sys
 from datetime import date, datetime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from app.supabase.helpers import cols, format_name, unwrap_or_error
 from app.supabase.tables import Child
@@ -146,7 +146,7 @@ def commit_changes(processed_count: int, dry_run: bool) -> None:
         raise
 
 
-def print_summary(result: Dict[str, Any]) -> None:
+def print_summary(result: dict[str, Any]) -> None:
     """Print the processing summary."""
     dry_run = result["dry_run"]
     print(f"\n{'=' * 60}")
@@ -168,7 +168,7 @@ def print_summary(result: Dict[str, Any]) -> None:
             print(f"  ... and {len(errors) - 10} more errors")
 
 
-def process_missing_allocations(dry_run: bool = False, limit: Optional[int] = None) -> Dict[str, Any]:
+def process_missing_allocations(dry_run: bool = False, limit: Optional[int] = None) -> dict[str, Any]:
     """
     Process all monthly allocations that are missing transfer IDs.
 
