@@ -58,7 +58,7 @@ def get_family_payment_history():
         child = Child.find_by_id(children, payment.external_child_id)
         provider = Provider.find_by_id(Provider.unwrap(child)) if child is not None else None
 
-        child_name = format_name(child) if child is not None else UNKNOWN
+        child_name = format_name(child)
         provider_name = provider.NAME if provider is not None else UNKNOWN
 
         # Get month from allocation
@@ -141,7 +141,7 @@ def get_provider_payment_history():
             payment_status = "failed"
 
         child = Child.find_by_id(Child.unwrap(provider), payment.external_child_id)
-        child_name = format_name(child) if child is not None else UNKNOWN
+        child_name = format_name(child)
 
         # Get month from allocation
         month_allocation = MonthAllocation.query.get(payment.month_allocation_id)

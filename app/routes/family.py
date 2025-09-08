@@ -296,7 +296,7 @@ def invite_provider():
 
         children.append(child)
 
-    family_name = format_name(primary_guardian) if primary_guardian else UNKNOWN
+    family_name = format_name(primary_guardian)
 
     invitations: list[ProviderInvitation] = []
     for child in children:
@@ -470,7 +470,7 @@ def accept_provider_invite(invite_id: str):
     if invite_data.already_caring_for:
         abort(400, description=f"Provider already has a child in the family.")
 
-    parent_name = format_name(invite_data.guardian_data) if invite_data.guardian_data else UNKNOWN
+    parent_name = format_name(invite_data.guardian_data)
     child_name = format_name(invite_data.child_data)
 
     accept_request = send_provider_invite_accept_email(

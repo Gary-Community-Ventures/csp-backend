@@ -625,7 +625,7 @@ def accept_family_invite(invite_id: str):
     accept_request = send_family_invite_accept_email(
         provider_name=Provider.NAME(invite_data.provider_data),
         provider_id=Provider.ID(invite_data.provider_data),
-        parent_name=format_name(primary_guardian) if primary_guardian else UNKNOWN,
+        parent_name=format_name(primary_guardian),
         parent_id=Family.ID(family_data),
         children=children,
     )
