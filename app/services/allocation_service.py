@@ -179,9 +179,7 @@ class AllocationService:
 
         try:
             # Check if allocation already exists
-            existing_allocation = MonthAllocation.query.filter_by(
-                child_supabase_id=child_id, date=target_month
-            ).first()
+            existing_allocation = MonthAllocation.query.filter_by(child_supabase_id=child_id, date=target_month).first()
 
             if existing_allocation:
                 self.app.logger.debug(f"Allocation already exists for {child_name} ({child_id}) for {target_month}")

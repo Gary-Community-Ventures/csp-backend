@@ -86,8 +86,6 @@ def client(app):
     return app.test_client()
 
 
-
-
 @pytest.fixture
 def month_allocation(db_session):
     allocation = MonthAllocation(

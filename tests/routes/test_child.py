@@ -6,8 +6,6 @@ from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation
 
 
-
-
 @pytest.fixture
 def seed_db(app):
     with app.app_context():
@@ -118,9 +116,7 @@ def test_get_month_allocation_success(client, seed_db):
 
 def test_get_month_allocation_invalid_date(client, seed_db):
     allocation, _, _, _, _, _ = seed_db
-    response = client.get(
-        f"/child/{allocation.child_supabase_id}/allocation/13/2024?provider_id=1"
-    )  # Invalid month
+    response = client.get(f"/child/{allocation.child_supabase_id}/allocation/13/2024?provider_id=1")  # Invalid month
     assert response.status_code == 400
     assert "month must be in 1..12" in response.json["error"]
 

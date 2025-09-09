@@ -759,9 +759,7 @@ class PaymentService:
 
         try:
             # Ensure provider is onboarded to Chek
-            provider_settings = ProviderPaymentSettings.query.filter_by(
-                provider_supabase_id=provider_id
-            ).first()
+            provider_settings = ProviderPaymentSettings.query.filter_by(provider_supabase_id=provider_id).first()
 
             if not provider_settings:
                 # Onboard the provider to Chek

@@ -129,20 +129,11 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
     mock_payment_service = mocker.patch(
         "app.scripts.run_payment_requests.payment_service.process_payment", return_value=True
     )
-    
+
     # Mock child and provider data lookup functions
-    mocker.patch(
-        "app.scripts.run_payment_requests.get_child_name",
-        return_value=("Test", "Child")
-    )
-    mocker.patch(
-        "app.scripts.run_payment_requests.get_provider_name", 
-        return_value="Test Provider"
-    )
-    mocker.patch(
-        "app.scripts.run_payment_requests.get_family_id_from_child",
-        return_value="family123"
-    )
+    mocker.patch("app.scripts.run_payment_requests.get_child_name", return_value=("Test", "Child"))
+    mocker.patch("app.scripts.run_payment_requests.get_provider_name", return_value="Test Provider")
+    mocker.patch("app.scripts.run_payment_requests.get_family_id_from_child", return_value="family123")
 
     # Run the script
     run_payment_requests()

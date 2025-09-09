@@ -20,9 +20,7 @@ class Attendance(db.Model, TimestampMixin):
     provider_opened_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     def __repr__(self):
-        return (
-            f"<Attendance {self.id} - Child: {self.child_supabase_id} - Provider: {self.provider_supabase_id}>"
-        )
+        return f"<Attendance {self.id} - Child: {self.child_supabase_id} - Provider: {self.provider_supabase_id}>"
 
     @staticmethod
     def last_week_date():

@@ -1,4 +1,5 @@
 from typing import Optional
+
 import sentry_sdk
 from flask import abort, current_app
 

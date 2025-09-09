@@ -30,8 +30,6 @@ def mock_authentication(mocker):
     mocker.patch("app.auth.decorators._authenticate_request", return_value=mock_request_state)
 
 
-
-
 # --- POST /lump-sums ---
 
 

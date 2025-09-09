@@ -42,8 +42,6 @@ class Table:
         return None
 
 
-
-
 class Family(Table):
     TABLE_NAME = "family"
 

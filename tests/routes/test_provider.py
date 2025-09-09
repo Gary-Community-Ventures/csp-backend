@@ -104,9 +104,7 @@ def test_get_allocated_care_days_filter_by_start_date(client, seed_db):
         len(response.json[str(allocation1.child_supabase_id)]) == 1
     )  # Only care_day1_2 (2024-01-20) remains for child 1
     assert response.json[str(allocation1.child_supabase_id)][0]["id"] == care_day1_2.id
-    assert (
-        len(response.json[str(allocation2.child_supabase_id)]) == 1
-    )  # care_day2_1 (2024-02-10) remains for child 2
+    assert len(response.json[str(allocation2.child_supabase_id)]) == 1  # care_day2_1 (2024-02-10) remains for child 2
 
 
 def test_get_allocated_care_days_filter_by_end_date(client, seed_db):
@@ -156,9 +154,7 @@ def test_get_allocated_care_days_no_results(client, seed_db):
 
 def test_get_allocated_care_days_invalid_start_date(client, seed_db):
     _, _, care_day1_1, _, _ = seed_db
-    response = client.get(
-        f"/provider/{care_day1_1.provider_supabase_id}/allocated_care_days?startDate=invalid-date"
-    )
+    response = client.get(f"/provider/{care_day1_1.provider_supabase_id}/allocated_care_days?startDate=invalid-date")
     assert response.status_code == 400
     assert "Invalid startDate format" in response.json["error"]
 
