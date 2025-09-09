@@ -9,8 +9,8 @@ def seed_db(app):
     with app.app_context():
         # Create a PaymentRate for testing (using valid values within MIN_PAYMENT_RATE and MAX_PAYMENT_RATE)
         payment_rate = PaymentRate(
-            google_sheets_provider_id="1",
-            google_sheets_child_id="1",
+            provider_supabase_id="1",
+            child_supabase_id="1",
             full_day_rate_cents=5000,  # $50
             half_day_rate_cents=4000,  # $40
         )

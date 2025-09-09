@@ -170,10 +170,10 @@ def system_message(subject: str, description: str, rows: list[SystemMessageRow])
 
 def send_care_days_payment_email(
     provider_name: str,
-    google_sheets_provider_id: str,
+    provider_id: str,
     child_first_name: str,
     child_last_name: str,
-    google_sheets_child_id: str,
+    child_id: str,
     amount_in_cents: int,
     care_days: list[AllocatedCareDay],
 ) -> bool:
@@ -182,7 +182,7 @@ def send_care_days_payment_email(
     from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(
-        f"Sending payment processed notification to {to_emails} for provider ID: {google_sheets_provider_id} from child ID: {google_sheets_child_id}"
+        f"Sending payment processed notification to {to_emails} for provider ID: {provider_id} from child ID: {child_id}"
     )
 
     subject = "Care Days Payment Processed"
@@ -197,11 +197,11 @@ def send_care_days_payment_email(
     rows = [
         SystemMessageRow(
             title="Provider Name",
-            value=f"{provider_name} (ID: {google_sheets_provider_id})",
+            value=f"{provider_name} (ID: {provider_id})",
         ),
         SystemMessageRow(
             title="Child Name",
-            value=f"{child_first_name} {child_last_name} (ID: {google_sheets_child_id})",
+            value=f"{child_first_name} {child_last_name} (ID: {child_id})",
         ),
         SystemMessageRow(
             title="Amount",
@@ -225,10 +225,10 @@ def send_care_days_payment_email(
 
 def send_lump_sum_payment_email(
     provider_name: str,
-    google_sheets_provider_id: str,
+    provider_id: str,
     child_first_name: str,
     child_last_name: str,
-    google_sheets_child_id: str,
+    child_id: str,
     amount_in_cents: int,
     hours: float,
     month: str,
@@ -238,7 +238,7 @@ def send_lump_sum_payment_email(
     from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(
-        f"Sending lump sum payment processed email to {to_emails} for provider ID: {google_sheets_provider_id} from child ID: {google_sheets_child_id}"
+        f"Sending lump sum payment processed email to {to_emails} for provider ID: {provider_id} from child ID: {child_id}"
     )
 
     subject = "New Lump Sum Payment Notification"
@@ -247,11 +247,11 @@ def send_lump_sum_payment_email(
     rows = [
         SystemMessageRow(
             title="Provider Name",
-            value=f"{provider_name} (ID: {google_sheets_provider_id})",
+            value=f"{provider_name} (ID: {provider_id})",
         ),
         SystemMessageRow(
             title="Child Name",
-            value=f"{child_first_name} {child_last_name} (ID: {google_sheets_child_id})",
+            value=f"{child_first_name} {child_last_name} (ID: {child_id})",
         ),
         SystemMessageRow(
             title="Amount",

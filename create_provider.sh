@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Create Provider Script
-# Usage: ./create_provider.sh <environment> [email] [google_sheet_id]
+# Usage: ./create_provider.sh <environment> [email] [supabase_id]
 # Example: ./create_provider.sh "dev" "provider@example.com" "1xyz789abc123def456ghi"
 # Environments: dev, staging, prod
 
@@ -19,7 +19,7 @@ fi
 
 # Check if required parameters are provided
 if [ $# -lt 1 ]; then
-    echo "Usage: $0 <environment> [email] [google_sheet_id]"
+    echo "Usage: $0 <environment> [email] [supabase_id]"
     echo "Environments: dev, staging, prod"
     echo "Example: $0 'dev' 'provider@example.com' '1xyz789abc123def456ghi'"
     exit 1
@@ -58,20 +58,20 @@ fi
 
 # Get optional parameters from command line or use defaults
 EMAIL=${2:-"provider@example.com"}
-GOOGLE_SHEET_ID=${3:-"1xyz789abc123def456ghi"}
+SUPABASE_ID=${3:-"1xyz789abc123def456ghi"}
 
 echo "Creating new provider..."
 echo "Environment: $ENVIRONMENT"
 echo "Base URL: $BASE_URL"
 echo "Email: $EMAIL"
-echo "Google Sheet ID: $GOOGLE_SHEET_ID"
+echo "Supabase ID: $SUPABASE_ID"
 echo ""
 
 curl -X POST "$BASE_URL/provider" \
     -H "Content-Type: application/json" \
     -H "X-API-Key: $API_KEY" \
     -d "{
-        \"google_sheet_id\": \"$GOOGLE_SHEET_ID\",
+        \"supabase_id\": \"$SUPABASE_ID\",
         \"email\": \"$EMAIL\"
     }" \
     -w "\nHTTP Status: %{http_code}\n" \

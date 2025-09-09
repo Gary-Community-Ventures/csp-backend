@@ -18,9 +18,9 @@ class PaymentIntent(db.Model, TimestampMixin):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Who and what we're paying for
-    provider_external_id = db.Column(db.String(64), nullable=True, index=True)
+    provider_external_id = db.Column(db.String(64), nullable=True, index=True)  # NOTE: Legacy Google Sheets ID
     provider_supabase_id = db.Column(db.String(64), nullable=True, index=True)
-    child_external_id = db.Column(db.String(64), nullable=True, index=True)
+    child_external_id = db.Column(db.String(64), nullable=True, index=True)  # NOTE: Legacy Google Sheets ID
     child_supabase_id = db.Column(db.String(64), nullable=True, index=True)
     month_allocation_id = db.Column(
         db.Integer, db.ForeignKey("month_allocation.id", name="fk_payment_intent_month_allocation_id"), nullable=False
@@ -118,4 +118,4 @@ class PaymentIntent(db.Model, TimestampMixin):
         return None
 
     def __repr__(self):
-        return f"<PaymentIntent {self.id} - {self.provider_external_id} - ${self.amount_cents/100:.2f} - Status: {self.status}>"
+        return f"<PaymentIntent {self.id} - {self.provider_supabase_id} - ${self.amount_cents/100:.2f} - Status: {self.status}>"

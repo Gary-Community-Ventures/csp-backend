@@ -43,8 +43,8 @@ def run_payment_requests():
     for day in care_days_to_process:
         grouped_care_days[
             (
-                day.provider_google_sheets_id,
-                day.care_month_allocation.google_sheets_child_id,
+                day.provider_supabase_id,
+                day.care_month_allocation.child_supabase_id,
             )
         ].append(day)
 

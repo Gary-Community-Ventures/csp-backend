@@ -42,7 +42,7 @@ def process_single_allocation(allocation: MonthAllocation, child_name: str, dry_
     Returns:
         None if successful, error message string if failed
     """
-    child_id = allocation.google_sheets_child_id
+    child_id = allocation.child_supabase_id
     amount_str = f"${allocation.allocation_cents / 100:.2f}"
 
     if dry_run:
@@ -101,7 +101,7 @@ def process_month_allocations(
     errors = []
 
     for allocation in month_allocations:
-        child_id = allocation.google_sheets_child_id
+        child_id = allocation.child_supabase_id
         child = Child.find_by_id(children, child_id)
         child_name = format_name(child)
 
@@ -124,7 +124,7 @@ def fetch_missing_allocations(cutoff_date: date, limit: Optional[int] = None) ->
             MonthAllocation.chek_transfer_id.is_(None),
             MonthAllocation.allocation_cents > 0,
         )
-    ).order_by(MonthAllocation.date, MonthAllocation.google_sheets_child_id)
+    ).order_by(MonthAllocation.date, MonthAllocation.child_supabase_id)
 
     if limit:
         query = query.limit(limit)

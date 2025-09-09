@@ -180,7 +180,7 @@ class AllocationService:
         try:
             # Check if allocation already exists
             existing_allocation = MonthAllocation.query.filter_by(
-                google_sheets_child_id=child_id, date=target_month
+                child_supabase_id=child_id, date=target_month
             ).first()
 
             if existing_allocation:

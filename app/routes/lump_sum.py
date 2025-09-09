@@ -42,7 +42,7 @@ def create_lump_sum():
         return jsonify({"error": "MonthAllocation not found"}), 404
 
     # Check if the child associated with the allocation belongs to the family
-    allocation_child_id = allocation.google_sheets_child_id
+    allocation_child_id = allocation.child_supabase_id
 
     # Get family children with associated providers
     family_children_result = Child.select_by_family_id(
@@ -113,10 +113,10 @@ def create_lump_sum():
         # If email fails, we log it but don't fail the request since payment succeeded
         send_lump_sum_payment_email(
             provider_name=Provider.NAME(provider_data),
-            google_sheets_provider_id=provider_id,
+            provider_id=provider_id,
             child_first_name=Child.FIRST_NAME(associated_child),
             child_last_name=Child.LAST_NAME(associated_child),
-            google_sheets_child_id=allocation_child_id,
+            child_id=allocation_child_id,
             amount_in_cents=amount_cents,
             hours=hours,
             month=allocation.date.strftime("%B %Y"),

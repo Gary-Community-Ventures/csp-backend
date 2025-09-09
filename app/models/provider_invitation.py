@@ -16,14 +16,14 @@ class ProviderInvitation(db.Model, TimestampMixin):
     opened_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     def __repr__(self):
-        return f"<ProviderInvitation {self.id} - Child Sheet ID: {self.child_google_sheet_id}>"
+        return f"<ProviderInvitation {self.id} - Child Sheet ID: {self.child_supabase_id}>"
 
     @staticmethod
     def new(public_id: str, invite_email: str, child_id: str):
         return ProviderInvitation(
             public_id=public_id,
             invite_email=invite_email,
-            child_google_sheet_id=child_id,
+            child_supabase_id=child_id,
         )
 
     @classmethod

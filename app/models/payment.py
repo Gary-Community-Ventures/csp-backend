@@ -23,8 +23,10 @@ class Payment(db.Model, TimestampMixin):
     )
     successful_attempt = db.relationship("PaymentAttempt", foreign_keys=[successful_attempt_id])
 
-    external_provider_id = db.Column(db.String(64), nullable=False, index=True)  # External ID
-    external_child_id = db.Column(db.String(64), nullable=True, index=True)  # External ID
+    external_provider_id = db.Column(db.String(64), nullable=True, index=True)  # NOTE: Legacy Google Sheets ID
+    external_child_id = db.Column(db.String(64), nullable=True, index=True)  # NOTE: Legacy Google Sheets ID
+    provider_supabase_id = db.Column(db.String(64), nullable=True, index=True)
+    child_supabase_id = db.Column(db.String(64), nullable=True, index=True)
 
     provider_payment_settings_id = db.Column(
         UUID(as_uuid=True),
@@ -122,4 +124,4 @@ class Payment(db.Model, TimestampMixin):
         return None
 
     def __repr__(self):
-        return f"<Payment {self.id} - Amount: {self.amount_cents} cents - Provider: {self.external_provider_id}>"
+        return f"<Payment {self.id} - Amount: {self.amount_cents} cents - Provider: {self.provider_supabase_id}>"

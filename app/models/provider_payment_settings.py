@@ -13,7 +13,7 @@ from .mixins import TimestampMixin
 class ProviderPaymentSettings(db.Model, TimestampMixin):
     __tablename__ = "provider_payment_settings"
     id = db.Column(db.UUID(as_uuid=True), index=True, primary_key=True, default=uuid.uuid4)
-    provider_external_id = db.Column(db.String(64), nullable=True, index=True)
+    provider_external_id = db.Column(db.String(64), nullable=True, index=True)  # NOTE: Legacy Google Sheets ID
     provider_supabase_id = db.Column(db.String(64), nullable=True, index=True)
 
     # Payment-related fields
@@ -92,15 +92,15 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
         return is_valid
 
     def __repr__(self):
-        return f"<ProviderPaymentSettings {self.id} - External ID: {self.provider_external_id}>"
+        return f"<ProviderPaymentSettings {self.id} - External ID: {self.provider_supabase_id}>"
 
     @staticmethod
-    def new(provider_external_id: str):
-        return ProviderPaymentSettings(id=uuid.uuid4(), provider_external_id=provider_external_id)
+    def new(provider_id: str):
+        return ProviderPaymentSettings(id=uuid.uuid4(), provider_supabase_id=provider_id)
 
     @classmethod
     def by_external_id(cls, id: str) -> Query:
-        return cls.query.filter_by(provider_external_id=id)
+        return cls.query.filter_by(provider_supabase_id=id)
 
     @classmethod
     def by_chek_user_id(cls, id: str) -> Query:

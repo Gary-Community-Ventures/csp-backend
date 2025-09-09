@@ -48,7 +48,7 @@ def get_month_allocation(child_id, month, year):
     if provider_id:
         care_days_query = AllocatedCareDay.query.filter_by(
             care_month_allocation_id=allocation.id,
-            provider_google_sheets_id=provider_id,
+            provider_supabase_id=provider_id,
         )
     else:
         care_days_query = AllocatedCareDay.query.filter_by(care_month_allocation_id=allocation.id)
@@ -104,7 +104,7 @@ def submit_care_days(child_id, provider_id, month, year):
     except ValueError:
         return jsonify({"error": "Invalid month or year"}), 400
 
-    allocation = MonthAllocation.query.filter_by(google_sheets_child_id=child_id, date=month_date).first()
+    allocation = MonthAllocation.query.filter_by(child_supabase_id=child_id, date=month_date).first()
     if not allocation:
         return jsonify({"error": "Allocation not found"}), 404
 
@@ -113,7 +113,7 @@ def submit_care_days(child_id, provider_id, month, year):
 
     care_days_to_submit = AllocatedCareDay.query.filter(
         AllocatedCareDay.care_month_allocation_id == allocation.id,
-        AllocatedCareDay.provider_google_sheets_id == provider_id,
+        AllocatedCareDay.provider_supabase_id == provider_id,
         AllocatedCareDay.deleted_at.is_(None),  # Don't submit deleted days
         AllocatedCareDay.last_submitted_at.is_(None),  # Don't submit already submitted days
     ).all()
@@ -145,10 +145,10 @@ def submit_care_days(child_id, provider_id, month, year):
     # TODO: leave so whe know when payments happen but remove in future
     send_care_days_payment_email(
         provider_name=Provider.NAME(provider),
-        google_sheets_provider_id=provider_id,
+        provider_id=provider_id,
         child_first_name=Child.FIRST_NAME(child),
         child_last_name=Child.LAST_NAME(child),
-        google_sheets_child_id=child_id,
+        child_id=child_id,
         amount_in_cents=total_amount_cents,
         care_days=care_days_to_submit,
     )

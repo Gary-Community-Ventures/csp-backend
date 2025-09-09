@@ -48,7 +48,7 @@ def family_attendance():
 
         child = None
         for c in child_data:
-            if Child.ID(c) == att_data.child_google_sheet_id:
+            if Child.ID(c) == att_data.child_supabase_id:
                 child = c
                 break
 
@@ -66,7 +66,7 @@ def family_attendance():
 
         provider = None
         for provider in Provider.unwrap(child):
-            if Provider.ID(provider) == att_data.provider_google_sheet_id:
+            if Provider.ID(provider) == att_data.provider_supabase_id:
                 provider = provider
                 break
 
@@ -164,7 +164,7 @@ def provider_attendance():
 
         child = None
         for family_child in child_data:
-            if Child.ID(family_child) == att_data.child_google_sheet_id:
+            if Child.ID(family_child) == att_data.child_supabase_id:
                 child = family_child
                 break
 

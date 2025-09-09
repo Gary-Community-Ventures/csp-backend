@@ -29,4 +29,4 @@ class PaymentRequest(db.Model, TimestampMixin):
         return AllocatedCareDay.query.filter(AllocatedCareDay.id.in_(self.care_day_ids)).all()
 
     def __repr__(self):
-        return f"<PaymentRequest ${self.amount_in_cents / 100:.2f} - Provider {self.google_sheets_provider_id}>"
+        return f"<PaymentRequest ${self.amount_in_cents / 100:.2f} - Provider {self.provider_supabase_id}>"

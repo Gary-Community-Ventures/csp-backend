@@ -25,7 +25,7 @@ class PaymentProcessedResponse(BaseModel):
                         "type": "Full Day",
                         "amount_cents": 5000,
                         "day_count": 1.0,
-                        "provider_google_sheets_id": "PROV123",
+                        "provider_supabase_id": "PROV123",
                     }
                 ],
             }

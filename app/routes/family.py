@@ -418,9 +418,9 @@ def provider_invite(invite_id: str):
 
     user = get_current_user()
     if user is not None and user.user_data.provider_id is not None:
-        invite_data = get_invite_data(invitation.child_google_sheet_id, user.user_data.provider_id)
+        invite_data = get_invite_data(invitation.child_supabase_id, user.user_data.provider_id)
     else:
-        invite_data = get_invite_data(invitation.child_google_sheet_id)
+        invite_data = get_invite_data(invitation.child_supabase_id)
 
     child = {
         "id": Child.ID(invite_data.child_data),
@@ -456,7 +456,7 @@ def accept_provider_invite(invite_id: str):
     if invitation.accepted:
         abort(400, description="Invitation already accepted.")
 
-    invite_data = get_invite_data(invitation.child_google_sheet_id, user.user_data.provider_id)
+    invite_data = get_invite_data(invitation.child_supabase_id, user.user_data.provider_id)
 
     provider_result = Provider.select_by_id(cols(Provider.ID, Provider.NAME), int(user.user_data.provider_id)).execute()
 

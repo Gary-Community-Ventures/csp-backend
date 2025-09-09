@@ -12,7 +12,7 @@ from .mixins import TimestampMixin
 class FamilyPaymentSettings(db.Model, TimestampMixin):
     __tablename__ = "family_payment_settings"
     id = db.Column(db.UUID(as_uuid=True), index=True, primary_key=True, default=uuid.uuid4)
-    family_external_id = db.Column(db.String(64), nullable=True, index=True)
+    family_external_id = db.Column(db.String(64), nullable=True, index=True)  # NOTE: Legacy Google Sheets ID
     family_supabase_id = db.Column(db.String(64), nullable=True, index=True)
 
     # Payment-related fields
@@ -34,15 +34,15 @@ class FamilyPaymentSettings(db.Model, TimestampMixin):
         return self.chek_user_id is not None and self.chek_wallet_balance is not None and self.chek_wallet_balance > 0
 
     def __repr__(self):
-        return f"<FamilyPaymentSettings {self.id} - External ID: {self.family_external_id}>"
+        return f"<FamilyPaymentSettings {self.id} - External ID: {self.family_supabase_id}>"
 
     @staticmethod
-    def new(family_external_id: str):
-        return FamilyPaymentSettings(family_external_id=family_external_id)
+    def new(family_id: str):
+        return FamilyPaymentSettings(family_supabase_id=family_id)
 
     @classmethod
     def by_external_id(cls, id: str) -> Query:
-        return cls.query.filter_by(family_external_id=id)
+        return cls.query.filter_by(family_supabase_id=id)
 
     @classmethod
     def by_chek_user_id(cls, id: str) -> Query:

@@ -362,10 +362,10 @@ def get_allocated_care_days(provider_id):
     start_date_str = request.args.get("startDate")
     end_date_str = request.args.get("endDate")
 
-    query = AllocatedCareDay.query.filter_by(provider_google_sheets_id=provider_id)
+    query = AllocatedCareDay.query.filter_by(provider_supabase_id=provider_id)
 
     if child_id:
-        query = query.join(MonthAllocation).filter(MonthAllocation.google_sheets_child_id == child_id)
+        query = query.join(MonthAllocation).filter(MonthAllocation.child_supabase_id == child_id)
 
     if start_date_str:
         try:
@@ -386,7 +386,7 @@ def get_allocated_care_days(provider_id):
     # Group by child
     care_days_by_child = defaultdict(list)
     for day in care_days:
-        care_days_by_child[day.care_month_allocation.google_sheets_child_id].append(day.to_dict())
+        care_days_by_child[day.care_month_allocation.child_supabase_id].append(day.to_dict())
 
     return jsonify(care_days_by_child)
 
@@ -509,7 +509,7 @@ def family_invite(invite_id: str):
 
     user = get_current_user()
 
-    invite_data = get_invite_data(invitation.provider_google_sheet_id)
+    invite_data = get_invite_data(invitation.provider_supabase_id)
 
     provider = {
         "id": Provider.ID(invite_data.provider_data),
@@ -534,7 +534,7 @@ def family_invite(invite_id: str):
 
             # Check if this child already has the inviting provider
             child_providers = Provider.unwrap(child)
-            child_has_provider = any(Provider.ID(p) == invitation.provider_google_sheet_id for p in child_providers)
+            child_has_provider = any(Provider.ID(p) == invitation.provider_supabase_id for p in child_providers)
 
             if child_has_provider:
                 is_already_provider = True
@@ -582,7 +582,7 @@ def accept_family_invite(invite_id: str):
     if invitation.accepted:
         abort(400, description="Invitation already accepted.")
 
-    invite_data = get_invite_data(invitation.provider_google_sheet_id)
+    invite_data = get_invite_data(invitation.provider_supabase_id)
 
     if invite_data.remaining_slots - len(data["child_ids"]) < 0:
         abort(400, description="Provider already has maximum number of children.")

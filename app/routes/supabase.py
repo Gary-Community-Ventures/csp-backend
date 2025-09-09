@@ -15,6 +15,7 @@ from app.models.family_invitation import FamilyInvitation
 from app.models.payment_rate import PaymentRate
 from app.models.provider_invitation import ProviderInvitation
 from app.models.payment_request import PaymentRequest
+from app.models.payment import Payment
 
 bp = Blueprint("supabase", __name__)
 
@@ -147,6 +148,12 @@ MIGRATION_MAPPINGS = [
     ),
     SupabaseMapping(
         "family_invitations", FamilyInvitation, "provider_google_sheet_id", "provider_supabase_id", MappingType.PROVIDER
+    ),
+    SupabaseMapping(
+        "payment", Payment, "external_provider_id", "provider_supabase_id", MappingType.PROVIDER, has_multiple_records=True
+    ),
+    SupabaseMapping(
+        "payment", Payment, "external_child_id", "child_supabase_id", MappingType.CHILD, has_multiple_records=True
     ),
 ]
 
