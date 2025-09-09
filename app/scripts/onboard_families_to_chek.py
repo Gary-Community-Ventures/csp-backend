@@ -48,7 +48,7 @@ def onboard_single_family(family_id: str, dry_run: bool) -> Optional[str]:
 
     try:
         # Call the payment service to onboard the family
-        result = current_app.payment_service.onboard_family(family_external_id=family_id)
+        result = current_app.payment_service.onboard_family(family_supabase_id=family_id)
 
         if not result:
             raise RuntimeError("Onboarding failed: no result returned")
@@ -73,7 +73,7 @@ def get_families_needing_onboarding(
     2. Don't have payment settings at all
     """
     # Get all existing payment settings
-    existing_settings = {settings.family_external_id: settings for settings in FamilyPaymentSettings.query.all()}
+    existing_settings = {settings.family_supabase_id: settings for settings in FamilyPaymentSettings.query.all()}
 
     families_to_onboard = []
 

@@ -82,7 +82,6 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
         return {
             "id": self.id,
             "care_month_allocation_id": self.care_month_allocation_id,
-            "provider_google_sheets_id": self.provider_google_sheets_id,
             "provider_supabase_id": self.provider_supabase_id,
             "amount_cents": self.amount_cents,
             "paid_at": self.paid_at,

@@ -40,7 +40,7 @@ def get_family_payment_history():
 
     # Query payments for these children, ordered by newest first
     payments: list[Payment] = (
-        Payment.query.filter(Payment.external_child_id.in_(child_ids)).order_by(Payment.created_at.desc()).all()
+        Payment.query.filter(Payment.child_supabase_id.in_(child_ids)).order_by(Payment.created_at.desc()).all()
     )
 
     # Build response
@@ -55,7 +55,7 @@ def get_family_payment_history():
         elif payment.has_failed_attempt:
             payment_status = "failed"
 
-        child = Child.find_by_id(children, payment.external_child_id)
+        child = Child.find_by_id(children, payment.child_supabase_id)
         provider = Provider.find_by_id(Provider.unwrap(child)) if child is not None else None
 
         child_name = format_name(child)
@@ -77,9 +77,9 @@ def get_family_payment_history():
                 amount_cents=payment.amount_cents,
                 status=payment_status,
                 provider_name=provider_name,
-                provider_id=payment.external_provider_id,
+                provider_id=payment.provider_supabase_id,
                 child_name=child_name,
-                child_id=payment.external_child_id,
+                child_id=payment.child_supabase_id,
                 month=month_str,
                 payment_type=payment_type,
             )
@@ -102,7 +102,7 @@ def get_provider_payment_history():
     provider_id = user.user_data.provider_id
 
     # Get provider payment settings to get the internal provider ID
-    provider_settings = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
+    provider_settings = ProviderPaymentSettings.query.filter_by(provider_supabase_id=provider_id).first()
 
     if not provider_settings:
         # No payment settings means no payments
@@ -140,7 +140,7 @@ def get_provider_payment_history():
         elif payment.has_failed_attempt:
             payment_status = "failed"
 
-        child = Child.find_by_id(Child.unwrap(provider), payment.external_child_id)
+        child = Child.find_by_id(Child.unwrap(provider), payment.child_supabase_id)
         child_name = format_name(child)
 
         # Get month from allocation
@@ -169,7 +169,7 @@ def get_provider_payment_history():
                 amount_cents=payment.amount_cents,
                 status=payment_status,
                 child_name=child_name,
-                child_id=payment.external_child_id,
+                child_id=payment.child_supabase_id,
                 month=month_str,
                 payment_method=payment_method,
                 payment_type=payment_type,

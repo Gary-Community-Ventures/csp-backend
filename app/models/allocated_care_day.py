@@ -272,7 +272,6 @@ class AllocatedCareDay(db.Model, TimestampMixin):
             "type": self.type,
             "amount_cents": self.amount_cents,
             "day_count": self.day_count,
-            "provider_google_sheets_id": self.provider_google_sheets_id,
             "provider_supabase_id": self.provider_supabase_id,
             "payment_distribution_requested": self.payment_distribution_requested,
             "last_submitted_at": (self.last_submitted_at.isoformat() if self.last_submitted_at else None),

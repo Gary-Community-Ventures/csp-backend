@@ -48,7 +48,7 @@ def onboard_single_provider(provider_id: str, dry_run: bool) -> Optional[str]:
 
     try:
         # Call the payment service to onboard the provider
-        result = current_app.payment_service.onboard_provider(provider_external_id=provider_id)
+        result = current_app.payment_service.onboard_provider(provider_supabase_id=provider_id)
 
         if not result:
             raise RuntimeError("Onboarding failed: no result returned")
@@ -73,7 +73,7 @@ def get_providers_needing_onboarding(
     2. Don't have payment settings at all
     """
     # Get all existing payment settings
-    existing_settings = {settings.provider_external_id: settings for settings in ProviderPaymentSettings.query.all()}
+    existing_settings = {settings.provider_supabase_id: settings for settings in ProviderPaymentSettings.query.all()}
 
     providers_to_onboard = []
 

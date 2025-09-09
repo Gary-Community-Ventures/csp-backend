@@ -67,7 +67,7 @@ class PaymentService:
 
     def _generate_description(
         self,
-        external_provider_id: str,
+        provider_id: str,
         allocated_care_days: Optional[list[AllocatedCareDay]] = None,
         allocated_lump_sums: Optional[list[AllocatedLumpSum]] = None,
     ) -> str:
@@ -77,7 +77,7 @@ class PaymentService:
         payment_types = self._get_types(allocated_care_days, allocated_lump_sums)
 
         payment_type = " and ".join(payment_types) if payment_types else "other"
-        return f"Payment to provider {external_provider_id} for {payment_type}"
+        return f"Payment to provider {provider_id} for {payment_type}"
 
     def _create_payment_intent(
         self,
@@ -85,8 +85,8 @@ class PaymentService:
         family_payment_settings: FamilyPaymentSettings,
         amount_cents: int,
         month_allocation: MonthAllocation,
-        external_provider_id: str,
-        external_child_id: str,
+        provider_id: str,
+        child_id: str,
         allocated_care_days: Optional[list[AllocatedCareDay]] = None,
         allocated_lump_sums: Optional[list[AllocatedLumpSum]] = None,
     ) -> "PaymentIntent":
@@ -100,11 +100,11 @@ class PaymentService:
         lump_sum_ids = [lump.id for lump in (allocated_lump_sums or [])]
 
         # Build description
-        description = self._generate_description(external_provider_id, allocated_care_days, allocated_lump_sums)
+        description = self._generate_description(provider_id, allocated_care_days, allocated_lump_sums)
 
         intent = PaymentIntent(
-            provider_external_id=external_provider_id,
-            child_external_id=external_child_id,
+            provider_supabase_id=provider_id,
+            child_supabase_id=child_id,
             month_allocation_id=month_allocation.id,
             amount_cents=amount_cents,
             care_day_ids=care_day_ids,
@@ -170,8 +170,8 @@ class PaymentService:
             amount_cents=intent.amount_cents,
             payment_method=attempt.payment_method,
             month_allocation_id=intent.month_allocation_id,
-            external_provider_id=intent.provider_external_id,
-            external_child_id=intent.child_external_id,
+            provider_supabase_id=intent.provider_supabase_id,
+            child_supabase_id=intent.child_supabase_id,
         )
         db.session.add(payment)
         db.session.flush()
@@ -203,19 +203,19 @@ class PaymentService:
                 Provider.EMAIL,
                 Child.join(Child.ID, Child.FIRST_NAME, Child.LAST_NAME),
             ),
-            int(intent.provider_external_id),
+            int(intent.provider_supabase_id),
         ).execute()
         provider = unwrap_or_abort(provider_result)
 
-        child = Child.find_by_id(Child.unwrap(provider), intent.child_external_id)
+        child = Child.find_by_id(Child.unwrap(provider), intent.child_supabase_id)
 
         # Send payment notification email to provider
         send_payment_notification(
             provider_name=format_name(provider),
             provider_email=Provider.EMAIL(provider),
-            provider_id=intent.provider_external_id,
+            provider_id=intent.provider_supabase_id,
             child_name=format_name(child),
-            child_id=intent.child_external_id,
+            child_id=intent.child_supabase_id,
             amount_cents=intent.amount_cents,
             payment_method=attempt.payment_method.value,
         )
@@ -251,12 +251,12 @@ class PaymentService:
 
         # Build description and metadata for tracking
         payment_type = " and ".join(self._get_types(allocated_care_days, allocated_lump_sums))
-        description = self._generate_description(intent.provider_external_id, allocated_care_days, allocated_lump_sums)
+        description = self._generate_description(intent.provider_supabase_id, allocated_care_days, allocated_lump_sums)
 
         metadata = {
-            "provider_id": intent.provider_external_id,
-            "child_id": intent.child_external_id,
-            "family_id": family_payment_settings.family_external_id,
+            "provider_id": intent.provider_supabase_id,
+            "child_id": intent.child_supabase_id,
+            "family_id": family_payment_settings.family_supabase_id,
             "family_chek_user_id": family_payment_settings.chek_user_id,
             "payment_type": payment_type,
             "intent_id": str(intent.id),
@@ -371,8 +371,8 @@ class PaymentService:
 
     def process_payment(
         self,
-        external_provider_id: str,
-        external_child_id: str,
+        provider_id: str,
+        child_id: str,
         month_allocation: MonthAllocation,
         allocated_care_days: Optional[list[AllocatedCareDay]] = None,
         allocated_lump_sums: Optional[list[AllocatedLumpSum]] = None,
@@ -387,18 +387,18 @@ class PaymentService:
         """
         try:
             # 0. Look up family payment settings
-            family_payment_settings = self._get_family_settings_from_child_id(external_child_id)
+            family_payment_settings = self._get_family_settings_from_child_id(child_id)
             if not family_payment_settings or not family_payment_settings.chek_user_id:
-                raise ProviderNotPayableException(f"Family for child {external_child_id} does not have chek account")
+                raise ProviderNotPayableException(f"Family for child {child_id} does not have chek account")
             if not family_payment_settings.can_make_payments:
-                raise ProviderNotPayableException(f"Family for child {external_child_id} cannot make payments")
+                raise ProviderNotPayableException(f"Family for child {child_id} cannot make payments")
 
             # 1. Look up provider payment settings
             provider_payment_settings = ProviderPaymentSettings.query.filter_by(
-                provider_external_id=external_provider_id
+                provider_supabase_id=provider_id
             ).first()
             if not provider_payment_settings:
-                error_msg = f"Provider with external ID {external_provider_id} not found in database"
+                error_msg = f"Provider with ID {provider_id} not found in database"
                 current_app.logger.error(f"Payment failed: {error_msg}")
                 raise ProviderNotFoundException(error_msg)
 
@@ -438,7 +438,7 @@ class PaymentService:
 
             # 5. Ensure provider has a payment method configured
             if not provider_payment_settings.payment_method:
-                error_msg = f"Provider {external_provider_id} has no payment method configured"
+                error_msg = f"Provider {provider_id} has no payment method configured"
                 current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
                 raise PaymentMethodNotConfiguredException(error_msg)
 
@@ -452,8 +452,8 @@ class PaymentService:
                 family_payment_settings=family_payment_settings,
                 amount_cents=amount_cents,
                 month_allocation=month_allocation,
-                external_provider_id=external_provider_id,
-                external_child_id=external_child_id,
+                provider_id=provider_id,
+                child_id=child_id,
                 allocated_care_days=allocated_care_days,
                 allocated_lump_sums=allocated_lump_sums,
             )
@@ -510,13 +510,13 @@ class PaymentService:
         ) as e:
             # Business logic exceptions - still send to Sentry for monitoring during early rollout
             db.session.rollback()
-            current_app.logger.error(f"Payment validation failed for {external_provider_id}: {type(e).__name__}: {e}")
+            current_app.logger.error(f"Payment validation failed for {provider_id}: {type(e).__name__}: {e}")
             sentry_sdk.capture_exception(e)
             return False
         except Exception as e:
             # Unexpected errors
             db.session.rollback()
-            current_app.logger.error(f"Unexpected error processing payment for {external_provider_id}: {e}")
+            current_app.logger.error(f"Unexpected error processing payment for {provider_id}: {e}")
             sentry_sdk.capture_exception(e)
             return False
 
@@ -741,12 +741,12 @@ class PaymentService:
             sentry_sdk.capture_exception(e)
             return False
 
-    def initialize_provider_payment_method(self, provider_external_id: str, payment_method: str) -> dict:
+    def initialize_provider_payment_method(self, provider_id: str, payment_method: str) -> dict:
         """
         Initialize a provider's payment method (card or ACH).
 
         Args:
-            provider_external_id: Provider ID
+            provider_id: Provider ID
             payment_method: Either "card" or "ach"
 
         Returns:
@@ -760,19 +760,19 @@ class PaymentService:
         try:
             # Ensure provider is onboarded to Chek
             provider_settings = ProviderPaymentSettings.query.filter_by(
-                provider_external_id=provider_external_id
+                provider_supabase_id=provider_id
             ).first()
 
             if not provider_settings:
                 # Onboard the provider to Chek
-                provider_settings = self.onboard_provider(provider_external_id=provider_external_id)
-                current_app.logger.info(f"Onboarded provider {provider_external_id} to Chek")
+                provider_settings = self.onboard_provider(provider_supabase_id=provider_id)
+                current_app.logger.info(f"Onboarded provider {provider_id} to Chek")
 
             if not provider_settings.chek_user_id:
                 raise PaymentMethodNotConfiguredException("Provider has no Chek user ID")
 
             result = {
-                "provider_id": provider_external_id,
+                "provider_id": provider_id,
                 "chek_user_id": provider_settings.chek_user_id,
                 "payment_method": payment_method,
             }
@@ -823,15 +823,15 @@ class PaymentService:
                     result["already_exists"] = True
                     return result
 
-                provider_result = Provider.select_by_id(cols(Provider.EMAIL), int(provider_external_id)).execute()
+                provider_result = Provider.select_by_id(cols(Provider.EMAIL), int(provider_id)).execute()
                 provider = unwrap_or_error(provider_result)
 
                 if provider is None:
-                    raise ProviderNotFoundException(f"Provider {provider_external_id} not found")
+                    raise ProviderNotFoundException(f"Provider {provider_id} not found")
 
                 provider_email = Provider.EMAIL(provider)
                 if not provider_email:
-                    raise DataNotFoundException(f"Provider {provider_external_id} has no email address")
+                    raise DataNotFoundException(f"Provider {provider_id} has no email address")
 
                 # Send ACH invite
                 invite_request = DirectPayAccountInviteRequest(user_id=int(provider_settings.chek_user_id))
@@ -856,7 +856,7 @@ class PaymentService:
 
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Failed to initialize payment for provider {provider_external_id}: {e}")
+            current_app.logger.error(f"Failed to initialize payment for provider {provider_id}: {e}")
             raise
 
     def refresh_family_settings(self, family_payment_settings: FamilyPaymentSettings):
@@ -865,11 +865,11 @@ class PaymentService:
         """
         self.family_onboarding.refresh_settings(family_payment_settings)
 
-    def onboard_family(self, family_external_id: str) -> FamilyPaymentSettings:
+    def onboard_family(self, family_id: str) -> FamilyPaymentSettings:
         """
         Onboards a new family by creating a Chek user and FamilyPaymentSettings record.
         """
-        return self.family_onboarding.onboard(family_external_id)
+        return self.family_onboarding.onboard(family_id)
 
     def refresh_provider_settings(self, provider_payment_settings: ProviderPaymentSettings):
         """
@@ -877,45 +877,45 @@ class PaymentService:
         """
         self.provider_onboarding.refresh_settings(provider_payment_settings)
 
-    def onboard_provider(self, provider_external_id: str) -> ProviderPaymentSettings:
+    def onboard_provider(self, provider_id: str) -> ProviderPaymentSettings:
         """
         Onboards a new provider by creating a Chek user and ProviderPaymentSettings record.
         """
-        return self.provider_onboarding.onboard(provider_external_id)
+        return self.provider_onboarding.onboard(provider_id)
 
-    def _get_family_settings_from_child_id(self, child_external_id: str) -> FamilyPaymentSettings:
+    def _get_family_settings_from_child_id(self, child_id: str) -> FamilyPaymentSettings:
         """
-        Helper to get FamilyPaymentSettings from a child external ID.
+        Helper to get FamilyPaymentSettings from a child ID.
         Raises FamilyNotFoundException if not found.
         """
-        child_result = Child.select_by_id(cols(Child.FAMILY_ID), int(child_external_id)).execute()
+        child_result = Child.select_by_id(cols(Child.FAMILY_ID), int(child_id)).execute()
         child = unwrap_or_error(child_result)
 
         if child is None:
-            raise DataNotFoundException(f"Child {child_external_id} not found")
+            raise DataNotFoundException(f"Child {child_id} not found")
 
         family_payment_settings = FamilyPaymentSettings.query.filter_by(
-            family_external_id=Child.FAMILY_ID(child)
+            family_supabase_id=Child.FAMILY_ID(child)
         ).first()
         if not family_payment_settings:
             return None
 
         return family_payment_settings
 
-    def allocate_funds_to_family(self, child_external_id: str, amount: int, date: date) -> TransferBalanceResponse:
+    def allocate_funds_to_family(self, child_id: str, amount: int, date: date) -> TransferBalanceResponse:
         """
         Allocates funds to a family's Chek account.
         """
         from app.integrations.chek.schemas import FlowDirection, TransferBalanceRequest
 
         # If family does not have settings, onboard them
-        family_payment_settings = self._get_family_settings_from_child_id(child_external_id)
+        family_payment_settings = self._get_family_settings_from_child_id(child_id)
         if not family_payment_settings or not family_payment_settings.chek_user_id:
-            child_result = Child.select_by_id(cols(Child.FAMILY_ID), int(child_external_id)).execute()
+            child_result = Child.select_by_id(cols(Child.FAMILY_ID), int(child_id)).execute()
             child = unwrap_or_error(child_result)
             if child is None:
-                raise DataNotFoundException(f"Child {child_external_id} not found")
-            family_payment_settings = self.onboard_family(family_external_id=Child.FAMILY_ID(child))
+                raise DataNotFoundException(f"Child {child_id} not found")
+            family_payment_settings = self.onboard_family(family_id=Child.FAMILY_ID(child))
 
         # Transfer funds from program to family's wallet
         transfer_request = TransferBalanceRequest(
@@ -923,10 +923,10 @@ class PaymentService:
             program_id=self.chek_service.program_id,  # Documentation says program_id but API uses counterparty_id
             counterparty_id=self.chek_service.program_id,  # Set both for safety
             amount=amount,
-            description=f"Allocation for child {child_external_id} for month {date.strftime('%Y-%m')}",
+            description=f"Allocation for child {child_id} for month {date.strftime('%Y-%m')}",
             metadata={
-                "child_id": child_external_id,
-                "family_id": family_payment_settings.family_external_id,
+                "child_id": child_id,
+                "family_id": family_payment_settings.family_supabase_id,
                 "allocation_month": date.strftime("%Y-%m"),
             },
         )
