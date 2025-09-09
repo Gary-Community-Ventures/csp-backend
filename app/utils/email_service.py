@@ -277,7 +277,7 @@ def send_lump_sum_payment_email(
     )
 
 
-def send_provider_invited_email(family_name: str, family_id: str, ids: list[str]):
+def send_provider_invited_email(family_name: str, family_id: str, provider_email: str, ids: list[str]):
     from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(f"Sending invite sent request email to {to_emails} for family ID: {family_id}")
@@ -286,6 +286,10 @@ def send_provider_invited_email(family_name: str, family_id: str, ids: list[str]
         SystemMessageRow(
             title="Family Name",
             value=family_name,
+        ),
+        SystemMessageRow(
+            title="Provider Email",
+            value=provider_email,
         ),
     ]
 
@@ -500,7 +504,7 @@ def send_payment_notification(
     )
 
 
-def send_family_invited_email(provider_name: str, provider_id: str, id: str):
+def send_family_invited_email(provider_name: str, provider_id: str, family_email: str, id: str):
     from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(f"Sending invite sent request email to {to_emails} for provider ID: {provider_id}")
@@ -510,6 +514,7 @@ def send_family_invited_email(provider_name: str, provider_id: str, id: str):
             title="Provider Name",
             value=f"{provider_name} (ID: {provider_id})",
         ),
+        SystemMessageRow(title="Family Email", value=family_email),
         SystemMessageRow(
             title="Invite ID",
             value=id,

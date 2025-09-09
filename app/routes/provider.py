@@ -465,7 +465,7 @@ def invite_family():
     finally:
         db.session.commit()
 
-    send_family_invited_email(provider_name, Provider.ID(provider), invitation.public_id)
+    send_family_invited_email(provider_name, Provider.ID(provider), data["family_email"], invitation.public_id)
 
     return jsonify({"message": "Success"}, 201)
 
