@@ -223,7 +223,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
             existing.amount_cents = get_care_day_cost(
                 day_type,
                 provider_id=provider_id,
-                child_id=allocation.google_sheets_child_id,
+                child_id=allocation.child_supabase_id,
             )
             db.session.commit()
             return existing
@@ -237,7 +237,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
             amount_cents=get_care_day_cost(
                 day_type,
                 provider_id=provider_id,
-                child_id=allocation.google_sheets_child_id,
+                child_id=allocation.child_supabase_id,
             ),
         )
         # Create new care day
@@ -249,7 +249,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
             amount_cents=get_care_day_cost(
                 day_type,
                 provider_id=provider_id,
-                child_id=allocation.google_sheets_child_id,
+                child_id=allocation.child_supabase_id,
             ),
         )
 

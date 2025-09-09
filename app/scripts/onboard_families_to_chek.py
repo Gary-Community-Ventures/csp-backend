@@ -48,7 +48,7 @@ def onboard_single_family(family_id: str, dry_run: bool) -> Optional[str]:
 
     try:
         # Call the payment service to onboard the family
-        result = current_app.payment_service.onboard_family(family_supabase_id=family_id)
+        result = current_app.payment_service.onboard_family(family_id)
 
         if not result:
             raise RuntimeError("Onboarding failed: no result returned")

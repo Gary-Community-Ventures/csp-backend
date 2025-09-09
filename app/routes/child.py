@@ -129,8 +129,8 @@ def submit_care_days(child_id, provider_id, month, year):
     # PaymentService now handles marking care days as submitted within the same transaction
     try:
         payment_successful = current_app.payment_service.process_payment(
-            external_provider_id=provider_id,
-            external_child_id=child_id,
+            provider_id=provider_id,
+            child_id=child_id,
             month_allocation=allocation,
             allocated_care_days=care_days_to_submit,
         )

@@ -9,8 +9,8 @@ class PaymentAdminView(SecureModelView):
     # Display settings
     column_list = [
         "id",
-        "external_provider_id",
-        "external_child_id",
+        "provider_supabase_id",
+        "child_supabase_id",
         "amount_cents",
         "payment_method",
         "status",
@@ -22,19 +22,19 @@ class PaymentAdminView(SecureModelView):
     ]
 
     column_searchable_list = [
-        "external_provider_id",
-        "external_child_id",
+        "provider_supabase_id",
+        "child_supabase_id",
     ]
 
-    column_filters = ["payment_method", "external_provider_id", "external_child_id", "created_at"]
+    column_filters = ["payment_method", "provider_supabase_id", "child_supabase_id", "created_at"]
 
     column_sortable_list = [
         "id",
         "amount_cents",
         "payment_method",
         "created_at",
-        "external_provider_id",
-        "external_child_id",
+        "provider_supabase_id",
+        "child_supabase_id",
     ]
 
     # Format columns
@@ -54,8 +54,8 @@ class PaymentAdminView(SecureModelView):
     }
 
     column_labels = {
-        "external_provider_id": "Provider ID",
-        "external_child_id": "Child ID",
+        "provider_supabase_id": "Provider ID",
+        "child_supabase_id": "Child ID",
         "amount_cents": "Amount",
         "payment_method": "Method",
         "chek_transfer_id": "Chek Transfer",
@@ -70,8 +70,8 @@ class PaymentAdminView(SecureModelView):
         "id",
         "payment_intent_id",
         "successful_attempt_id",
-        "external_provider_id",
-        "external_child_id",
+        "provider_supabase_id",
+        "child_supabase_id",
         "amount_cents",
         "payment_method",
         "status",
@@ -209,8 +209,8 @@ class PaymentIntentAdminView(SecureModelView):
     # Display settings
     column_list = [
         "id",
-        "provider_external_id",
-        "child_external_id",
+        "provider_supabase_id",
+        "child_supabase_id",
         "amount_cents",
         "status",
         "payment",
@@ -219,13 +219,13 @@ class PaymentIntentAdminView(SecureModelView):
     ]
 
     column_searchable_list = [
-        "provider_external_id",
-        "child_external_id",
+        "provider_supabase_id",
+        "child_supabase_id",
     ]
 
-    column_filters = ["provider_external_id", "child_external_id", "created_at"]
+    column_filters = ["provider_supabase_id", "child_supabase_id", "created_at"]
 
-    column_sortable_list = ["id", "amount_cents", "created_at", "provider_external_id", "child_external_id"]
+    column_sortable_list = ["id", "amount_cents", "created_at", "provider_supabase_id", "child_supabase_id"]
 
     # Format columns
     column_formatters = {
@@ -240,8 +240,8 @@ class PaymentIntentAdminView(SecureModelView):
     }
 
     column_labels = {
-        "provider_external_id": "Provider ID",
-        "child_external_id": "Child ID",
+        "provider_supabase_id": "Provider ID",
+        "provider_supabase_id": "Child ID",
         "amount_cents": "Amount",
         "attempts_count": "# Attempts",
         "created_at": "Created",

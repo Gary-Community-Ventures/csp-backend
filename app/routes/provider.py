@@ -59,7 +59,7 @@ def new_provider():
 
     # Create Chek user and ProviderPaymentSettings
     payment_service = current_app.payment_service
-    provider_settings = payment_service.onboard_provider(provider_external_id=provider_id)
+    provider_settings = payment_service.onboard_provider(provider_id)
     current_app.logger.info(
         f"Created ProviderPaymentSettings for provider {provider_id} with Chek user {provider_settings.chek_user_id}"
     )
@@ -107,7 +107,7 @@ def get_provider_data():
 
     children_data = Child.unwrap(provider_data)
 
-    provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
+    provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_supabase_id=provider_id).first()
 
     provider_info = {
         "id": Provider.ID(provider_data),
@@ -163,13 +163,13 @@ def get_payment_settings():
     provider_id = user.user_data.provider_id
 
     # Get or create ProviderPaymentSettings record
-    provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
+    provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_supabase_id=provider_id).first()
 
     if not provider_payment_settings:
         # Onboard provider to Chek when first accessing payment settings
         try:
             payment_service = current_app.payment_service
-            provider_payment_settings = payment_service.onboard_provider(provider_external_id=provider_id)
+            provider_payment_settings = payment_service.onboard_provider(provider_id)
             current_app.logger.info(f"Onboarded provider {provider_id} to Chek via payment-settings endpoint")
         except Exception as e:
             current_app.logger.error(f"Failed to onboard provider {provider_id} to Chek: {e}")
@@ -252,7 +252,7 @@ def update_payment_settings():
 
     # Get provider payment settings record
     existing_provider_payment_settings = ProviderPaymentSettings.query.filter_by(
-        provider_external_id=provider_id
+        provider_supabase_id=provider_id
     ).first()
 
     if not existing_provider_payment_settings:

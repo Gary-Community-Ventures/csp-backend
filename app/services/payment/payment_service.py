@@ -765,7 +765,7 @@ class PaymentService:
 
             if not provider_settings:
                 # Onboard the provider to Chek
-                provider_settings = self.onboard_provider(provider_supabase_id=provider_id)
+                provider_settings = self.onboard_provider(provider_id)
                 current_app.logger.info(f"Onboarded provider {provider_id} to Chek")
 
             if not provider_settings.chek_user_id:
@@ -915,7 +915,7 @@ class PaymentService:
             child = unwrap_or_error(child_result)
             if child is None:
                 raise DataNotFoundException(f"Child {child_id} not found")
-            family_payment_settings = self.onboard_family(family_id=Child.FAMILY_ID(child))
+            family_payment_settings = self.onboard_family(Child.FAMILY_ID(child))
 
         # Transfer funds from program to family's wallet
         transfer_request = TransferBalanceRequest(

@@ -18,10 +18,10 @@ class FamilyOnboarding(BaseOnboarding):
     def get_entity_type_name(self) -> str:
         return "family"
 
-    def get_existing_settings(self, external_id: str) -> Optional[FamilyPaymentSettings]:
-        return FamilyPaymentSettings.query.filter_by(family_external_id=external_id).first()
+    def get_existing_settings(self, family_id: str) -> Optional[FamilyPaymentSettings]:
+        return FamilyPaymentSettings.query.filter_by(family_supabase_id=family_id).first()
 
-    def get_entity_data(self, external_id: str) -> dict:
+    def get_entity_data(self, family_id: str) -> dict:
         family_results = Family.select_by_id(
             cols(
                 Family.ID,
@@ -38,12 +38,12 @@ class FamilyOnboarding(BaseOnboarding):
                     Guardian.ZIP,
                 ),
             ),
-            int(external_id),
+            int(family_id),
         ).execute()
         family = unwrap_or_error(family_results)
 
         if family is None:
-            raise FamilyNotFoundException(f"Family {external_id} not found")
+            raise FamilyNotFoundException(f"Family {family_id} not found")
 
         return family
 
@@ -63,10 +63,10 @@ class FamilyOnboarding(BaseOnboarding):
             "country_code": "US",
         }
 
-    def create_payment_settings(self, external_id: str, chek_user_id: str, balance: int) -> FamilyPaymentSettings:
+    def create_payment_settings(self, family_id: str, chek_user_id: str, balance: int) -> FamilyPaymentSettings:
         return FamilyPaymentSettings(
             id=uuid.uuid4(),
-            family_external_id=external_id,
+            family_supabase_id=family_id,
             chek_user_id=chek_user_id,
             chek_wallet_balance=balance,
         )

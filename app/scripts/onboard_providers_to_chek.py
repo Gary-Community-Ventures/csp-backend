@@ -48,7 +48,7 @@ def onboard_single_provider(provider_id: str, dry_run: bool) -> Optional[str]:
 
     try:
         # Call the payment service to onboard the provider
-        result = current_app.payment_service.onboard_provider(provider_supabase_id=provider_id)
+        result = current_app.payment_service.onboard_provider(provider_id)
 
         if not result:
             raise RuntimeError("Onboarding failed: no result returned")

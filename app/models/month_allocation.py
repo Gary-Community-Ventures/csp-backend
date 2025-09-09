@@ -157,7 +157,7 @@ class MonthAllocation(db.Model, TimestampMixin):
             # Allocate funds to family wallet if allocation is greater than zero
             if allocation_cents > 0:
                 transaction = current_app.payment_service.allocate_funds_to_family(
-                    child_external_id=child_id, amount=allocation_cents, date=month_start
+                    child_id=child_id, amount=allocation_cents, date=month_start
                 )
                 if not transaction or not transaction.transfer or not transaction.transfer.id:
                     raise RuntimeError(f"Failed to allocate funds to family for child {child_id}: {transaction}")

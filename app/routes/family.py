@@ -66,7 +66,7 @@ def new_family():
 
     # Create Chek user and FamilyPaymentSettings
     payment_service = current_app.payment_service
-    family_settings = payment_service.onboard_family(family_external_id=family_id)
+    family_settings = payment_service.onboard_family(family_id)
     current_app.logger.info(
         f"Created FamilyPaymentSettings for family {family_id} with Chek user {family_settings.chek_user_id}"
     )
@@ -168,7 +168,7 @@ def family_data(child_id: Optional[str] = None):
     for p in provider_data:
         provider_id = Provider.ID(p)
         # Look up the ProviderPaymentSettings to get is_payable status
-        provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
+        provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_supabase_id=provider_id).first()
         current_app.logger.error(f"Provider {provider_id} payment settings: {provider_payment_settings}")
 
         provider_status = Provider.STATUS(p)
@@ -206,7 +206,7 @@ def family_data(child_id: Optional[str] = None):
     if needs_attendance:
         notifications.append({"type": "attendance"})
 
-    family_payment_settings = FamilyPaymentSettings.query.filter_by(family_external_id=family_id).first()
+    family_payment_settings = FamilyPaymentSettings.query.filter_by(family_supabase_id=family_id).first()
 
     return jsonify(
         {

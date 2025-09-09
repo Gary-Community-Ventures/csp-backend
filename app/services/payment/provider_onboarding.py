@@ -18,10 +18,10 @@ class ProviderOnboarding(BaseOnboarding):
     def get_entity_type_name(self) -> str:
         return "provider"
 
-    def get_existing_settings(self, external_id: str) -> Optional[ProviderPaymentSettings]:
-        return ProviderPaymentSettings.query.filter_by(provider_external_id=external_id).first()
+    def get_existing_settings(self, provider_id: str) -> Optional[ProviderPaymentSettings]:
+        return ProviderPaymentSettings.query.filter_by(provider_supabase_id=provider_id).first()
 
-    def get_entity_data(self, external_id: str) -> dict:
+    def get_entity_data(self, provider_id: str) -> dict:
         provider_result = Provider.select_by_id(
             cols(
                 Provider.ID,
@@ -35,12 +35,12 @@ class ProviderOnboarding(BaseOnboarding):
                 Provider.STATE,
                 Provider.ZIP,
             ),
-            int(external_id),
+            int(provider_id),
         ).execute()
         provider = unwrap_or_error(provider_result)
 
         if provider is None:
-            raise ProviderNotFoundException(f"Provider {external_id} not found")
+            raise ProviderNotFoundException(f"Provider {provider_id} not found")
 
         return provider
 
@@ -58,10 +58,10 @@ class ProviderOnboarding(BaseOnboarding):
             "country_code": "US",
         }
 
-    def create_payment_settings(self, external_id: str, chek_user_id: str, balance: int) -> ProviderPaymentSettings:
+    def create_payment_settings(self, provider_id: str, chek_user_id: str, balance: int) -> ProviderPaymentSettings:
         return ProviderPaymentSettings(
             id=uuid.uuid4(),
-            provider_external_id=external_id,
+            provider_supabase_id=provider_id,
             chek_user_id=chek_user_id,
             payment_method=None,  # Provider chooses this later
             chek_wallet_balance=balance,

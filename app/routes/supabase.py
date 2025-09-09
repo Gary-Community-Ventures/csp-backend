@@ -74,6 +74,10 @@ class SupabaseMapping:
                 )
 
             for record in records:
+                if not force and getattr(record, self.supabase_field) is not None:
+                    raise self.MigrationError(
+                        f"Record already exists for Supabase Id '{mapping.new}' {self._error_context()}"
+                    )
                 setattr(record, self.supabase_field, mapping.new)
                 updated.append(record)
 
@@ -98,9 +102,21 @@ class SupabaseMapping:
 
 
 MIGRATION_MAPPINGS = [
-    SupabaseMapping("payment_intents", PaymentIntent, "child_external_id", "child_supabase_id", MappingType.CHILD, has_multiple_records=True),
     SupabaseMapping(
-        "payment_intents", PaymentIntent, "provider_external_id", "provider_supabase_id", MappingType.PROVIDER, has_multiple_records=True
+        "payment_intents",
+        PaymentIntent,
+        "child_external_id",
+        "child_supabase_id",
+        MappingType.CHILD,
+        has_multiple_records=True,
+    ),
+    SupabaseMapping(
+        "payment_intents",
+        PaymentIntent,
+        "provider_external_id",
+        "provider_supabase_id",
+        MappingType.PROVIDER,
+        has_multiple_records=True,
     ),
     SupabaseMapping(
         "month_allocations", MonthAllocation, "google_sheets_child_id", "child_supabase_id", MappingType.CHILD
@@ -123,20 +139,56 @@ MIGRATION_MAPPINGS = [
         MappingType.PROVIDER,
         has_multiple_records=True,
     ),
-    SupabaseMapping("attendance", Attendance, "child_google_sheet_id", "child_supabase_id", MappingType.CHILD, has_multiple_records=True),
-    SupabaseMapping("attendance", Attendance, "provider_google_sheet_id", "provider_supabase_id", MappingType.PROVIDER, has_multiple_records=True),
-    SupabaseMapping("payment_rates", PaymentRate, "google_sheets_child_id", "child_supabase_id", MappingType.CHILD, has_multiple_records=True),
     SupabaseMapping(
-        "payment_rates", PaymentRate, "google_sheets_provider_id", "provider_supabase_id", MappingType.PROVIDER, has_multiple_records=True
+        "attendance",
+        Attendance,
+        "child_google_sheet_id",
+        "child_supabase_id",
+        MappingType.CHILD,
+        has_multiple_records=True,
+    ),
+    SupabaseMapping(
+        "attendance",
+        Attendance,
+        "provider_google_sheet_id",
+        "provider_supabase_id",
+        MappingType.PROVIDER,
+        has_multiple_records=True,
+    ),
+    SupabaseMapping(
+        "payment_rates",
+        PaymentRate,
+        "google_sheets_child_id",
+        "child_supabase_id",
+        MappingType.CHILD,
+        has_multiple_records=True,
+    ),
+    SupabaseMapping(
+        "payment_rates",
+        PaymentRate,
+        "google_sheets_provider_id",
+        "provider_supabase_id",
+        MappingType.PROVIDER,
+        has_multiple_records=True,
     ),
     SupabaseMapping(
         "provider_invitations", ProviderInvitation, "child_google_sheet_id", "child_supabase_id", MappingType.CHILD
     ),
     SupabaseMapping(
-        "payment_requests", PaymentRequest, "google_sheets_child_id", "child_supabase_id", MappingType.CHILD, has_multiple_records=True
+        "payment_requests",
+        PaymentRequest,
+        "google_sheets_child_id",
+        "child_supabase_id",
+        MappingType.CHILD,
+        has_multiple_records=True,
     ),
     SupabaseMapping(
-        "payment_requests", PaymentRequest, "google_sheets_provider_id", "provider_supabase_id", MappingType.PROVIDER, has_multiple_records=True
+        "payment_requests",
+        PaymentRequest,
+        "google_sheets_provider_id",
+        "provider_supabase_id",
+        MappingType.PROVIDER,
+        has_multiple_records=True,
     ),
     SupabaseMapping(
         "allocated_lump_sums",
@@ -150,7 +202,12 @@ MIGRATION_MAPPINGS = [
         "family_invitations", FamilyInvitation, "provider_google_sheet_id", "provider_supabase_id", MappingType.PROVIDER
     ),
     SupabaseMapping(
-        "payment", Payment, "external_provider_id", "provider_supabase_id", MappingType.PROVIDER, has_multiple_records=True
+        "payment",
+        Payment,
+        "external_provider_id",
+        "provider_supabase_id",
+        MappingType.PROVIDER,
+        has_multiple_records=True,
     ),
     SupabaseMapping(
         "payment", Payment, "external_child_id", "child_supabase_id", MappingType.CHILD, has_multiple_records=True
