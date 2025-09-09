@@ -72,7 +72,7 @@ curl -X POST "$BASE_URL/family" \
     -H "Content-Type: application/json" \
     -H "X-API-Key: $API_KEY" \
     -d "{
-        \"supabase_id\": \"$SUPABASE_ID\",
+        \"family_id\": \"$SUPABASE_ID\",
         \"email\": \"$EMAIL\"
     }" \
     -w "\nHTTP Status: %{http_code}\n" \
