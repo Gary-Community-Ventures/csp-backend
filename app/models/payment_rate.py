@@ -9,8 +9,10 @@ class PaymentRate(db.Model, TimestampMixin):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    google_sheets_provider_id = db.Column(db.String(64), nullable=False, index=True)
-    google_sheets_child_id = db.Column(db.String(64), nullable=False, index=True)
+    google_sheets_provider_id = db.Column(db.String(64), nullable=True, index=True)
+    provider_supabase_id = db.Column(db.String(64), nullable=True, index=True)
+    google_sheets_child_id = db.Column(db.String(64), nullable=True, index=True)
+    child_supabase_id = db.Column(db.String(64), nullable=True, index=True)
 
     half_day_rate_cents = db.Column(db.Integer, nullable=False)
     full_day_rate_cents = db.Column(db.Integer, nullable=False)

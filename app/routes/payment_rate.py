@@ -10,7 +10,7 @@ from app.schemas.payment_rate import (
     PaymentRateResponse,
 )
 from app.supabase.helpers import cols, unwrap_or_abort
-from app.supabase.tables import Child, Family, Provider
+from app.supabase.tables import Child, Provider
 from app.utils.email_service import send_new_payment_rate_email
 
 bp = Blueprint("payment_rate_bp", __name__, url_prefix="/payment-rates")

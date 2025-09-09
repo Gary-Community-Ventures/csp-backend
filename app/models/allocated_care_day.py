@@ -103,7 +103,8 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     amount_cents = db.Column(db.Integer, nullable=False)
 
     # Provider info
-    provider_google_sheets_id = db.Column(db.String(64), nullable=False, index=True)
+    provider_google_sheets_id = db.Column(db.String(64), nullable=True, index=True)
+    provider_supabase_id = db.Column(db.String(64), nullable=True, index=True)
 
     # Payment tracking
     payment_id = db.Column(

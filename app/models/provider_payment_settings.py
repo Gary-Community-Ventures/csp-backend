@@ -14,6 +14,7 @@ class ProviderPaymentSettings(db.Model, TimestampMixin):
     __tablename__ = "provider_payment_settings"
     id = db.Column(db.UUID(as_uuid=True), index=True, primary_key=True, default=uuid.uuid4)
     provider_external_id = db.Column(db.String(64), nullable=True, index=True)
+    provider_supabase_id = db.Column(db.String(64), nullable=True, index=True)
 
     # Payment-related fields
     chek_user_id = db.Column(db.String(64), nullable=True, index=True)

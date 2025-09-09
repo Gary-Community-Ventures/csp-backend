@@ -46,7 +46,8 @@ class MonthAllocation(db.Model, TimestampMixin):
     allocation_cents = db.Column(db.Integer, nullable=False)
 
     # Child reference
-    google_sheets_child_id = db.Column(db.String(64), nullable=False, index=True)
+    google_sheets_child_id = db.Column(db.String(64), nullable=True, index=True)
+    child_supabase_id = db.Column(db.String(64), nullable=True, index=True)
 
     # Relationships
     care_days = db.relationship(

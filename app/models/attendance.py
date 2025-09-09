@@ -8,8 +8,10 @@ from .mixins import TimestampMixin
 class Attendance(db.Model, TimestampMixin):
     id = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     week = db.Column(db.Date, nullable=False, index=True)
-    child_google_sheet_id = db.Column(db.String(64), index=True)
-    provider_google_sheet_id = db.Column(db.String(64), index=True)
+    child_google_sheet_id = db.Column(db.String(64), nullable=True, index=True)
+    child_supabase_id = db.Column(db.String(64), nullable=True, index=True)
+    provider_google_sheet_id = db.Column(db.String(64), nullable=True, index=True)
+    provider_supabase_id = db.Column(db.String(64), nullable=True, index=True)
     family_entered_hours = db.Column(db.Integer, nullable=True)
     family_entered_at = db.Column(db.DateTime(timezone=True), nullable=True)
     provider_entered_hours = db.Column(db.Integer, nullable=True)

@@ -23,7 +23,8 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
     hours = db.Column(db.Float, nullable=True)
 
     # Provider info
-    provider_google_sheets_id = db.Column(db.String(64), nullable=False, index=True)
+    provider_google_sheets_id = db.Column(db.String(64), nullable=True, index=True)
+    provider_supabase_id = db.Column(db.String(64), nullable=True, index=True)
 
     # Payment tracking
     payment_id = db.Column(

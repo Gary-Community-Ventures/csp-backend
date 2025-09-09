@@ -8,6 +8,7 @@ class FamilyInvitation(db.Model, TimestampMixin):
     id = db.Column(db.Integer, primary_key=True)
     public_id = db.Column(db.UUID(as_uuid=True), index=True)
     provider_google_sheet_id = db.Column(db.String(64), nullable=True, index=True)
+    provider_supabase_id = db.Column(db.String(64), nullable=True, index=True)
     invite_email = db.Column(db.String(254), nullable=False)
     email_sent = db.Column(db.Boolean(), default=False, nullable=False)
     sms_sent = db.Column(db.Boolean(), default=False, nullable=False)

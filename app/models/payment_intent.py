@@ -18,8 +18,10 @@ class PaymentIntent(db.Model, TimestampMixin):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Who and what we're paying for
-    provider_external_id = db.Column(db.String(64), nullable=False, index=True)
+    provider_external_id = db.Column(db.String(64), nullable=True, index=True)
+    provider_supabase_id = db.Column(db.String(64), nullable=True, index=True)
     child_external_id = db.Column(db.String(64), nullable=True, index=True)
+    child_supabase_id = db.Column(db.String(64), nullable=True, index=True)
     month_allocation_id = db.Column(
         db.Integer, db.ForeignKey("month_allocation.id", name="fk_payment_intent_month_allocation_id"), nullable=False
     )

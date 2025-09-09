@@ -14,7 +14,7 @@ from app.auth.decorators import (
     auth_required,
 )
 from app.auth.helpers import get_current_user, get_family_user, get_provider_user
-from app.constants import CHEK_STATUS_STALE_MINUTES, MAX_CHILDREN_PER_PROVIDER, UNKNOWN
+from app.constants import CHEK_STATUS_STALE_MINUTES, MAX_CHILDREN_PER_PROVIDER
 from app.enums.payment_method import PaymentMethod
 from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation
