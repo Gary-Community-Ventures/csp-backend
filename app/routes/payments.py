@@ -24,7 +24,7 @@ def get_family_payment_history():
     family_id = user.user_data.family_id
 
     children_results = Child.select_by_family_id(
-        cols(Child.ID, Child.FIRST_NAME, Child.LAST_NAME, Family.join(Family.ID), Provider.join(Provider.NAME)),
+        cols(Child.ID, Child.FIRST_NAME, Child.LAST_NAME, Family.join(Family.ID), Provider.join(Provider.ID, Provider.NAME)),
         int(family_id),
     ).execute()
     children = unwrap_or_abort(children_results)
