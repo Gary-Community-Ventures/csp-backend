@@ -59,7 +59,7 @@ def get_family_payment_history():
         provider = Provider.find_by_id(Provider.unwrap(child), payment.provider_supabase_id) if child is not None else None
 
         child_name = format_name(child)
-        provider_name = provider.NAME if provider is not None else UNKNOWN
+        provider_name = Provider.NAME(provider) if provider is not None else UNKNOWN
 
         # Get month from allocation
         month_allocation = MonthAllocation.query.get(payment.month_allocation_id)
