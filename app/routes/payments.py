@@ -85,9 +85,9 @@ def get_family_payment_history():
                 amount_cents=payment.amount_cents,
                 status=payment_status,
                 provider_name=provider_name,
-                provider_id=payment.provider_supabase_id,
+                provider_supabase_id=payment.provider_supabase_id,
                 child_name=child_name,
-                child_id=payment.child_supabase_id,
+                child_supabase_id=payment.child_supabase_id,
                 month=month_str,
                 payment_type=payment_type,
             )
