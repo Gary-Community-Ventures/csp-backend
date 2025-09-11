@@ -96,6 +96,7 @@ def get_provider_data():
             Provider.LAST_NAME,
             Provider.PAYMENT_ENABLED,
             Provider.STATUS,
+            Provider.TYPE,
             Child.join(Child.ID, Child.FIRST_NAME, Child.LAST_NAME),
         ),
         int(provider_id),
