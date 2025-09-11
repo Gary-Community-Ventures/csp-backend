@@ -120,7 +120,8 @@ MIGRATION_MAPPINGS = [
         has_multiple_records=True,
     ),
     SupabaseMapping(
-        "month_allocations", MonthAllocation, "google_sheets_child_id", "child_supabase_id", MappingType.CHILD
+        "month_allocations", MonthAllocation, "google_sheets_child_id", "child_supabase_id", MappingType.CHILD,
+        has_multiple_records=True,
     ),
     SupabaseMapping(
         "provider_payment_settings",
