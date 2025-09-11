@@ -81,7 +81,9 @@ class CardCreateResponse(BaseModel):
     user: dict[str, Any] = Field(description="User details including balance")
     program: dict[str, Any] = Field(description="Program details including balance")
     card: dict[str, Any] = Field(description="Card details including id, last4, status, type, created")
-    transfer: dict[str, Any] = Field(description="Transfer details including id, amount, created, type")
+    transfer: Optional[dict[str, Any]] = Field(
+        default=None, description="Transfer details including id, amount, created, type"
+    )
 
 
 class DirectPayAccount(BaseModel):

@@ -115,6 +115,7 @@ def get_provider_data():
         "last_name": Provider.LAST_NAME(provider_data),
         "is_payment_enabled": Provider.PAYMENT_ENABLED(provider_data),
         "is_payable": provider_payment_settings.is_payable if provider_payment_settings else False,
+        "type": Provider.TYPE(provider_data).lower(),
     }
 
     children = []
@@ -465,7 +466,7 @@ def invite_family():
     finally:
         db.session.commit()
 
-    send_family_invited_email(provider_name, Provider.ID(provider), invitation.public_id)
+    send_family_invited_email(provider_name, Provider.ID(provider), data["family_email"], invitation.public_id)
 
     return jsonify({"message": "Success"}, 201)
 

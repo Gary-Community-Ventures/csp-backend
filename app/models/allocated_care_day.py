@@ -240,18 +240,6 @@ class AllocatedCareDay(db.Model, TimestampMixin):
                 child_id=allocation.child_supabase_id,
             ),
         )
-        # Create new care day
-        care_day = AllocatedCareDay(
-            care_month_allocation_id=allocation.id,
-            provider_supabase_id=provider_id,
-            date=care_date,
-            type=day_type,
-            amount_cents=get_care_day_cost(
-                day_type,
-                provider_id=provider_id,
-                child_id=allocation.child_supabase_id,
-            ),
-        )
 
         # Prevent creating a care day that would be locked (using business timezone)
         business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
@@ -289,6 +277,8 @@ class AllocatedCareDay(db.Model, TimestampMixin):
 
     @property
     def status(self):
+        if self.payment_id:
+            return "submitted"
         if self.delete_not_submitted:
             return "delete_not_submitted"
         if self.is_deleted:

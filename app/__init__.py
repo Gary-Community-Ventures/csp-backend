@@ -1,18 +1,14 @@
-import json
 import os
 
 import sentry_sdk
 from clerk_backend_api import Clerk
 from dotenv import load_dotenv
 from flask import Flask
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 from supabase import create_client
 
 from app.services.payment.payment_service import PaymentService
-from app.sheets.integration import SheetsManager
 
 # Import models to ensure they are registered with SQLAlchemy
 from .constants import ENV_DEVELOPMENT, ENV_PRODUCTION, ENV_STAGING, ENV_TESTING
@@ -103,18 +99,6 @@ def create_app(config_class=None):
     db.init_app(app)
     migrate.init_app(app, db)
     csrf.init_app(app)
-
-    # --- Google Sheets Integration ---
-    credentials = app.config.get("GOOGLE_APPLICATION_CREDENTIALS")
-    if credentials:
-        info = json.loads(credentials)
-        creds = service_account.Credentials.from_service_account_info(
-            info, scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
-        )
-
-        app.google_sheets_service = build("sheets", "v4", credentials=creds).spreadsheets()
-
-        app.sheets_manager = SheetsManager(app)
 
     # --- Chek Integration ---
     app.chek_service = ChekService(app)
