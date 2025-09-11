@@ -83,6 +83,7 @@ def get_family_payment_history():
         print(payment.amount_cents)
         print(payment.status)
         print(provider_name)
+        print(payment.external_provider_id)
         print(payment.provider_supabase_id)
         print(child_name)
         print(payment.child_supabase_id)
