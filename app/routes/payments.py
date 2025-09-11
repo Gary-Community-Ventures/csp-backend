@@ -24,7 +24,13 @@ def get_family_payment_history():
     family_id = user.user_data.family_id
 
     children_results = Child.select_by_family_id(
-        cols(Child.ID, Child.FIRST_NAME, Child.LAST_NAME, Family.join(Family.ID), Provider.join(Provider.ID, Provider.NAME)),
+        cols(
+            Child.ID,
+            Child.FIRST_NAME,
+            Child.LAST_NAME,
+            Family.join(Family.ID),
+            Provider.join(Provider.ID, Provider.NAME),
+        ),
         int(family_id),
     ).execute()
     children = unwrap_or_abort(children_results)
@@ -56,7 +62,9 @@ def get_family_payment_history():
             payment_status = "failed"
 
         child = Child.find_by_id(children, payment.child_supabase_id)
-        provider = Provider.find_by_id(Provider.unwrap(child), payment.provider_supabase_id) if child is not None else None
+        provider = (
+            Provider.find_by_id(Provider.unwrap(child), payment.provider_supabase_id) if child is not None else None
+        )
 
         child_name = format_name(child)
         provider_name = Provider.NAME(provider) if provider is not None else UNKNOWN
@@ -122,7 +130,7 @@ def get_provider_payment_history():
     )
 
     provider_results = Provider.select_by_id(
-        cols(Provider.ID, Child.join(Child.FIRST_NAME, Child.LAST_NAME)), int(provider_id)
+        cols(Provider.ID, Child.join(Child.ID, Child.FIRST_NAME, Child.LAST_NAME)), int(provider_id)
     ).execute()
     provider = unwrap_or_abort(provider_results)
 
