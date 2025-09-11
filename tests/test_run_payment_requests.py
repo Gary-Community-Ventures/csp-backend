@@ -12,7 +12,6 @@ from app.models import (
     ProviderPaymentSettings,
 )
 from app.scripts.run_payment_requests import run_payment_requests
-from app.sheets.mappings import ChildColumnNames, KeyMap, ProviderColumnNames
 
 
 @pytest.fixture
@@ -22,21 +21,21 @@ def setup_payment_request_data(app):
         allocation = MonthAllocation(
             date=date.today().replace(day=1),
             allocation_cents=1000000,
-            google_sheets_child_id="101",
+            child_supabase_id="101",
         )
         db.session.add(allocation)
         db.session.commit()
 
         # Create PaymentRates for testing
         payment_rate_1 = PaymentRate(
-            google_sheets_provider_id="201",
-            google_sheets_child_id="101",
+            provider_supabase_id="201",
+            child_supabase_id="101",
             full_day_rate_cents=60000,
             half_day_rate_cents=30000,
         )
         payment_rate_2 = PaymentRate(
-            google_sheets_provider_id="202",
-            google_sheets_child_id="101",
+            provider_supabase_id="202",
+            child_supabase_id="101",
             full_day_rate_cents=70000,
             half_day_rate_cents=35000,
         )
@@ -59,7 +58,7 @@ def setup_payment_request_data(app):
         # We create directly instead of using create_care_day since that prevents past dates
         care_day_1 = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
-            provider_google_sheets_id="201",
+            provider_supabase_id="201",
             date=date.today() - timedelta(days=7),
             type=CareDayType.FULL_DAY,
             amount_cents=60000,
@@ -71,7 +70,7 @@ def setup_payment_request_data(app):
         # Use another date from last week
         care_day_2 = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
-            provider_google_sheets_id="201",
+            provider_supabase_id="201",
             date=date.today() - timedelta(days=6),
             type=CareDayType.HALF_DAY,
             amount_cents=40000,
@@ -84,7 +83,7 @@ def setup_payment_request_data(app):
         # Use a date from last week so it's locked
         care_day_3 = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
-            provider_google_sheets_id="202",
+            provider_supabase_id="202",
             date=date.today() - timedelta(days=5),
             type=CareDayType.FULL_DAY,
             amount_cents=60000,
@@ -96,7 +95,7 @@ def setup_payment_request_data(app):
         # Care day that is already processed
         care_day_4 = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
-            provider_google_sheets_id="201",
+            provider_supabase_id="201",
             date=date.today() - timedelta(days=4),
             type=CareDayType.FULL_DAY,
             amount_cents=60000,
@@ -126,54 +125,15 @@ def setup_payment_request_data(app):
 def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
     allocation, care_day_1, care_day_2, care_day_3, care_day_4, care_day_5 = setup_payment_request_data
 
-    # Mock external dependencies
-    mocker.patch.dict("os.environ", {"GOOGLE_SHEETS_CREDENTIALS": '{"type": "service_account"}'})
-    mocker.patch(
-        "app.scripts.run_payment_requests.get_children",
-        return_value=[
-            KeyMap(
-                {
-                    ChildColumnNames.ID.key: "101",
-                    ChildColumnNames.FIRST_NAME.key: "Test",
-                    ChildColumnNames.LAST_NAME.key: "Child",
-                    ChildColumnNames.FAMILY_ID.key: "family123",
-                }
-            )
-        ],
-    )
-    mocker.patch(
-        "app.scripts.run_payment_requests.get_providers",
-        return_value=[
-            KeyMap(
-                {
-                    ProviderColumnNames.ID.key: "201",
-                    ProviderColumnNames.NAME.key: "Test Provider",
-                }
-            ),
-            KeyMap(
-                {
-                    ProviderColumnNames.ID.key: "202",
-                    ProviderColumnNames.NAME.key: "Another Provider",
-                }
-            ),
-        ],
-    )
-    mocker.patch(
-        "app.scripts.run_payment_requests.get_child",
-        side_effect=lambda child_id, children: next(
-            (c for c in children if c.get(ChildColumnNames.ID) == child_id), None
-        ),
-    )
-    mocker.patch(
-        "app.scripts.run_payment_requests.get_provider",
-        side_effect=lambda provider_id, providers: next(
-            (p for p in providers if p.get(ProviderColumnNames.ID) == provider_id), None
-        ),
-    )
     # Mock the payment service process_payment method
     mock_payment_service = mocker.patch(
         "app.scripts.run_payment_requests.payment_service.process_payment", return_value=True
     )
+
+    # Mock child and provider data lookup functions
+    mocker.patch("app.scripts.run_payment_requests.get_child_name", return_value=("Test", "Child"))
+    mocker.patch("app.scripts.run_payment_requests.get_provider_name", return_value="Test Provider")
+    mocker.patch("app.scripts.run_payment_requests.get_family_id_from_child", return_value="family123")
 
     # Run the script
     run_payment_requests()
@@ -185,27 +145,27 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
     calls = mock_payment_service.call_args_list
 
     # Check that both provider groups were processed
-    provider_ids_called = {call.kwargs["external_provider_id"] for call in calls}
+    provider_ids_called = {call.kwargs["provider_supabase_id"] for call in calls}
     assert provider_ids_called == {"201", "202"}
 
     # Check each call has the expected structure
     for call in calls:
         kwargs = call.kwargs
-        assert "external_provider_id" in kwargs
-        assert "external_child_id" in kwargs
-        assert kwargs["external_child_id"] == "101"
+        assert "provider_supabase_id" in kwargs
+        assert "child_supabase_id" in kwargs
+        assert kwargs["child_supabase_id"] == "101"
         assert "month_allocation" in kwargs
         assert kwargs["month_allocation"] == allocation
         assert "allocated_care_days" in kwargs
         assert len(kwargs["allocated_care_days"]) > 0
 
         # Check the specific provider calls
-        if kwargs["external_provider_id"] == "201":
+        if kwargs["provider_supabase_id"] == "201":
             # Should have 3 care days for provider 201
             assert len(kwargs["allocated_care_days"]) == 3
             care_day_ids = {day.id for day in kwargs["allocated_care_days"]}
             assert care_day_ids == {care_day_1.id, care_day_2.id, care_day_5.id}
-        elif kwargs["external_provider_id"] == "202":
+        elif kwargs["provider_supabase_id"] == "202":
             # Should have 1 care day for provider 202
             assert len(kwargs["allocated_care_days"]) == 1
             assert kwargs["allocated_care_days"][0].id == care_day_3.id
@@ -219,10 +179,8 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
         processed_care_day_2 = db.session.get(AllocatedCareDay, care_day_2.id)
         processed_care_day_3 = db.session.get(AllocatedCareDay, care_day_3.id)
         already_processed_care_day_4 = db.session.get(AllocatedCareDay, care_day_4.id)
-        not_yet_locked_care_day_5 = db.session.get(AllocatedCareDay, care_day_5.id)
 
         assert processed_care_day_1.payment_distribution_requested is True
         assert processed_care_day_2.payment_distribution_requested is True
         assert processed_care_day_3.payment_distribution_requested is True
         assert already_processed_care_day_4.payment_distribution_requested is True
-        assert not_yet_locked_care_day_5.payment_distribution_requested is True

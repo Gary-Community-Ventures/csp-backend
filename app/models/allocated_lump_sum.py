@@ -23,7 +23,8 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
     hours = db.Column(db.Float, nullable=True)
 
     # Provider info
-    provider_google_sheets_id = db.Column(db.String(64), nullable=False, index=True)
+    provider_google_sheets_id = db.Column(db.String(64), nullable=True, index=True)
+    provider_supabase_id = db.Column(db.String(64), nullable=True, index=True)
 
     # Payment tracking
     payment_id = db.Column(
@@ -68,7 +69,7 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
         # Create new lump sum
         lump_sum = AllocatedLumpSum(
             care_month_allocation_id=allocation.id,
-            provider_google_sheets_id=provider_id,
+            provider_supabase_id=provider_id,
             amount_cents=amount_cents,
             submitted_at=datetime.now(timezone.utc),
             hours=hours,
@@ -81,7 +82,7 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
         return {
             "id": self.id,
             "care_month_allocation_id": self.care_month_allocation_id,
-            "provider_google_sheets_id": self.provider_google_sheets_id,
+            "provider_supabase_id": self.provider_supabase_id,
             "amount_cents": self.amount_cents,
             "paid_at": self.paid_at,
             "submitted_at": self.submitted_at,
@@ -90,4 +91,4 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
         }
 
     def __repr__(self):
-        return f"<AllocatedLumpSum {self.id} - Provider {self.provider_google_sheets_id} Amount {self.amount_cents}>"
+        return f"<AllocatedLumpSum {self.id} - Provider {self.provider_supabase_id} Amount {self.amount_cents}>"

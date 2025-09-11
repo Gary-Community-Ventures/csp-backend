@@ -1,7 +1,7 @@
 import functools
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 import sentry_sdk
 from flask import Flask, current_app, has_app_context
@@ -34,7 +34,7 @@ class JobInfo:
 class QueueInfo:
     name: str
     length: int
-    jobs: List[JobInfo]
+    jobs: list[JobInfo]
 
 
 @dataclass

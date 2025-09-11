@@ -1,22 +1,15 @@
 import sys
 import traceback
 from dataclasses import dataclass
-from typing import List, Union
+from typing import Union
 
 from flask import current_app
 from sendgrid import Personalization, SendGridAPIClient, Substitution, To
 from sendgrid.helpers.mail import Mail
 
 from app.models import AllocatedCareDay
-from app.sheets.helpers import KeyMap, format_name
-from app.sheets.mappings import (
-    ChildColumnNames,
-    ProviderColumnNames,
-    get_child,
-    get_children,
-    get_provider,
-    get_providers,
-)
+from app.supabase.helpers import format_name
+from app.supabase.tables import Child
 
 
 def add_subject_prefix(subject: str):
@@ -30,7 +23,7 @@ def add_subject_prefix(subject: str):
 
 
 def send_email(
-    from_email: str, to_emails: Union[str, List[str]], subject: str, html_content: str, from_name: str = "CAP Support"
+    from_email: str, to_emails: Union[str, list[str]], subject: str, html_content: str, from_name: str = "CAP Support"
 ) -> bool:
     """
     Send an email using SendGrid.
@@ -177,19 +170,19 @@ def system_message(subject: str, description: str, rows: list[SystemMessageRow])
 
 def send_care_days_payment_email(
     provider_name: str,
-    google_sheets_provider_id: str,
+    provider_id: str,
     child_first_name: str,
     child_last_name: str,
-    google_sheets_child_id: str,
+    child_id: str,
     amount_in_cents: int,
-    care_days: List[AllocatedCareDay],
+    care_days: list[AllocatedCareDay],
 ) -> bool:
     amount_dollars = amount_in_cents / 100
 
     from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(
-        f"Sending payment processed notification to {to_emails} for provider ID: {google_sheets_provider_id} from child ID: {google_sheets_child_id}"
+        f"Sending payment processed notification to {to_emails} for provider ID: {provider_id} from child ID: {child_id}"
     )
 
     subject = "Care Days Payment Processed"
@@ -204,11 +197,11 @@ def send_care_days_payment_email(
     rows = [
         SystemMessageRow(
             title="Provider Name",
-            value=f"{provider_name} (ID: {google_sheets_provider_id})",
+            value=f"{provider_name} (ID: {provider_id})",
         ),
         SystemMessageRow(
             title="Child Name",
-            value=f"{child_first_name} {child_last_name} (ID: {google_sheets_child_id})",
+            value=f"{child_first_name} {child_last_name} (ID: {child_id})",
         ),
         SystemMessageRow(
             title="Amount",
@@ -232,10 +225,10 @@ def send_care_days_payment_email(
 
 def send_lump_sum_payment_email(
     provider_name: str,
-    google_sheets_provider_id: str,
+    provider_id: str,
     child_first_name: str,
     child_last_name: str,
-    google_sheets_child_id: str,
+    child_id: str,
     amount_in_cents: int,
     hours: float,
     month: str,
@@ -245,7 +238,7 @@ def send_lump_sum_payment_email(
     from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(
-        f"Sending lump sum payment processed email to {to_emails} for provider ID: {google_sheets_provider_id} from child ID: {google_sheets_child_id}"
+        f"Sending lump sum payment processed email to {to_emails} for provider ID: {provider_id} from child ID: {child_id}"
     )
 
     subject = "New Lump Sum Payment Notification"
@@ -254,11 +247,11 @@ def send_lump_sum_payment_email(
     rows = [
         SystemMessageRow(
             title="Provider Name",
-            value=f"{provider_name} (ID: {google_sheets_provider_id})",
+            value=f"{provider_name} (ID: {provider_id})",
         ),
         SystemMessageRow(
             title="Child Name",
-            value=f"{child_first_name} {child_last_name} (ID: {google_sheets_child_id})",
+            value=f"{child_first_name} {child_last_name} (ID: {child_id})",
         ),
         SystemMessageRow(
             title="Amount",
@@ -284,7 +277,7 @@ def send_lump_sum_payment_email(
     )
 
 
-def send_provider_invited_email(family_name: str, family_id: str, ids: list[str]):
+def send_provider_invited_email(family_name: str, family_id: str, provider_email: str, ids: list[str]):
     from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(f"Sending invite sent request email to {to_emails} for family ID: {family_id}")
@@ -293,6 +286,10 @@ def send_provider_invited_email(family_name: str, family_id: str, ids: list[str]
         SystemMessageRow(
             title="Family Name",
             value=family_name,
+        ),
+        SystemMessageRow(
+            title="Provider Email",
+            value=provider_email,
         ),
     ]
 
@@ -391,7 +388,10 @@ def send_new_payment_rate_email(provider_id: str, child_id: str, half_day_rate_c
 
 
 def send_payment_notification(
+    provider_name: str,
+    provider_email: str,
     provider_id: str,
+    child_name: str,
     child_id: str,
     amount_cents: int,
     payment_method: str,
@@ -411,23 +411,12 @@ def send_payment_notification(
 
     from_email = get_from_email_external()
 
-    provider = get_provider(provider_id, get_providers())
-    child = get_child(child_id, get_children())
-
-    provider_name = provider.get(ProviderColumnNames.NAME) if provider else f"Provider {provider_id}"
-    to_email = provider.get(ProviderColumnNames.EMAIL) if provider else None
-    child_name = (
-        f"{child.get(ChildColumnNames.FIRST_NAME)} {child.get(ChildColumnNames.LAST_NAME)}"
-        if child
-        else f"Child {child_id}"
-    )
-
     current_app.logger.info(
-        f"Sending payment notification to {to_email} for provider ID: {provider_id}, "
+        f"Sending payment notification to {provider_email} for provider ID: {provider_id}, "
         f"child ID: {child_id}, amount: ${amount_cents/100:.2f}"
     )
 
-    if not to_email:
+    if not provider_email:
         current_app.logger.warning(f"Provider {provider_id} has no email address. Skipping notification.")
         return False
 
@@ -509,13 +498,13 @@ def send_payment_notification(
 
     return send_email(
         from_email=from_email,
-        to_emails=[to_email],
+        to_emails=[provider_email],
         subject=subject,
         html_content=html_content,
     )
 
 
-def send_family_invited_email(provider_name: str, provider_id: str, id: str):
+def send_family_invited_email(provider_name: str, provider_id: str, family_email: str, id: str):
     from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(f"Sending invite sent request email to {to_emails} for provider ID: {provider_id}")
@@ -525,6 +514,7 @@ def send_family_invited_email(provider_name: str, provider_id: str, id: str):
             title="Provider Name",
             value=f"{provider_name} (ID: {provider_id})",
         ),
+        SystemMessageRow(title="Family Email", value=family_email),
         SystemMessageRow(
             title="Invite ID",
             value=id,
@@ -548,12 +538,12 @@ def send_family_invite_accept_email(
     provider_id: str,
     parent_name: str,
     parent_id: str,
-    children: list[KeyMap],
+    children: list[dict],
 ):
     from_email, to_emails = get_internal_emails()
 
     current_app.logger.info(
-        f"Sending accept invite request email to {to_emails} for provider ID: {provider_id} for family ID: {parent_id} for child IDs: {[c.get(ChildColumnNames.ID) for c in children]}"
+        f"Sending accept invite request email to {to_emails} for provider ID: {provider_id} for family ID: {parent_id} for child IDs: {[Child.ID(c) for c in children]}"
     )
 
     rows = [
@@ -571,7 +561,7 @@ def send_family_invite_accept_email(
         rows.append(
             SystemMessageRow(
                 title="Child Name",
-                value=f"{format_name(child)} (ID: {child.get(ChildColumnNames.ID)})",
+                value=f"{format_name(child)} (ID: {Child.ID(child)})",
             )
         )
 

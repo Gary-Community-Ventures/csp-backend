@@ -13,15 +13,8 @@ from app.extensions import db
 from app.models.allocated_lump_sum import AllocatedLumpSum
 from app.models.month_allocation import MonthAllocation
 from app.schemas.lump_sum import AllocatedLumpSumCreateRequest, AllocatedLumpSumResponse
-from app.sheets.mappings import (
-    ChildColumnNames,
-    ProviderColumnNames,
-    get_child_providers,
-    get_children,
-    get_family_children,
-    get_provider_child_mappings,
-    get_providers,
-)
+from app.supabase.helpers import cols, unwrap_or_abort
+from app.supabase.tables import Child, Provider
 from app.utils.email_service import send_lump_sum_payment_email
 
 bp = Blueprint("lump_sum", __name__, url_prefix="/lump-sums")
@@ -49,13 +42,25 @@ def create_lump_sum():
         return jsonify({"error": "MonthAllocation not found"}), 404
 
     # Check if the child associated with the allocation belongs to the family
-    allocation_child_id = allocation.google_sheets_child_id
-    child_rows = get_children()
-    family_children = get_family_children(family_id, child_rows)
+    allocation_child_id = allocation.child_supabase_id
+
+    # Get family children with associated providers
+    family_children_result = Child.select_by_family_id(
+        cols(
+            Child.ID,
+            Child.PAYMENT_ENABLED,
+            Child.FIRST_NAME,
+            Child.LAST_NAME,
+            Provider.join(Provider.ID, Provider.PAYMENT_ENABLED, Provider.NAME),
+        ),
+        int(family_id),
+    ).execute()
+
+    family_children = unwrap_or_abort(family_children_result)
 
     associated_child = None
     for child in family_children:
-        if child.get(ChildColumnNames.ID) == allocation_child_id:
+        if Child.ID(child) == allocation_child_id:
             associated_child = child
             break
 
@@ -63,23 +68,21 @@ def create_lump_sum():
         return jsonify({"error": "Child not associated with the authenticated family."}), 403
 
     # Check if the provider is associated with the child
-    provider_child_mapping_rows = get_provider_child_mappings()
-    provider_rows = get_providers()
-    child_providers = get_child_providers(allocation_child_id, provider_child_mapping_rows, provider_rows)
+    child_providers = Provider.unwrap(associated_child)
 
     provider_data = None
     for provider in child_providers:
-        if provider.get(ProviderColumnNames.ID) == provider_id:
+        if Provider.ID(provider) == provider_id:
             provider_data = provider
             break
 
     if not provider_data:
         return jsonify({"error": "Provider not associated with the specified child."}), 403
 
-    if not provider_data or not provider_data.get(ProviderColumnNames.PAYMENT_ENABLED):
+    if not provider_data or not Provider.PAYMENT_ENABLED(provider_data):
         return jsonify({"error": "Cannot submit: provider payment not enabled"}), 400
 
-    if not associated_child.get(ChildColumnNames.PAYMENT_ENABLED):
+    if not Child.PAYMENT_ENABLED(associated_child):
         return jsonify({"error": "Cannot submit: child payment not enabled"}), 400
 
     try:
@@ -94,8 +97,8 @@ def create_lump_sum():
 
         # Process payment using the PaymentService
         payment_successful = current_app.payment_service.process_payment(
-            external_provider_id=provider_id,
-            external_child_id=allocation_child_id,
+            provider_id=provider_id,
+            child_id=allocation_child_id,
             month_allocation=allocation,
             allocated_lump_sums=[lump_sum],
         )
@@ -108,17 +111,17 @@ def create_lump_sum():
 
         # Send payment notification email (after successful payment)
         # If email fails, we log it but don't fail the request since payment succeeded
-        # TODO leave so whe know when payments happen but remove in future
         send_lump_sum_payment_email(
-            provider_name=provider_data.get(ProviderColumnNames.NAME),
-            google_sheets_provider_id=provider_id,
-            child_first_name=associated_child.get(ChildColumnNames.FIRST_NAME),
-            child_last_name=associated_child.get(ChildColumnNames.LAST_NAME),
-            google_sheets_child_id=allocation_child_id,
+            provider_name=Provider.NAME(provider_data),
+            provider_id=provider_id,
+            child_first_name=Child.FIRST_NAME(associated_child),
+            child_last_name=Child.LAST_NAME(associated_child),
+            child_id=allocation_child_id,
             amount_in_cents=amount_cents,
             hours=hours,
             month=allocation.date.strftime("%B %Y"),
         )
+
         return (
             AllocatedLumpSumResponse.model_validate(lump_sum).model_dump_json(),
             201,

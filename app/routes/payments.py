@@ -2,6 +2,7 @@ from flask import Blueprint
 
 from app.auth.decorators import ClerkUserType, auth_required
 from app.auth.helpers import get_family_user, get_provider_user
+from app.constants import UNKNOWN
 from app.models import MonthAllocation, Payment, ProviderPaymentSettings
 from app.schemas.payment import (
     FamilyPaymentHistoryItem,
@@ -9,16 +10,8 @@ from app.schemas.payment import (
     ProviderPaymentHistoryItem,
     ProviderPaymentHistoryResponse,
 )
-from app.sheets.helpers import format_name
-from app.sheets.mappings import (
-    ChildColumnNames,
-    ProviderColumnNames,
-    get_child,
-    get_children,
-    get_family_children,
-    get_provider,
-    get_providers,
-)
+from app.supabase.helpers import cols, format_name, unwrap_or_abort
+from app.supabase.tables import Child, Family, Provider
 
 bp = Blueprint("payments", __name__)
 
@@ -30,27 +23,25 @@ def get_family_payment_history():
     user = get_family_user()
     family_id = user.user_data.family_id
 
-    # Get all children for this family
-    all_children_data = get_children()
-    family_children = get_family_children(family_id, all_children_data)
+    children_results = Child.select_by_family_id(
+        cols(Child.ID, Child.FIRST_NAME, Child.LAST_NAME, Family.join(Family.ID), Provider.join(Provider.NAME)),
+        int(family_id),
+    ).execute()
+    children = unwrap_or_abort(children_results)
 
-    if not family_children:
+    if len(children) == 0:
         return (
             FamilyPaymentHistoryResponse(payments=[], total_count=0, total_amount_cents=0).model_dump_json(),
             200,
             {"Content-Type": "application/json"},
         )
 
-    # Get child IDs for this family
-    family_child_ids = [child.get(ChildColumnNames.ID) for child in family_children]
+    child_ids = [Child.ID(c) for c in children]
 
     # Query payments for these children, ordered by newest first
-    payments = (
-        Payment.query.filter(Payment.external_child_id.in_(family_child_ids)).order_by(Payment.created_at.desc()).all()
+    payments: list[Payment] = (
+        Payment.query.filter(Payment.child_supabase_id.in_(child_ids)).order_by(Payment.created_at.desc()).all()
     )
-
-    # Get provider data for names
-    all_providers_data = get_providers()
 
     # Build response
     payment_items = []
@@ -64,17 +55,15 @@ def get_family_payment_history():
         elif payment.has_failed_attempt:
             payment_status = "failed"
 
-        # Get provider name
-        provider_data = get_provider(payment.external_provider_id, all_providers_data)
-        provider_name = provider_data.get(ProviderColumnNames.NAME) if provider_data else "Unknown Provider"
+        child = Child.find_by_id(children, payment.child_supabase_id)
+        provider = Provider.find_by_id(Provider.unwrap(child)) if child is not None else None
 
-        # Get child name
-        child_data = next((c for c in family_children if c.get(ChildColumnNames.ID) == payment.external_child_id), None)
-        child_name = format_name(child_data) if child_data else "Unknown Child"
+        child_name = format_name(child)
+        provider_name = provider.NAME if provider is not None else UNKNOWN
 
         # Get month from allocation
         month_allocation = MonthAllocation.query.get(payment.month_allocation_id)
-        month_str = month_allocation.date.strftime("%Y-%m-%d") if month_allocation else "Unknown"
+        month_str = month_allocation.date.strftime("%Y-%m-%d") if month_allocation else UNKNOWN
 
         # Determine payment type
         payment_type = (
@@ -88,9 +77,9 @@ def get_family_payment_history():
                 amount_cents=payment.amount_cents,
                 status=payment_status,
                 provider_name=provider_name,
-                provider_id=payment.external_provider_id,
+                provider_id=payment.provider_supabase_id,
                 child_name=child_name,
-                child_id=payment.external_child_id,
+                child_id=payment.child_supabase_id,
                 month=month_str,
                 payment_type=payment_type,
             )
@@ -113,7 +102,7 @@ def get_provider_payment_history():
     provider_id = user.user_data.provider_id
 
     # Get provider payment settings to get the internal provider ID
-    provider_settings = ProviderPaymentSettings.query.filter_by(provider_external_id=provider_id).first()
+    provider_settings = ProviderPaymentSettings.query.filter_by(provider_supabase_id=provider_id).first()
 
     if not provider_settings:
         # No payment settings means no payments
@@ -126,14 +115,16 @@ def get_provider_payment_history():
         )
 
     # Query payments for this provider, ordered by newest first
-    payments = (
+    payments: list[Payment] = (
         Payment.query.filter(Payment.provider_payment_settings_id == provider_settings.id)
         .order_by(Payment.created_at.desc())
         .all()
     )
 
-    # Get child and family data for names
-    all_children_data = get_children()
+    provider_results = Provider.select_by_id(
+        cols(Provider.ID, Child.join(Child.FIRST_NAME, Child.LAST_NAME)), int(provider_id)
+    ).execute()
+    provider = unwrap_or_abort(provider_results)
 
     # Build response
     payment_items = []
@@ -149,22 +140,21 @@ def get_provider_payment_history():
         elif payment.has_failed_attempt:
             payment_status = "failed"
 
-        # Get child name
-        child_data = get_child(payment.external_child_id, all_children_data)
-        child_name = format_name(child_data) if child_data else "Unknown Child"
+        child = Child.find_by_id(Child.unwrap(provider), payment.child_supabase_id)
+        child_name = format_name(child)
 
         # Get month from allocation
         month_allocation = MonthAllocation.query.get(payment.month_allocation_id)
-        month_str = month_allocation.date.strftime("%Y-%m-%d") if month_allocation else "Unknown"
+        month_str = month_allocation.date.strftime("%Y-%m-%d") if month_allocation else UNKNOWN
 
         # Get payment method used for this payment
-        payment_method = "unknown"
+        payment_method = UNKNOWN
         if payment.successful_attempt:
             # Get the payment method from the first attempt (they should all be the same)
             payment_method = (
                 payment.successful_attempt.payment_method.value
                 if payment.successful_attempt.payment_method
-                else "unknown"
+                else UNKNOWN
             )
 
         # Determine payment type
@@ -179,7 +169,7 @@ def get_provider_payment_history():
                 amount_cents=payment.amount_cents,
                 status=payment_status,
                 child_name=child_name,
-                child_id=payment.external_child_id,
+                child_id=payment.child_supabase_id,
                 month=month_str,
                 payment_method=payment_method,
                 payment_type=payment_type,

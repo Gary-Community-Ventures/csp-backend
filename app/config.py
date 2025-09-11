@@ -33,6 +33,10 @@ class Config:
     # Clerk Configuration
     CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
 
+    # Supabase Configuration
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
     # For Flask-Admin
     SECRET_KEY = os.getenv("SECRET_KEY")
 

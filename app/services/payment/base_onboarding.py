@@ -3,7 +3,7 @@ Base class for onboarding providers and families to Chek payment system.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 
 import sentry_sdk
 from flask import current_app
@@ -34,12 +34,12 @@ class BaseOnboarding(ABC):
         pass
 
     @abstractmethod
-    def get_entity_data_from_sheets(self, external_id: str) -> Dict:
-        """Get entity data from Google Sheets."""
+    def get_entity_data(self, external_id: str) -> dict:
+        """Get entity data."""
         pass
 
     @abstractmethod
-    def extract_entity_fields(self, entity_data: Dict) -> Dict:
+    def extract_entity_fields(self, entity_data: dict) -> dict:
         """Extract required fields from entity data."""
         pass
 
@@ -51,13 +51,13 @@ class BaseOnboarding(ABC):
         pass
 
     @abstractmethod
-    def get_chek_status(self, chek_user_id: int) -> Dict:
+    def get_chek_status(self, chek_user_id: int) -> dict:
         """Get the current Chek status for the entity."""
         pass
 
     @abstractmethod
     def update_settings_from_status(
-        self, settings: Union[ProviderPaymentSettings, FamilyPaymentSettings], status: Dict
+        self, settings: Union[ProviderPaymentSettings, FamilyPaymentSettings], status: dict
     ) -> None:
         """Update payment settings from Chek status."""
         pass
@@ -67,7 +67,7 @@ class BaseOnboarding(ABC):
         Generic onboarding flow for any entity.
 
         Args:
-            external_id: External ID from Google Sheets
+            external_id: External ID
 
         Returns:
             Payment settings record for the entity
@@ -83,15 +83,14 @@ class BaseOnboarding(ABC):
                 )
                 return existing_settings
 
-            # Get entity data from Google Sheets
-            entity_data = self.get_entity_data_from_sheets(external_id)
+            entity_data = self.get_entity_data(external_id)
 
             # Extract fields
             fields = self.extract_entity_fields(entity_data)
 
             # Validate required fields
             if not fields["email"]:
-                raise DataNotFoundException(f"{entity_type.capitalize()} {external_id} has no email in Google Sheets")
+                raise DataNotFoundException(f"{entity_type.capitalize()} {external_id} has no email")
 
             # Format phone number
             phone = format_phone_to_e164(fields.get("phone_raw"))

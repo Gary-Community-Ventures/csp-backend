@@ -9,8 +9,8 @@ def seed_db(app):
     with app.app_context():
         # Create a PaymentRate for testing (using valid values within MIN_PAYMENT_RATE and MAX_PAYMENT_RATE)
         payment_rate = PaymentRate(
-            google_sheets_provider_id="1",
-            google_sheets_child_id="1",
+            provider_supabase_id="1",
+            child_supabase_id="1",
             full_day_rate_cents=5000,  # $50
             half_day_rate_cents=4000,  # $40
         )
@@ -43,12 +43,9 @@ def mock_auth_and_helpers(mocker, request, app):
         mock_user.user_data.family_id = "1"
         mocker.patch("app.routes.payment_rate.get_family_user", return_value=mock_user)
 
-        # Mock get_children and get_family_children
-        from app.sheets.helpers import KeyMap
-
         children = [
-            KeyMap({"ID": "1", "Family ID": "1"}),
-            KeyMap({"ID": "2", "Family ID": "1"}),
+            {"ID": "1", "Family ID": "1"},
+            {"ID": "2", "Family ID": "1"},
         ]
         mocker.patch(
             "app.routes.payment_rate.get_children",
@@ -76,13 +73,12 @@ def mock_auth_and_helpers(mocker, request, app):
         mocker.patch("app.routes.payment_rate.get_provider_user", return_value=mock_user)
 
     # Mock get_provider_child_mappings for all tests
-    from app.sheets.helpers import KeyMap
 
     mappings = [
-        KeyMap({"Child ID": "1", "Provider ID": "1"}),
-        KeyMap({"Child ID": "2", "Provider ID": "1"}),
-        KeyMap({"Child ID": "3", "Provider ID": "1"}),
-        KeyMap({"Child ID": "2", "Provider ID": "2"}),
+        {"Child ID": "1", "Provider ID": "1"},
+        {"Child ID": "2", "Provider ID": "1"},
+        {"Child ID": "3", "Provider ID": "1"},
+        {"Child ID": "2", "Provider ID": "2"},
     ]
     mocker.patch(
         "app.routes.payment_rate.get_provider_child_mappings",
