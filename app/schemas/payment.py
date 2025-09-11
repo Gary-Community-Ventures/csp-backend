@@ -101,9 +101,9 @@ class FamilyPaymentHistoryItem(BaseModel):
     amount_cents: int = Field(..., description="Payment amount in cents")
     status: str = Field(..., description="Payment status: 'success', 'failed', 'pending'")
     provider_name: str = Field(..., description="Name of the provider who received payment")
-    provider_id: str = Field(..., description="Provider external ID")
+    provider_supabase_id: str = Field(..., description="Provider external ID")
     child_name: str = Field(..., description="Name of the child")
-    child_id: str = Field(..., description="Child external ID")
+    child_supabase_id: str = Field(..., description="Child external ID")
     month: str = Field(..., description="Month the payment was for (YYYY-MM)")
     payment_type: str = Field(..., description="Type of payment: 'care_days' or 'lump_sum'")
 
