@@ -115,6 +115,7 @@ def get_provider_data():
         "last_name": Provider.LAST_NAME(provider_data),
         "is_payment_enabled": Provider.PAYMENT_ENABLED(provider_data),
         "is_payable": provider_payment_settings.is_payable if provider_payment_settings else False,
+        "type": Provider.TYPE(provider_data).lower(),
     }
 
     children = []
