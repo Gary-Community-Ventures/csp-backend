@@ -174,7 +174,8 @@ MIGRATION_MAPPINGS = [
         has_multiple_records=True,
     ),
     SupabaseMapping(
-        "provider_invitations", ProviderInvitation, "child_google_sheet_id", "child_supabase_id", MappingType.CHILD
+        "provider_invitations", ProviderInvitation, "child_google_sheet_id", "child_supabase_id", MappingType.CHILD,
+        has_multiple_records=True,
     ),
     SupabaseMapping(
         "payment_requests",
@@ -201,7 +202,8 @@ MIGRATION_MAPPINGS = [
         has_multiple_records=True,
     ),
     SupabaseMapping(
-        "family_invitations", FamilyInvitation, "provider_google_sheet_id", "provider_supabase_id", MappingType.PROVIDER
+        "family_invitations", FamilyInvitation, "provider_google_sheet_id", "provider_supabase_id", MappingType.PROVIDER,
+        has_multiple_records=True,
     ),
     SupabaseMapping(
         "payment",
