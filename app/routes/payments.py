@@ -77,18 +77,6 @@ def get_family_payment_history():
         payment_type = (
             "care_days" if payment.allocated_care_days else "lump_sum" if payment.allocated_lump_sums else "other"
         )
-        print(payment)
-        print(payment.id)
-        print(payment.created_at)
-        print(payment.amount_cents)
-        print(payment.status)
-        print(provider_name)
-        print(payment.external_provider_id)
-        print(payment.provider_supabase_id)
-        print(child_name)
-        print(payment.child_supabase_id)
-        print(month_str)
-        print(payment_type)
 
         payment_items.append(
             FamilyPaymentHistoryItem(
