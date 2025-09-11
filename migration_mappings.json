@@ -1,0 +1,15 @@
+{
+  "mappings": {
+    "children": {
+      "google_sheet_id": "supabase_id",
+    },
+    "providers": {
+      "google_sheet_id": "supabase_id",
+    },
+    "families": {
+      "google_sheet_id": "supabase_id",
+    }
+  },
+  "dry_run": true,
+  "force": false
+}
