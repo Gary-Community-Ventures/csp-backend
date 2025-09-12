@@ -88,16 +88,32 @@ def seed_db(app):
 
 # Mock the authentication for all tests in this file
 @pytest.fixture(autouse=True)
-def mock_authentication(mocker):
+def mock_child_auth(mocker):
     mock_request_state = mocker.Mock()
     mock_request_state.is_signed_in = True
-    mock_request_state.payload = {"data": {"types": ["family"], "family_id": 1}}
+    mock_request_state.payload = {
+        "sub": "user_id_123",
+        "sid": "session_id_123", 
+        "data": {"types": ["family"], "family_id": "1"}
+    }
     mocker.patch("app.auth.decorators._authenticate_request", return_value=mock_request_state)
+    
+    # Mock get_family_user
+    mock_user = mocker.Mock()
+    mock_user.user_data.family_id = "1"
+    mocker.patch("app.routes.child.get_family_user", return_value=mock_user)
 
 
 # --- GET /child/{child_id}/allocation/{month}/{year} ---
-def test_get_month_allocation_success(client, seed_db):
+def test_get_month_allocation_success(client, seed_db, app):
     allocation, _, _, _, _, _ = seed_db
+    
+    # Add child data to mock Supabase
+    from tests.supabase_mocks import create_mock_child_data
+    app.supabase_client.tables["child"].data = [
+        create_mock_child_data(child_id=1, family_id="1")
+    ]
+    
     response = client.get(
         f"/child/{allocation.child_supabase_id}/allocation/{allocation.date.month}/{allocation.date.year}?provider_id=1"
     )
@@ -114,25 +130,38 @@ def test_get_month_allocation_success(client, seed_db):
     assert care_day_statuses[5] == "delete_not_submitted"
 
 
-def test_get_month_allocation_invalid_date(client, seed_db):
+def test_get_month_allocation_invalid_date(client, seed_db, app):
     allocation, _, _, _, _, _ = seed_db
+    
+    # Add child data to mock Supabase
+    from tests.supabase_mocks import create_mock_child_data
+    app.supabase_client.tables["child"].data = [
+        create_mock_child_data(child_id=1, family_id="1")
+    ]
+    
     response = client.get(f"/child/{allocation.child_supabase_id}/allocation/13/2024?provider_id=1")  # Invalid month
     assert response.status_code == 400
     assert "month must be in 1..12" in response.json["error"]
 
 
-def test_get_month_allocation_allocation_not_found(client, seed_db):
+def test_get_month_allocation_allocation_not_found(client, seed_db, app):
     _, _, _, _, _, _ = seed_db
+    
+    # Add child data to mock Supabase - child exists but no allocation for child 999
+    from tests.supabase_mocks import create_mock_child_data
+    app.supabase_client.tables["child"].data = [
+        create_mock_child_data(child_id=999, family_id="1")  # Child 999 exists in family 1
+    ]
 
     response = client.get(
         f"/child/999/allocation/{date.today().month}/{date.today().year}?provider_id=1"
-    )  # Non-existent child
+    )  # Child exists but no allocation
     assert response.status_code == 400
     assert response.json["error"] == "Allocation not found"
 
 
 # --- POST /child/{child_id}/provider/{provider_id}/allocation/{month}/{year}/submit ---
-def test_submit_care_days_success(client, seed_db, mocker):
+def test_submit_care_days_success(client, seed_db, mocker, app):
     (
         allocation,
         care_day_new,
@@ -141,6 +170,14 @@ def test_submit_care_days_success(client, seed_db, mocker):
         _,
         _,
     ) = seed_db
+    
+    # Add child and provider data to mock Supabase
+    from tests.supabase_mocks import create_mock_child_data, create_mock_provider_data
+    child_data = create_mock_child_data(child_id=1, family_id="1", payment_enabled=True)
+    provider_data = create_mock_provider_data(provider_id=1, payment_enabled=True)
+    child_data["provider"] = [provider_data]  # Add provider as joined data
+    app.supabase_client.tables["child"].data = [child_data]
+    app.supabase_client.tables["provider"].data = [provider_data]
 
     # Mock the email sending function
     mocker.patch("app.routes.child.send_care_days_payment_email", return_value=True)
@@ -154,7 +191,14 @@ def test_submit_care_days_success(client, seed_db, mocker):
     assert len(response.json["care_days"]) == 1
 
 
-def test_submit_care_days_no_care_days(client, seed_db):
+def test_submit_care_days_no_care_days(client, seed_db, app):
+    # Add child and provider data to mock Supabase
+    from tests.supabase_mocks import create_mock_child_data, create_mock_provider_data
+    child_data = create_mock_child_data(child_id=2, family_id="1", payment_enabled=True)
+    provider_data = create_mock_provider_data(provider_id=1, payment_enabled=True)
+    child_data["provider"] = [provider_data]  # Add provider as joined data
+    app.supabase_client.tables["child"].data = [child_data]
+    app.supabase_client.tables["provider"].data = [provider_data]
 
     # Create a new allocation with no care days
     new_allocation_child_id = "2"
@@ -177,16 +221,33 @@ def test_submit_care_days_no_care_days(client, seed_db):
     assert "No care days to submit" in response.json["error"]
 
 
-def test_submit_care_days_allocation_not_found(client, seed_db):
+def test_submit_care_days_allocation_not_found(client, seed_db, app):
     _, _, _, _, _, _ = seed_db
+    
+    # Add child and provider data to mock Supabase - child 999 exists but no allocation
+    from tests.supabase_mocks import create_mock_child_data, create_mock_provider_data
+    child_data = create_mock_child_data(child_id=999, family_id="1", payment_enabled=True)
+    provider_data = create_mock_provider_data(provider_id=1, payment_enabled=True)
+    child_data["provider"] = [provider_data]  # Add provider as joined data
+    app.supabase_client.tables["child"].data = [child_data]
+    app.supabase_client.tables["provider"].data = [provider_data]
 
-    response = client.post("/child/999/provider/1/allocation/1/2024/submit")  # Non-existent child
+    response = client.post("/child/999/provider/1/allocation/1/2024/submit")  # Child exists but no allocation
     assert response.status_code == 404
     assert "Allocation not found" in response.json["error"]
 
 
-def test_submit_care_days_selected_over_allocation_fails(client, seed_db):
+def test_submit_care_days_selected_over_allocation_fails(client, seed_db, app):
     allocation, _, _, _, _, _ = seed_db
+    
+    # Add child and provider data to mock Supabase
+    from tests.supabase_mocks import create_mock_child_data, create_mock_provider_data
+    child_data = create_mock_child_data(child_id=1, family_id="1", payment_enabled=True)
+    provider_data = create_mock_provider_data(provider_id=1, payment_enabled=True)
+    child_data["provider"] = [provider_data]  # Add provider as joined data
+    app.supabase_client.tables["child"].data = [child_data]
+    app.supabase_client.tables["provider"].data = [provider_data]
+    
     allocation.allocation_cents = 0
     db.session.commit()
 

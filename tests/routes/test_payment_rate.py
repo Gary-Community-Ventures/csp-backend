@@ -43,18 +43,8 @@ def mock_auth_and_helpers(mocker, request, app):
         mock_user.user_data.family_id = "1"
         mocker.patch("app.routes.payment_rate.get_family_user", return_value=mock_user)
 
-        children = [
-            {"ID": "1", "Family ID": "1"},
-            {"ID": "2", "Family ID": "1"},
-        ]
-        mocker.patch(
-            "app.routes.payment_rate.get_children",
-            return_value=children,
-        )
-        mocker.patch(
-            "app.routes.payment_rate.get_family_children",
-            return_value=children,
-        )
+        # No need to mock get_children or get_family_children as they don't exist
+        # The Supabase mock will handle the data
     else:
         # Provider auth for POST endpoints
         mock_request_state = mocker.Mock()
@@ -72,22 +62,22 @@ def mock_auth_and_helpers(mocker, request, app):
         mock_user.user_data.provider_id = "1"
         mocker.patch("app.routes.payment_rate.get_provider_user", return_value=mock_user)
 
-    # Mock get_provider_child_mappings for all tests
-
-    mappings = [
-        {"Child ID": "1", "Provider ID": "1"},
-        {"Child ID": "2", "Provider ID": "1"},
-        {"Child ID": "3", "Provider ID": "1"},
-        {"Child ID": "2", "Provider ID": "2"},
-    ]
-    mocker.patch(
-        "app.routes.payment_rate.get_provider_child_mappings",
-        return_value=mappings,
-    )
+    # No need to mock get_provider_child_mappings as it doesn't exist anymore
+    # The Supabase mock will handle the data
 
 
 # --- POST /payment-rates/<child_id> ---
 def test_create_payment_rate_success(client, app):
+    # Add provider and child data to mock Supabase
+    from tests.supabase_mocks import create_mock_child_data, create_mock_provider_data
+    
+    provider_data = create_mock_provider_data(provider_id=1)
+    child_data = create_mock_child_data(child_id=2)
+    # Set up join - provider has access to children
+    provider_data["child"] = [child_data]
+    
+    app.supabase_client.tables["provider"].data = [provider_data]
+    app.supabase_client.tables["child"].data = [child_data]
     response = client.post(
         "/payment-rates/2",
         json={
@@ -117,7 +107,16 @@ def test_create_payment_rate_missing_fields(client):
     assert "Field required" in response.json["error"][0]["msg"]
 
 
-def test_create_payment_rate_already_exists(client, seed_db):
+def test_create_payment_rate_already_exists(client, seed_db, app):
+    # Add provider and child data to mock Supabase
+    from tests.supabase_mocks import create_mock_child_data, create_mock_provider_data
+    
+    provider_data = create_mock_provider_data(provider_id=1)
+    child_data = create_mock_child_data(child_id=1)
+    provider_data["child"] = [child_data]
+    
+    app.supabase_client.tables["provider"].data = [provider_data]
+    app.supabase_client.tables["child"].data = [child_data]
     response = client.post(
         "/payment-rates/1",
         json={
@@ -131,7 +130,7 @@ def test_create_payment_rate_already_exists(client, seed_db):
 
 
 # --- GET /payment-rates/<provider_id>/<child_id> ---
-def test_get_payment_rate_success(client, seed_db):
+def test_get_payment_rate_success(client, seed_db, app):
     response = client.get("/payment-rates/1/1", headers={"Authorization": "Bearer test-token"})
     assert response.status_code == 200
     # Response only has id and the rate cents based on PaymentRateResponse schema
@@ -140,7 +139,7 @@ def test_get_payment_rate_success(client, seed_db):
     assert "id" in response.json
 
 
-def test_get_payment_rate_not_found(client):
+def test_get_payment_rate_not_found(client, app):
     response = client.get("/payment-rates/2/2", headers={"Authorization": "Bearer test-token"})
     assert response.status_code == 404
     assert "Payment rate not found" in response.json["error"]

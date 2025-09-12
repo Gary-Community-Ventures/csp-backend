@@ -130,13 +130,26 @@ def test_run_payment_requests_script(app, setup_payment_request_data, mocker):
         "app.scripts.run_payment_requests.payment_service.process_payment", return_value=True
     )
 
-    # Mock child and provider data lookup functions
-    mocker.patch("app.scripts.run_payment_requests.get_child_name", return_value=("Test", "Child"))
-    mocker.patch("app.scripts.run_payment_requests.get_provider_name", return_value="Test Provider")
-    mocker.patch("app.scripts.run_payment_requests.get_family_id_from_child", return_value="family123")
+    # Add test data to the mock Supabase client
+    from tests.supabase_mocks import create_mock_child_data, create_mock_provider_data
+    
+    # Add child and provider data to match the test setup
+    # The script expects dict-like objects with 'id' key when iterating
+    # Note: The care days use string IDs like "101", "201", "202"
+    child_data = create_mock_child_data(child_id="101", family_id=1)
+    provider_data_201 = create_mock_provider_data(provider_id="201")
+    provider_data_202 = create_mock_provider_data(provider_id="202")
+    
+    app.supabase_client.tables["child"].data = [child_data]
+    app.supabase_client.tables["provider"].data = [provider_data_201, provider_data_202]
 
-    # Run the script
-    run_payment_requests()
+    # Run the script within the test app context
+    with app.app_context():
+        # Import and run the core logic instead of the whole script
+        from app.scripts.run_payment_requests import run_payment_requests
+        # Patch the app creation in the script to use our test app
+        mocker.patch("app.scripts.run_payment_requests.app", app)
+        run_payment_requests()
 
     # Verify that the payment service was called BEFORE refreshing objects
     assert mock_payment_service.call_count == 2
