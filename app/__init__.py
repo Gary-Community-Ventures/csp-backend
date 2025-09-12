@@ -63,6 +63,7 @@ def create_app(config_class=None):
             profiles_sample_rate=app.config.get("SENTRY_PROFILES_SAMPLE_RATE", 1.0),
             environment=app.config.get("FLASK_ENV"),
             release=app.config.get("APP_VERSION", None),
+            enable_logs=True,
         )
         print("Sentry initialized for environment: ", f"{app.config.get('FLASK_ENV')}")
     else:
