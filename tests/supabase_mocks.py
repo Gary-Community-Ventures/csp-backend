@@ -274,6 +274,63 @@ def create_mock_provider_child_mapping(mapping_id: int = 1, provider_id: int = 1
     return data
 
 
+def setup_child_provider_relationship(
+    app,
+    child_id="child123",
+    family_id=123,
+    provider_id="providerABC",
+    child_payment_enabled=True,
+    provider_payment_enabled=True,
+    associate_provider=True,
+    **kwargs,
+):
+    """
+    Helper to set up child and provider data with their relationship.
+
+    Args:
+        app: Flask app with supabase_client
+        child_id: ID for the child
+        family_id: Family ID the child belongs to
+        provider_id: ID for the provider
+        child_payment_enabled: Whether child has payment enabled
+        provider_payment_enabled: Whether provider has payment enabled
+        associate_provider: Whether to associate provider with child
+        **kwargs: Additional attributes for child or provider
+
+    Returns:
+        Tuple of (child_data, provider_data)
+    """
+    child_kwargs = {k: v for k, v in kwargs.items() if k.startswith("child_")}
+    provider_kwargs = {k: v for k, v in kwargs.items() if k.startswith("provider_")}
+
+    child_data = create_mock_child_data(
+        child_id=child_id,
+        family_id=family_id,
+        payment_enabled=child_payment_enabled,
+        **{k.replace("child_", ""): v for k, v in child_kwargs.items()},
+    )
+    provider_data = create_mock_provider_data(
+        provider_id=provider_id,
+        payment_enabled=provider_payment_enabled,
+        **{k.replace("provider_", ""): v for k, v in provider_kwargs.items()},
+    )
+
+    # Set up the relationship
+    if associate_provider:
+        child_data["provider"] = [provider_data]
+        # Also set up reverse relationship for provider queries
+        provider_data["child"] = [child_data]
+    else:
+        child_data["provider"] = []
+        provider_data["child"] = []
+
+    # Add to the mock Supabase client
+    app.supabase_client.tables["child"].data = [child_data]
+    app.supabase_client.tables["provider"].data = [provider_data]
+
+    return child_data, provider_data
+
+
 def setup_standard_test_data() -> Dict[str, List[Dict]]:
     """
     Create a standard set of test data for common testing scenarios.
