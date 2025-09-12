@@ -70,12 +70,12 @@ def mock_auth_and_helpers(mocker, request, app):
 def test_create_payment_rate_success(client, app):
     # Add provider and child data to mock Supabase
     from tests.supabase_mocks import create_mock_child_data, create_mock_provider_data
-    
+
     provider_data = create_mock_provider_data(provider_id=1)
     child_data = create_mock_child_data(child_id=2)
     # Set up join - provider has access to children
     provider_data["child"] = [child_data]
-    
+
     app.supabase_client.tables["provider"].data = [provider_data]
     app.supabase_client.tables["child"].data = [child_data]
     response = client.post(
@@ -110,11 +110,11 @@ def test_create_payment_rate_missing_fields(client):
 def test_create_payment_rate_already_exists(client, seed_db, app):
     # Add provider and child data to mock Supabase
     from tests.supabase_mocks import create_mock_child_data, create_mock_provider_data
-    
+
     provider_data = create_mock_provider_data(provider_id=1)
     child_data = create_mock_child_data(child_id=1)
     provider_data["child"] = [child_data]
-    
+
     app.supabase_client.tables["provider"].data = [provider_data]
     app.supabase_client.tables["child"].data = [child_data]
     response = client.post(

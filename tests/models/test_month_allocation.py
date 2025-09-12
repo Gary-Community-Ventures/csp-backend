@@ -1,10 +1,9 @@
 from datetime import date, datetime, timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
 from app.models.month_allocation import MonthAllocation, get_allocation_amount
-from tests.supabase_mocks import create_mock_child_data, MockSupabaseResponse
 
 
 def test_get_allocation_amount_prorated(db_session, app):

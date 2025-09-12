@@ -80,7 +80,7 @@ def app(mock_supabase):
             "TESTING": True,
         }
     )
-    
+
     # Set the mock Supabase client
     app.supabase_client = mock_supabase
 

@@ -4,26 +4,27 @@ Reusable Supabase mock utilities for testing.
 This module provides generic, extensible mocking infrastructure for Supabase
 tables and queries to simplify test setup across the codebase.
 """
+
 from datetime import date, datetime
-from unittest.mock import Mock, MagicMock
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 class DictWithAttributes(dict):
     """Dict that allows attribute access to its keys."""
+
     def __getattr__(self, key):
         try:
             return self[key]
         except KeyError:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{key}'")
-    
+
     def __setattr__(self, key, value):
         self[key] = value
 
 
 class MockSupabaseResponse:
     """Mock Supabase response object."""
-    
+
     def __init__(self, data: Any, error: Any = None):
         # Convert dicts to DictWithAttributes for attribute access
         if isinstance(data, list):
@@ -33,7 +34,7 @@ class MockSupabaseResponse:
         else:
             self.data = data
         self.error = error
-    
+
     def __iter__(self):
         """Make response iterable to support for loops over data."""
         if self.data and isinstance(self.data, list):
@@ -45,66 +46,66 @@ class MockSupabaseResponse:
 
 class MockSupabaseQuery:
     """Mock Supabase query builder for chainable queries."""
-    
+
     def __init__(self, data: List[Dict] = None):
         self.data = data if data is not None else []
         self._filters = []
         self._single = False
-        
+
     def select(self, *args, **kwargs):
         """Mock select method."""
         return self
-        
+
     def eq(self, column: str, value: Any):
         """Mock eq filter."""
-        self._filters.append(('eq', column, value))
+        self._filters.append(("eq", column, value))
         return self
-        
+
     def single(self):
         """Mock single result method."""
         self._single = True
         return self
-        
+
     def execute(self):
         """Mock execute method that returns filtered data."""
         result = self.data
-        
+
         # Apply filters
         for filter_type, column, value in self._filters:
-            if filter_type == 'eq':
+            if filter_type == "eq":
                 result = [r for r in result if r.get(column) == value]
-        
+
         # Return single item if requested
         if self._single:
             if result:
                 return MockSupabaseResponse(result[0])
             # Return response with None data and error to match Supabase behavior
             return MockSupabaseResponse(None, error={"message": "No results found", "code": "PGRST116"})
-        
+
         return MockSupabaseResponse(result)
 
 
 class MockSupabaseTable:
     """Mock for a Supabase table."""
-    
+
     def __init__(self, table_name: str, data: List[Dict] = None):
         self.table_name = table_name
         self.data = data if data is not None else []
-        
+
     def select(self, *args, **kwargs):
         """Create a new query with this table's data."""
         query = MockSupabaseQuery(self.data)
         return query.select(*args, **kwargs)
-        
+
     def insert(self, data: Dict):
         """Mock insert method."""
         self.data.append(data)
         return MockSupabaseResponse(data)
-        
+
     def update(self, data: Dict):
         """Mock update method."""
         return MockSupabaseQuery([data])
-        
+
     def delete(self):
         """Mock delete method."""
         return MockSupabaseQuery([])
@@ -112,16 +113,16 @@ class MockSupabaseTable:
 
 class MockSupabaseClient:
     """Mock Supabase client."""
-    
+
     def __init__(self):
         self.tables = {}
-        
+
     def table(self, table_name: str):
         """Get or create a mock table."""
         if table_name not in self.tables:
             self.tables[table_name] = MockSupabaseTable(table_name)
         return self.tables[table_name]
-        
+
     def add_table_data(self, table_name: str, data: List[Dict]):
         """Add data to a specific table."""
         if table_name not in self.tables:
@@ -133,19 +134,19 @@ class MockSupabaseClient:
 def create_mock_supabase_client(initial_data: Dict[str, List[Dict]] = None) -> MockSupabaseClient:
     """
     Create a mock Supabase client with optional initial data.
-    
+
     Args:
         initial_data: Dictionary mapping table names to lists of row data
-        
+
     Returns:
         MockSupabaseClient instance
     """
     client = MockSupabaseClient()
-    
+
     if initial_data:
         for table_name, rows in initial_data.items():
             client.add_table_data(table_name, rows)
-    
+
     return client
 
 
@@ -158,7 +159,7 @@ def create_mock_child_data(
     prorated_allocation: float = 500.0,
     status: str = "active",
     payment_enabled: bool = True,
-    **kwargs
+    **kwargs,
 ) -> Dict:
     """Create mock child data with sensible defaults."""
     data = {
@@ -187,7 +188,7 @@ def create_mock_provider_data(
     status: str = "active",
     type: str = "individual",
     payment_enabled: bool = True,
-    **kwargs
+    **kwargs,
 ) -> Dict:
     """Create mock provider data with sensible defaults."""
     data = {
@@ -217,7 +218,7 @@ def create_mock_family_data(
     yearly_income: float = 50000.0,
     zip_code: str = "12345",
     language: str = "english",
-    **kwargs
+    **kwargs,
 ) -> Dict:
     """Create mock family data with sensible defaults."""
     data = {
@@ -240,7 +241,7 @@ def create_mock_guardian_data(
     last_name: str = "Name",
     email: str = "guardian@test.com",
     phone_number: str = "555-0200",
-    **kwargs
+    **kwargs,
 ) -> Dict:
     """Create mock guardian data with sensible defaults."""
     data = {
@@ -261,12 +262,7 @@ def create_mock_guardian_data(
     return data
 
 
-def create_mock_provider_child_mapping(
-    mapping_id: int = 1,
-    provider_id: int = 1,
-    child_id: int = 1,
-    **kwargs
-) -> Dict:
+def create_mock_provider_child_mapping(mapping_id: int = 1, provider_id: int = 1, child_id: int = 1, **kwargs) -> Dict:
     """Create mock provider-child mapping data."""
     data = {
         "id": mapping_id,
@@ -281,7 +277,7 @@ def create_mock_provider_child_mapping(
 def setup_standard_test_data() -> Dict[str, List[Dict]]:
     """
     Create a standard set of test data for common testing scenarios.
-    
+
     Returns:
         Dictionary of table names to test data
     """
@@ -290,30 +286,30 @@ def setup_standard_test_data() -> Dict[str, List[Dict]]:
         create_mock_provider_data(provider_id=1),
         create_mock_provider_data(provider_id=2, name="Second Provider", email="provider2@test.com"),
     ]
-    
+
     children = [
         create_mock_child_data(child_id=1, family_id=1),
         create_mock_child_data(child_id=2, family_id=1, first_name="Second", monthly_allocation=800.0),
         create_mock_child_data(child_id=3, family_id=2, first_name="Third"),
     ]
-    
+
     # Add provider relationships to children for joined queries
     # Child 1 has provider 1
     children[0]["provider"] = [providers[0]]
     children[0]["child"] = [children[0]]  # Provider queries expect child under provider
-    
+
     # Child 2 has providers 1 and 2
     children[1]["provider"] = [providers[0], providers[1]]
     children[1]["child"] = [children[1]]
-    
+
     # Child 3 has provider 1
     children[2]["provider"] = [providers[0]]
     children[2]["child"] = [children[2]]
-    
+
     # Add child relationships to providers for joined queries
     providers[0]["child"] = [children[0], children[1], children[2]]
     providers[1]["child"] = [children[1]]
-    
+
     return {
         "family": [
             create_mock_family_data(family_id=1),
