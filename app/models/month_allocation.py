@@ -2,18 +2,13 @@ from datetime import timedelta
 
 from flask import current_app
 
-from app.constants import (
-    MAX_ALLOCATION_AMOUNT_CENTS,
-)
-from app.sheets.mappings import (
-    ChildColumnNames,
-    get_child,
-    get_children,
-)
+from app.constants import MAX_ALLOCATION_AMOUNT_CENTS
+from app.supabase.helpers import cols, unwrap_or_error
+from app.supabase.tables import Child
+from app.utils.date_utils import get_current_month_start, get_next_month_start
 
 from ..enums.care_day_type import CareDayType
 from ..extensions import db
-from ..utils.date_utils import get_current_month_start, get_next_month_start
 from .mixins import TimestampMixin
 from .utils import get_care_day_cost
 
@@ -21,13 +16,17 @@ from .utils import get_care_day_cost
 def get_allocation_amount(child_id: str) -> int:
     """Get the monthly allocation amount for a child"""
 
-    child_data = get_child(child_id, get_children())
-    allocation_dollars = child_data.get(ChildColumnNames.MONTHLY_ALLOCATION)
+    child_results = Child.select_by_id(
+        cols(Child.ID, Child.MONTHLY_ALLOCATION, Child.PRORATED_ALLOCATION), int(child_id)
+    ).execute()
+    child = unwrap_or_error(child_results)
+
+    allocation_dollars = Child.MONTHLY_ALLOCATION(child)
 
     # If no prior allocation exists, use prorated amount
-    prior_allocation = MonthAllocation.query.filter_by(google_sheets_child_id=child_id).first()
+    prior_allocation = MonthAllocation.query.filter_by(child_supabase_id=child_id).first()
     if not prior_allocation:
-        allocation_dollars = child_data.get(ChildColumnNames.PRORATED_FIRST_MONTH_ALLOCATION)
+        allocation_dollars = Child.PRORATED_ALLOCATION(child)
 
     if allocation_dollars is None or allocation_dollars == "":
         raise ValueError(f"Child {child_id} does not have a valid monthly allocation amount {allocation_dollars}")
@@ -47,7 +46,8 @@ class MonthAllocation(db.Model, TimestampMixin):
     allocation_cents = db.Column(db.Integer, nullable=False)
 
     # Child reference
-    google_sheets_child_id = db.Column(db.String(64), nullable=False, index=True)
+    google_sheets_child_id = db.Column(db.String(64), nullable=True, index=True)
+    child_supabase_id = db.Column(db.String(64), nullable=True, index=True)
 
     # Relationships
     care_days = db.relationship(
@@ -68,7 +68,7 @@ class MonthAllocation(db.Model, TimestampMixin):
     chek_transfer_id = db.Column(db.String(64), nullable=True, index=True)
     chek_transfer_date = db.Column(db.DateTime(timezone=True), nullable=True)
 
-    __table_args__ = (db.UniqueConstraint("google_sheets_child_id", "date", name="unique_child_month"),)
+    __table_args__ = (db.UniqueConstraint("child_supabase_id", "date", name="unique_child_month"),)
 
     @property
     def selected_over_allocation(self):
@@ -104,7 +104,7 @@ class MonthAllocation(db.Model, TimestampMixin):
 
     def can_add_care_day(self, day_type: CareDayType, provider_id: str) -> bool:
         """Check if we can add a care day of given type without over-allocating"""
-        cents_amount = get_care_day_cost(day_type, provider_id=provider_id, child_id=self.google_sheets_child_id)
+        cents_amount = get_care_day_cost(day_type, provider_id=provider_id, child_id=self.child_supabase_id)
         return self.paid_cents + cents_amount <= self.allocation_cents
 
     def can_add_lump_sum(self, amount_cents: int) -> bool:
@@ -130,7 +130,7 @@ class MonthAllocation(db.Model, TimestampMixin):
             raise ValueError(f"Cannot create allocation for a month more than one month in the future.")
 
         # First, try to get existing allocation
-        allocation = MonthAllocation.query.filter_by(google_sheets_child_id=child_id, date=month_start).first()
+        allocation = MonthAllocation.query.filter_by(child_supabase_id=child_id, date=month_start).first()
 
         if allocation:
             return allocation
@@ -149,7 +149,7 @@ class MonthAllocation(db.Model, TimestampMixin):
 
             # Create new allocation
             allocation = MonthAllocation(
-                google_sheets_child_id=child_id,
+                child_supabase_id=child_id,
                 date=month_start,
                 allocation_cents=allocation_cents,
             )
@@ -157,7 +157,7 @@ class MonthAllocation(db.Model, TimestampMixin):
             # Allocate funds to family wallet if allocation is greater than zero
             if allocation_cents > 0:
                 transaction = current_app.payment_service.allocate_funds_to_family(
-                    child_external_id=child_id, amount=allocation_cents, date=month_start
+                    child_id=child_id, amount=allocation_cents, date=month_start
                 )
                 if not transaction or not transaction.transfer or not transaction.transfer.id:
                     raise RuntimeError(f"Failed to allocate funds to family for child {child_id}: {transaction}")
@@ -172,7 +172,7 @@ class MonthAllocation(db.Model, TimestampMixin):
         except IntegrityError:
             # Another process created the allocation, rollback and fetch it
             db.session.rollback()
-            allocation = MonthAllocation.query.filter_by(google_sheets_child_id=child_id, date=month_start).first()
+            allocation = MonthAllocation.query.filter_by(child_supabase_id=child_id, date=month_start).first()
             if allocation:
                 return allocation
             else:
@@ -187,7 +187,7 @@ class MonthAllocation(db.Model, TimestampMixin):
         # Normalize to first of month
         month_start = month_date.replace(day=1)
 
-        allocation = MonthAllocation.query.filter_by(google_sheets_child_id=child_id, date=month_start).first()
+        allocation = MonthAllocation.query.filter_by(child_supabase_id=child_id, date=month_start).first()
         return allocation
 
     @property
@@ -210,4 +210,4 @@ class MonthAllocation(db.Model, TimestampMixin):
         return self.locked_until_date + timedelta(days=8)
 
     def __repr__(self):
-        return f"<MonthAllocation Child:{self.google_sheets_child_id} {self.date.strftime('%Y-%m')}"
+        return f"<MonthAllocation Child:{self.child_supabase_id} {self.date.strftime('%Y-%m')}"

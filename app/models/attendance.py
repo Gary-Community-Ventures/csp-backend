@@ -8,8 +8,10 @@ from .mixins import TimestampMixin
 class Attendance(db.Model, TimestampMixin):
     id = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     week = db.Column(db.Date, nullable=False, index=True)
-    child_google_sheet_id = db.Column(db.String(64), index=True)
-    provider_google_sheet_id = db.Column(db.String(64), index=True)
+    child_google_sheet_id = db.Column(db.String(64), nullable=True, index=True)
+    child_supabase_id = db.Column(db.String(64), nullable=True, index=True)
+    provider_google_sheet_id = db.Column(db.String(64), nullable=True, index=True)
+    provider_supabase_id = db.Column(db.String(64), nullable=True, index=True)
     family_entered_hours = db.Column(db.Integer, nullable=True)
     family_entered_at = db.Column(db.DateTime(timezone=True), nullable=True)
     provider_entered_hours = db.Column(db.Integer, nullable=True)
@@ -18,9 +20,7 @@ class Attendance(db.Model, TimestampMixin):
     provider_opened_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     def __repr__(self):
-        return (
-            f"<Attendance {self.id} - Child: {self.child_google_sheet_id} - Provider: {self.provider_google_sheet_id}>"
-        )
+        return f"<Attendance {self.id} - Child: {self.child_supabase_id} - Provider: {self.provider_supabase_id}>"
 
     @staticmethod
     def last_week_date():
@@ -32,7 +32,7 @@ class Attendance(db.Model, TimestampMixin):
 
     @staticmethod
     def new(child_id: str, provider_id: str, date: date):
-        return Attendance(week=date, child_google_sheet_id=child_id, provider_google_sheet_id=provider_id)
+        return Attendance(week=date, child_supabase_id=child_id, provider_supabase_id=provider_id)
 
     def set_family_entered(self, hours: int):
         self.family_entered_hours = hours
@@ -64,8 +64,8 @@ class Attendance(db.Model, TimestampMixin):
 
     @classmethod
     def filter_by_child_ids(cls, child_ids: list[str]):
-        return cls.query.filter(cls.child_google_sheet_id.in_(child_ids), cls.family_entered_hours.is_(None))
+        return cls.query.filter(cls.child_supabase_id.in_(child_ids), cls.family_entered_hours.is_(None))
 
     @classmethod
     def filter_by_provider_id(cls, provider_id: str):
-        return cls.query.filter(cls.provider_google_sheet_id == provider_id, cls.provider_entered_hours.is_(None))
+        return cls.query.filter(cls.provider_supabase_id == provider_id, cls.provider_entered_hours.is_(None))

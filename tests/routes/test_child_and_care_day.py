@@ -12,14 +12,14 @@ def seed_db(app):
     with app.app_context():
         # Create a PaymentRate for testing
         payment_rate = PaymentRate(
-            google_sheets_provider_id="1",
-            google_sheets_child_id="1",
+            provider_supabase_id="1",
+            child_supabase_id="1",
             full_day_rate_cents=60000,
             half_day_rate_cents=40000,
         )
         payment_rate_2 = PaymentRate(
-            google_sheets_provider_id="2",
-            google_sheets_child_id="1",
+            provider_supabase_id="2",
+            child_supabase_id="1",
             full_day_rate_cents=60000,
             half_day_rate_cents=40000,
         )
@@ -30,7 +30,7 @@ def seed_db(app):
         allocation = MonthAllocation(
             date=date.today().replace(day=1),
             allocation_cents=1000000,
-            google_sheets_child_id="1",
+            child_supabase_id="1",
         )
         db.session.add(allocation)
         db.session.commit()
@@ -38,7 +38,7 @@ def seed_db(app):
         # Create a care day that is new (never submitted)
         care_day_new = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
-            provider_google_sheets_id="1",
+            provider_supabase_id="1",
             date=date.today() + timedelta(days=7),  # Set date to a week in the future
             type=CareDayType.FULL_DAY,
             amount_cents=payment_rate.full_day_rate_cents,
@@ -94,7 +94,7 @@ def test_create_care_day_duplicate_date_same_provider(client, seed_db):
 def test_get_month_allocation_no_provider_id(client, seed_db):
     allocation, _, _, _ = seed_db
     response = client.get(
-        f"/child/{allocation.google_sheets_child_id}/allocation/{allocation.date.month}/{allocation.date.year}"
+        f"/child/{allocation.child_supabase_id}/allocation/{allocation.date.month}/{allocation.date.year}"
     )
     assert response.status_code == 200
     assert len(response.json["care_days"]) == 1

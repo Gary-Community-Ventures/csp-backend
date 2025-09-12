@@ -7,7 +7,7 @@ from pydantic import BaseModel
 class AllocatedCareDayBase(BaseModel):
     date: date
     type: Literal["Full Day", "Half Day"]
-    provider_google_sheets_id: str
+    provider_supabase_id: str
 
 
 class AllocatedCareDayCreate(AllocatedCareDayBase):

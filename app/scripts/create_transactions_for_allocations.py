@@ -15,7 +15,10 @@ import argparse
 import os
 import sys
 from datetime import date, datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
+
+from app.supabase.helpers import cols, format_name, unwrap_or_error
+from app.supabase.tables import Child
 
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
@@ -26,22 +29,10 @@ from sqlalchemy import and_
 from app import create_app
 from app.extensions import db
 from app.models.month_allocation import MonthAllocation
-from app.sheets.mappings import ChildColumnNames, get_child, get_children
 
 # Create Flask app context
 app = create_app()
 app.app_context().push()
-
-
-def get_child_name(child_id: str, all_children: List) -> str:
-    """Get formatted child name from children data."""
-    child_data = get_child(child_id, all_children)
-    if not child_data:
-        return "Unknown"
-
-    first_name = child_data.get(ChildColumnNames.FIRST_NAME)
-    last_name = child_data.get(ChildColumnNames.LAST_NAME)
-    return f"{first_name} {last_name}"
 
 
 def process_single_allocation(allocation: MonthAllocation, child_name: str, dry_run: bool) -> Optional[str]:
@@ -51,7 +42,7 @@ def process_single_allocation(allocation: MonthAllocation, child_name: str, dry_
     Returns:
         None if successful, error message string if failed
     """
-    child_id = allocation.google_sheets_child_id
+    child_id = allocation.child_supabase_id
     amount_str = f"${allocation.allocation_cents / 100:.2f}"
 
     if dry_run:
@@ -82,7 +73,7 @@ def process_single_allocation(allocation: MonthAllocation, child_name: str, dry_
         return str(e)
 
 
-def group_allocations_by_month(allocations: List[MonthAllocation]) -> Dict[str, List[MonthAllocation]]:
+def group_allocations_by_month(allocations: list[MonthAllocation]) -> dict[str, list[MonthAllocation]]:
     """Group allocations by month for organized processing."""
     allocations_by_month = {}
     for allocation in allocations:
@@ -94,8 +85,8 @@ def group_allocations_by_month(allocations: List[MonthAllocation]) -> Dict[str, 
 
 
 def process_month_allocations(
-    month_key: str, month_allocations: List[MonthAllocation], all_children: List, dry_run: bool
-) -> tuple[int, List[str]]:
+    month_key: str, month_allocations: list[MonthAllocation], children: list, dry_run: bool
+) -> tuple[int, list[str]]:
     """
     Process all allocations for a specific month.
 
@@ -110,8 +101,9 @@ def process_month_allocations(
     errors = []
 
     for allocation in month_allocations:
-        child_id = allocation.google_sheets_child_id
-        child_name = get_child_name(child_id, all_children)
+        child_id = allocation.child_supabase_id
+        child = Child.find_by_id(children, child_id)
+        child_name = format_name(child)
 
         error = process_single_allocation(allocation, child_name, dry_run)
 
@@ -124,7 +116,7 @@ def process_month_allocations(
     return processed_count, errors
 
 
-def fetch_missing_allocations(cutoff_date: date, limit: Optional[int] = None) -> List[MonthAllocation]:
+def fetch_missing_allocations(cutoff_date: date, limit: Optional[int] = None) -> list[MonthAllocation]:
     """Fetch all allocations missing transfer IDs from the cutoff date."""
     query = MonthAllocation.query.filter(
         and_(
@@ -132,7 +124,7 @@ def fetch_missing_allocations(cutoff_date: date, limit: Optional[int] = None) ->
             MonthAllocation.chek_transfer_id.is_(None),
             MonthAllocation.allocation_cents > 0,
         )
-    ).order_by(MonthAllocation.date, MonthAllocation.google_sheets_child_id)
+    ).order_by(MonthAllocation.date, MonthAllocation.child_supabase_id)
 
     if limit:
         query = query.limit(limit)
@@ -154,7 +146,7 @@ def commit_changes(processed_count: int, dry_run: bool) -> None:
         raise
 
 
-def print_summary(result: Dict[str, Any]) -> None:
+def print_summary(result: dict[str, Any]) -> None:
     """Print the processing summary."""
     dry_run = result["dry_run"]
     print(f"\n{'=' * 60}")
@@ -176,7 +168,7 @@ def print_summary(result: Dict[str, Any]) -> None:
             print(f"  ... and {len(errors) - 10} more errors")
 
 
-def process_missing_allocations(dry_run: bool = False, limit: Optional[int] = None) -> Dict[str, Any]:
+def process_missing_allocations(dry_run: bool = False, limit: Optional[int] = None) -> dict[str, Any]:
     """
     Process all monthly allocations that are missing transfer IDs.
 
@@ -190,12 +182,8 @@ def process_missing_allocations(dry_run: bool = False, limit: Optional[int] = No
     print(f"\n{'[DRY RUN] ' if dry_run else ''}Processing allocations missing transfer IDs")
     print("=" * 60)
 
-    # Get all children data for reference
-    try:
-        all_children = get_children()
-    except Exception as e:
-        print(f"❌ Failed to fetch children from Google Sheets: {e}")
-        raise
+    children_result = Child.query().select(cols(Child.ID, Child.FIRST_NAME, Child.LAST_NAME)).execute()
+    children = unwrap_or_error(children_result)
 
     # Define the cutoff date - September 2025
     cutoff_date = date(2025, 9, 1)
@@ -219,7 +207,7 @@ def process_missing_allocations(dry_run: bool = False, limit: Optional[int] = No
 
     for month_key in sorted(allocations_by_month.keys()):
         month_allocations = allocations_by_month[month_key]
-        processed_count, errors = process_month_allocations(month_key, month_allocations, all_children, dry_run)
+        processed_count, errors = process_month_allocations(month_key, month_allocations, children, dry_run)
         total_processed += processed_count
         all_errors.extend(errors)
 

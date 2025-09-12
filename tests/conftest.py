@@ -1,5 +1,4 @@
 from datetime import date
-from unittest.mock import patch
 
 import pytest
 from pytest_mock import MockerFixture
@@ -87,15 +86,9 @@ def client(app):
 
 
 @pytest.fixture
-def mock_get_child():
-    with patch("app.models.month_allocation.get_child") as mock:
-        yield mock
-
-
-@pytest.fixture
 def month_allocation(db_session):
     allocation = MonthAllocation(
-        google_sheets_child_id="1",
+        child_supabase_id="1",
         date=date.today().replace(day=1),
         allocation_cents=100000,
     )

@@ -9,15 +9,8 @@ from app.auth.helpers import get_family_user, get_provider_user
 from app.extensions import db
 from app.models.attendance import Attendance
 from app.schemas.attendance import SetAttendanceRequest
-from app.sheets.mappings import (
-    ChildColumnNames,
-    ProviderColumnNames,
-    get_child,
-    get_children,
-    get_family_children,
-    get_provider,
-    get_providers,
-)
+from app.supabase.helpers import cols, unwrap_or_abort
+from app.supabase.tables import Child, Provider
 
 bp = Blueprint("attendance", __name__)
 
@@ -27,77 +20,78 @@ bp = Blueprint("attendance", __name__)
 def family_attendance():
     user = get_family_user()
 
-    child_rows = get_children()
+    children_result = Child.select_by_family_id(
+        cols(
+            Child.ID,
+            Child.FIRST_NAME,
+            Child.LAST_NAME,
+            Provider.join(Provider.ID, Provider.NAME),
+        ),
+        int(user.user_data.family_id),
+    ).execute()
+    child_data = unwrap_or_abort(children_result)
 
-    family_children = get_family_children(user.user_data.family_id, child_rows)
-
-    child_ids = [c.get(ChildColumnNames.ID) for c in family_children]
+    child_ids = [Child.ID(c) for c in child_data]
 
     attendance_data: list[Attendance] = Attendance.filter_by_child_ids(child_ids).all()
 
     if len(attendance_data) == 0:
         return jsonify({"attendance": [], "children": [], "providers": []})
 
-    provider_rows = get_providers()
     attendance: list[dict] = []
-    children: list[dict] = []
-    providers: list[dict] = []
+    children: dict = {}
+    providers: dict = {}
 
     for att_data in attendance_data:
         att_data.record_family_opened()
         db.session.add(att_data)
 
-        child = get_child(att_data.child_google_sheet_id, family_children)
+        child = None
+        for c in child_data:
+            if Child.ID(c) == att_data.child_supabase_id:
+                child = c
+                break
 
         if child is None:
             # child is not in the family anymore, so mark them as 0 hours
             att_data.set_family_entered(0)
             continue
 
-        child_included = False
-        for response_child in children:
-            if response_child["id"] == child.get(ChildColumnNames.ID):
-                child_included = True
+        if Child.ID(child) not in children:
+            children[Child.ID(child)] = {
+                "id": Child.ID(child),
+                "first_name": Child.FIRST_NAME(child),
+                "last_name": Child.LAST_NAME(child),
+            }
+
+        provider = None
+        for provider in Provider.unwrap(child):
+            if Provider.ID(provider) == att_data.provider_supabase_id:
+                provider = provider
                 break
-
-        if not child_included:
-            children.append(
-                {
-                    "id": child.get(ChildColumnNames.ID),
-                    "first_name": child.get(ChildColumnNames.FIRST_NAME),
-                    "last_name": child.get(ChildColumnNames.LAST_NAME),
-                }
-            )
-
-        provider = get_provider(att_data.provider_google_sheet_id, provider_rows)
 
         if provider is None:
             # The provider has been deleted
             att_data.set_family_entered(0)
             continue
 
-        provider_included = False
-        for response_provider in providers:
-            if response_provider["id"] == provider.get(ProviderColumnNames.ID):
-                provider_included = True
-                break
-
-        if not provider_included:
-            providers.append(
-                {
-                    "id": provider.get(ProviderColumnNames.ID),
-                    "name": provider.get(ProviderColumnNames.NAME),
-                }
-            )
+        if Provider.ID(provider) not in providers:
+            providers[Provider.ID(provider)] = {
+                "id": Provider.ID(provider),
+                "name": Provider.NAME(provider),
+            }
 
         attendance.append(
             {
                 "id": att_data.id,
                 "date": att_data.week.isoformat(),
-                "child_id": child.get(ChildColumnNames.ID),
-                "provider_id": provider.get(ProviderColumnNames.ID),
+                "child_id": Child.ID(child),
+                "provider_id": Provider.ID(provider),
             }
         )
+
+    children = list(children.values())
+    providers = list(providers.values())
 
     db.session.commit()
 
@@ -128,9 +122,9 @@ def enter_family_attendance():
 
     user = get_family_user()
 
-    child_rows = get_children()
-    family_children = get_family_children(user.user_data.family_id, child_rows)
-    child_ids = [c.get(ChildColumnNames.ID) for c in family_children]
+    children_result = Child.select_by_family_id(cols(Child.ID), int(user.user_data.family_id)).execute()
+    children = unwrap_or_abort(children_result)
+    child_ids = [Child.ID(c) for c in children]
 
     ids = [att.id for att in data.attendance]
 
@@ -156,44 +150,45 @@ def provider_attendance():
     if len(attendance_data) == 0:
         return jsonify({"attendance": [], "children": []})
 
-    child_rows = get_children()
+    children_result = Child.select_by_family_id(
+        cols(Child.ID, Child.FIRST_NAME, Child.LAST_NAME), int(user.user_data.family_id)
+    ).execute()
+    child_data = unwrap_or_abort(children_result)
 
     attendance: list[dict] = []
-    children: list[dict] = []
+    children: dict = {}
 
     for att_data in attendance_data:
         att_data.record_provider_opened()
         db.session.add(att_data)
 
-        child = get_child(att_data.child_google_sheet_id, child_rows)
+        child = None
+        for family_child in child_data:
+            if Child.ID(family_child) == att_data.child_supabase_id:
+                child = family_child
+                break
 
         if child is None:
             # the child has been deleted
             att_data.set_provider_entered(0)
             continue
 
-        child_included = False
-        for response_child in children:
-            if response_child["id"] == child.get(ChildColumnNames.ID):
-                child_included = True
-                break
-
-        if not child_included:
-            children.append(
-                {
-                    "id": child.get(ChildColumnNames.ID),
-                    "first_name": child.get(ChildColumnNames.FIRST_NAME),
-                    "last_name": child.get(ChildColumnNames.LAST_NAME),
-                }
-            )
+        if Child.ID(child) not in children:
+            children[Child.ID(child)] = {
+                "id": Child.ID(child),
+                "first_name": Child.FIRST_NAME(child),
+                "last_name": Child.LAST_NAME(child),
+            }
 
         attendance.append(
             {
                 "id": att_data.id,
                 "date": att_data.week.isoformat(),
-                "child_id": child.get(ChildColumnNames.ID),
+                "child_id": Child.ID(child),
             }
         )
+
+    children = list(children.values())
 
     db.session.commit()
 

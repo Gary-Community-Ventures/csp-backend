@@ -2,7 +2,7 @@
 #!/bin/bash
 
 # Create Family Script
-# Usage: ./create_family.sh <environment> [email] [google_sheet_id]
+# Usage: ./create_family.sh <environment> [email] [supabase_id]
 # Example: ./create_family.sh "dev" "family@example.com" "1abc123def456ghi789jkl"
 # Environments: dev, staging, prod
 
@@ -20,7 +20,7 @@ fi
 
 # Check if required parameters are provided
 if [ $# -lt 1 ]; then
-    echo "Usage: $0 <environment> [email] [google_sheet_id]"
+    echo "Usage: $0 <environment> [email] [supabase_id]"
     echo "Environments: dev, staging, prod"
     echo "Example: $0 'dev' 'family@example.com' '1abc123def456ghi789jkl'"
     exit 1
@@ -59,20 +59,20 @@ fi
 
 # Get optional parameters from command line or use defaults
 EMAIL=${2:-"family@example.com"}
-GOOGLE_SHEET_ID=${3:-"1abc123def456ghi789jkl"}
+SUPABASE_ID=${3:-"1abc123def456ghi789jkl"}
 
 echo "Creating new family..."
 echo "Environment: $ENVIRONMENT"
 echo "Base URL: $BASE_URL"
 echo "Email: $EMAIL"
-echo "Google Sheet ID: $GOOGLE_SHEET_ID"
+echo "Google Sheet ID: $SUPABASE_ID"
 echo ""
 
 curl -X POST "$BASE_URL/family" \
     -H "Content-Type: application/json" \
     -H "X-API-Key: $API_KEY" \
     -d "{
-        \"google_sheet_id\": \"$GOOGLE_SHEET_ID\",
+        \"family_id\": \"$SUPABASE_ID\",
         \"email\": \"$EMAIL\"
     }" \
     -w "\nHTTP Status: %{http_code}\n" \

@@ -75,7 +75,7 @@ def list_failed_payment_intents(since_date=None):
         last_attempt = intent.latest_attempt
 
         app.logger.info(f"Intent ID: {intent.id}")
-        app.logger.info(f"Provider: {intent.provider_external_id}")
+        app.logger.info(f"Provider: {intent.provider_supabase_id}")
         app.logger.info(f"Amount: ${intent.amount_cents / 100:.2f}")
         app.logger.info(f"Created: {intent.created_at}")
         app.logger.info(f"Status: {intent.status}")
@@ -102,7 +102,7 @@ def retry_payment_intent(intent_id):
             return True
 
         app.logger.info(f"\nRetrying payment intent {intent_id}...")
-        app.logger.info(f"Provider: {intent.provider_external_id}")
+        app.logger.info(f"Provider: {intent.provider_supabase_id}")
         app.logger.info(f"Amount: ${intent.amount_cents / 100:.2f}")
         app.logger.info(f"Current status: {intent.status}")
 

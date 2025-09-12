@@ -103,7 +103,8 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     amount_cents = db.Column(db.Integer, nullable=False)
 
     # Provider info
-    provider_google_sheets_id = db.Column(db.String(64), nullable=False, index=True)
+    provider_google_sheets_id = db.Column(db.String(64), nullable=True, index=True)
+    provider_supabase_id = db.Column(db.String(64), nullable=True, index=True)
 
     # Payment tracking
     payment_id = db.Column(
@@ -122,7 +123,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         # Prevent duplicate care days for same allocation/provider/date (including soft deleted)
         db.UniqueConstraint(
             "care_month_allocation_id",
-            "provider_google_sheets_id",
+            "provider_supabase_id",
             "date",
             name="unique_allocation_provider_date",
         ),
@@ -208,7 +209,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         existing = AllocatedCareDay.query.filter_by(
             care_month_allocation_id=allocation.id,
             date=care_date,
-            provider_google_sheets_id=provider_id,
+            provider_supabase_id=provider_id,
         ).first()
 
         if existing and not existing.is_deleted:
@@ -218,11 +219,11 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         if existing and existing.is_deleted:
             existing.restore()
             existing.type = day_type
-            existing.provider_google_sheets_id = provider_id
+            existing.provider_supabase_id = provider_id
             existing.amount_cents = get_care_day_cost(
                 day_type,
                 provider_id=provider_id,
-                child_id=allocation.google_sheets_child_id,
+                child_id=allocation.child_supabase_id,
             )
             db.session.commit()
             return existing
@@ -230,25 +231,13 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         # Create new care day
         care_day = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
-            provider_google_sheets_id=provider_id,
+            provider_supabase_id=provider_id,
             date=care_date,
             type=day_type,
             amount_cents=get_care_day_cost(
                 day_type,
                 provider_id=provider_id,
-                child_id=allocation.google_sheets_child_id,
-            ),
-        )
-        # Create new care day
-        care_day = AllocatedCareDay(
-            care_month_allocation_id=allocation.id,
-            provider_google_sheets_id=provider_id,
-            date=care_date,
-            type=day_type,
-            amount_cents=get_care_day_cost(
-                day_type,
-                provider_id=provider_id,
-                child_id=allocation.google_sheets_child_id,
+                child_id=allocation.child_supabase_id,
             ),
         )
 
@@ -271,7 +260,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
             "type": self.type,
             "amount_cents": self.amount_cents,
             "day_count": self.day_count,
-            "provider_google_sheets_id": self.provider_google_sheets_id,
+            "provider_supabase_id": self.provider_supabase_id,
             "payment_distribution_requested": self.payment_distribution_requested,
             "last_submitted_at": (self.last_submitted_at.isoformat() if self.last_submitted_at else None),
             "deleted_at": self.deleted_at.isoformat() if self.deleted_at else None,
@@ -308,4 +297,4 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         return self.is_deleted and self.last_submitted_at is not None and self.last_submitted_at < self.deleted_at
 
     def __repr__(self):
-        return f"<AllocatedCareDay {self.date} {self.type} - Provider {self.provider_google_sheets_id}>"
+        return f"<AllocatedCareDay {self.date} {self.type} - Provider {self.provider_supabase_id}>"

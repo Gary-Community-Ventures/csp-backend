@@ -4,14 +4,15 @@ Centralizes logic for creating, fetching, and processing allocations.
 """
 
 from datetime import date
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from flask import current_app
 
+from app.supabase.helpers import cols, format_name, unwrap_or_error
+from app.supabase.tables import Child
+
 from ..extensions import db
 from ..models.month_allocation import MonthAllocation
-from ..sheets.helpers import format_name
-from ..sheets.mappings import ChildColumnNames, get_children
 
 
 class AllocationResult:
@@ -21,10 +22,10 @@ class AllocationResult:
         self.created_count = 0
         self.skipped_count = 0
         self.error_count = 0
-        self.errors: List[str] = []
-        self.allocations_created: List[MonthAllocation] = []
+        self.errors: list[str] = []
+        self.allocations_created: list[MonthAllocation] = []
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert result to dictionary for API responses."""
         return {
             "created_count": self.created_count,
@@ -61,19 +62,15 @@ class AllocationService:
         """
         result = AllocationResult()
 
-        # Fetch all children from Google Sheets
-        try:
-            all_children = get_children()
-        except Exception as e:
-            self.app.logger.error(f"Failed to fetch children from Google Sheets: {e}")
-            raise
+        children_result = Child.query().select(cols(Child.ID, Child.FIRST_NAME, Child.LAST_NAME)).execute()
+        children = unwrap_or_error(children_result)
 
-        if not all_children:
-            self.app.logger.warning("No children found in Google Sheets")
+        if len(children) == 0:
+            self.app.logger.warning("No children found")
             return result
 
         # Process each child
-        for child_data in all_children:
+        for child_data in children:
             child_result = self._process_single_child(child_data, target_month, dry_run)
 
             # Update counters based on result
@@ -108,7 +105,7 @@ class AllocationService:
 
     def create_allocations_for_specific_children(
         self,
-        child_ids: List[str],
+        child_ids: list[str],
         target_month: date,
     ) -> AllocationResult:
         """
@@ -123,21 +120,18 @@ class AllocationService:
         """
         result = AllocationResult()
 
-        # Fetch all children and filter
-        try:
-            all_children = get_children()
-            children_to_process = [c for c in all_children if c.get(ChildColumnNames.ID) in child_ids]
-        except Exception as e:
-            self.app.logger.error(f"Failed to fetch children from Google Sheets: {e}")
-            raise
+        children_result = (
+            Child.query().select(cols(Child.ID, Child.FIRST_NAME, Child.LAST_NAME)).in_(Child.ID, child_ids).execute()
+        )
+        children = unwrap_or_error(children_result)
 
-        if not children_to_process:
+        if len(children) == 0:
             self.app.logger.warning(f"No matching children found for IDs: {child_ids}")
             return result
 
         # Process each child
-        for child_data in children_to_process:
-            child_result = self._process_single_child(child_data, target_month, dry_run=False)
+        for child in children:
+            child_result = self._process_single_child(child, target_month, dry_run=False)
 
             if child_result[0] == "created":
                 result.created_count += 1
@@ -163,10 +157,10 @@ class AllocationService:
 
     def _process_single_child(
         self,
-        child_data: Dict,
+        child: dict,
         target_month: date,
         dry_run: bool = False,
-    ) -> Tuple[str, Optional[MonthAllocation], Optional[str]]:
+    ) -> tuple[str, Optional[MonthAllocation], Optional[str]]:
         """
         Process allocation creation for a single child.
 
@@ -174,8 +168,8 @@ class AllocationService:
             Tuple of (status, allocation, error_message)
             where status is one of: 'created', 'skipped', 'error'
         """
-        child_id = child_data.get(ChildColumnNames.ID)
-        child_name = format_name(child_data)
+        child_id = Child.ID(child)
+        child_name = format_name(child)
 
         # Validate child ID
         if not child_id:
@@ -185,9 +179,7 @@ class AllocationService:
 
         try:
             # Check if allocation already exists
-            existing_allocation = MonthAllocation.query.filter_by(
-                google_sheets_child_id=child_id, date=target_month
-            ).first()
+            existing_allocation = MonthAllocation.query.filter_by(child_supabase_id=child_id, date=target_month).first()
 
             if existing_allocation:
                 self.app.logger.debug(f"Allocation already exists for {child_name} ({child_id}) for {target_month}")
@@ -224,7 +216,7 @@ class AllocationService:
         Simple wrapper around MonthAllocation.get_or_create_for_month with logging.
 
         Args:
-            child_id: The child's Google Sheets ID
+            child_id: The child's external ID
             target_month: The month to get/create allocation for
 
         Returns:

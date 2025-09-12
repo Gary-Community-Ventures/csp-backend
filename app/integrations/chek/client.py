@@ -28,7 +28,6 @@ class ChekClient:
         """
         if isinstance(data, list):
             return [self._sanitize_request_data(item) for item in data]
-
         if not isinstance(data, dict):
             return data
 
@@ -36,8 +35,8 @@ class ChekClient:
         sensitive_fields = {
             "api_key",
             "api-key",
-            "write-key",
             "write_key",
+            "write-key",
             "password",
             "token",
             "secret",

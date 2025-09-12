@@ -22,6 +22,7 @@ DAYS_TO_NEXT_MONTH = (
 
 # --- User Restrictions ---
 MAX_CHILDREN_PER_PROVIDER = 2
+UNKNOWN = "[Unknown]"
 
 # --- Currency Constants ---
 CENTS_PER_DOLLAR = 100

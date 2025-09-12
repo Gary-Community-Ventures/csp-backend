@@ -91,8 +91,8 @@ def update_care_day(care_day_id):
 
         cost = get_care_day_cost(
             new_day_type,
-            provider_id=care_day.provider_google_sheets_id,
-            child_id=care_day.care_month_allocation.google_sheets_child_id,
+            provider_id=care_day.provider_supabase_id,
+            child_id=care_day.care_month_allocation.child_supabase_id,
         )
         # If changing the type results in over-allocation, soft delete the care day
         # As that resets the day to the default empty state

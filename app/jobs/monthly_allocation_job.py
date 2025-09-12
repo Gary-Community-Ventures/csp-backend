@@ -1,6 +1,6 @@
 import zoneinfo
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from flask import current_app
 
@@ -11,7 +11,7 @@ from . import job_manager
 
 
 @job_manager.job
-def create_monthly_allocations(from_info: str = "scheduler", **kwargs) -> Dict[str, Any]:
+def create_monthly_allocations(from_info: str = "scheduler", **kwargs) -> dict[str, Any]:
     """
     Job that creates monthly allocations for all children on the first day of each month.
     This ensures all children have allocations ready for the new month.

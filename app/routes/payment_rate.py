@@ -9,14 +9,8 @@ from app.schemas.payment_rate import (
     PaymentRateCreate,
     PaymentRateResponse,
 )
-from app.sheets.helpers import filter_rows_by_value
-from app.sheets.mappings import (
-    ChildColumnNames,
-    ProviderChildMappingColumnNames,
-    get_children,
-    get_family_children,
-    get_provider_child_mappings,
-)
+from app.supabase.helpers import cols, unwrap_or_abort
+from app.supabase.tables import Child, Provider
 from app.utils.email_service import send_new_payment_rate_email
 
 bp = Blueprint("payment_rate_bp", __name__, url_prefix="/payment-rates")
@@ -34,10 +28,15 @@ def create_payment_rate(child_id: str):
     user = get_provider_user()
     provider_id = user.user_data.provider_id
 
-    mappings = get_provider_child_mappings()
+    provider_result = Provider.select_by_id(cols(Provider.ID, Child.join(Child.ID)), int(provider_id)).execute()
+    provider = unwrap_or_abort(provider_result)
+
+    if provider is None:
+        return jsonify({"error": "Provider not found"}), 404
+
     is_childs_provider = False
-    for mapping in filter_rows_by_value(mappings, provider_id, ProviderChildMappingColumnNames.PROVIDER_ID):
-        if mapping.get(ProviderChildMappingColumnNames.CHILD_ID) == child_id:
+    for child in Child.unwrap(provider):
+        if Child.ID(child) == child_id:
             is_childs_provider = True
             break
 
@@ -79,22 +78,25 @@ def get_payment_rate(provider_id, child_id):
     user = get_family_user()
     family_id = user.user_data.family_id
 
-    children = get_children()
-    family_children = get_family_children(family_id, children)
-    child_ids = [child.get(ChildColumnNames.ID) for child in family_children]
+    child_result = Child.select_by_id(
+        cols(Child.ID, Child.FAMILY_ID, Provider.join(Provider.ID)), int(child_id)
+    ).execute()
+    child = unwrap_or_abort(child_result)
 
-    if child_id not in child_ids:
+    if child is None:
         return jsonify({"error": "Child not found"}), 404
 
-    mappings = get_provider_child_mappings()
+    if Child.FAMILY_ID(child) != family_id:
+        return jsonify({"error": "Child not found"}), 404
+
     child_has_provider = False
-    for mapping in filter_rows_by_value(mappings, child_id, ProviderChildMappingColumnNames.CHILD_ID):
-        if mapping.get(ProviderChildMappingColumnNames.PROVIDER_ID) == provider_id:
+    for provider in Provider.unwrap(child):
+        if Provider.ID(provider) == provider_id:
             child_has_provider = True
             break
 
     if not child_has_provider:
-        return jsonify({"error": "Provider not assigned to this child"}), 404
+        return jsonify({"error": "Provider not found"}), 404
 
     payment_rate = PaymentRate.get(provider_id=provider_id, child_id=child_id)
     if not payment_rate:

@@ -9,8 +9,10 @@ class PaymentRequest(db.Model, TimestampMixin):
     id = db.Column(db.Integer, primary_key=True)
 
     # Provider and child info
-    google_sheets_provider_id = db.Column(db.String(64), nullable=False, index=True)
-    google_sheets_child_id = db.Column(db.String(64), nullable=False, index=True)
+    google_sheets_provider_id = db.Column(db.String(64), nullable=True, index=True)
+    provider_supabase_id = db.Column(db.String(64), nullable=True, index=True)
+    google_sheets_child_id = db.Column(db.String(64), nullable=True, index=True)
+    child_supabase_id = db.Column(db.String(64), nullable=True, index=True)
 
     # Derived fields for snapshot of moment
     care_days_count = db.Column(db.Integer, nullable=True, default=0)
@@ -27,4 +29,4 @@ class PaymentRequest(db.Model, TimestampMixin):
         return AllocatedCareDay.query.filter(AllocatedCareDay.id.in_(self.care_day_ids)).all()
 
     def __repr__(self):
-        return f"<PaymentRequest ${self.amount_in_cents / 100:.2f} - Provider {self.google_sheets_provider_id}>"
+        return f"<PaymentRequest ${self.amount_in_cents / 100:.2f} - Provider {self.provider_supabase_id}>"
