@@ -1,35 +1,24 @@
 from datetime import date, datetime, timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
 from app.models.month_allocation import MonthAllocation, get_allocation_amount
 
 
-@patch("app.models.month_allocation.Child")
-def test_get_allocation_amount_prorated(mock_child_class, db_session):
+def test_get_allocation_amount_prorated(db_session, app):
     """Test that the prorated allocation is returned when no month allocation exists"""
-    # Mock the Supabase Child class
-    mock_child_result = Mock()
-    mock_child_class.select_by_id.return_value.execute.return_value = mock_child_result
-    mock_child_class.MONTHLY_ALLOCATION.return_value = 1000.00
-    mock_child_class.PRORATED_ALLOCATION.return_value = 500.00
-
+    # The mock_supabase fixture in app already has child data
+    # Child 1 has monthly_allocation=1000.0, prorated_allocation=500.0
     amount = get_allocation_amount(child_id="1")
-    assert amount == 50000
+    assert amount == 50000  # prorated_allocation * 100
 
 
-@patch("app.models.month_allocation.Child")
-def test_get_allocation_amount_normal(mock_child_class, month_allocation):
+def test_get_allocation_amount_normal(month_allocation, app):
     """Test that the normal allocation is returned when a month allocation exists"""
-    # Mock the Supabase Child class
-    mock_child_result = Mock()
-    mock_child_class.select_by_id.return_value.execute.return_value = mock_child_result
-    mock_child_class.MONTHLY_ALLOCATION.return_value = 1000.00
-    mock_child_class.PRORATED_ALLOCATION.return_value = 500.00
-
+    # When a month allocation exists, it should use monthly_allocation not prorated
     amount = get_allocation_amount(child_id="1")
-    assert amount == 100000
+    assert amount == 100000  # monthly_allocation * 100
 
 
 def test_get_or_create_for_month_existing(month_allocation):

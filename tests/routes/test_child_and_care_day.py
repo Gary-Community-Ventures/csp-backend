@@ -55,8 +55,17 @@ def seed_db(app):
 def mock_authentication(mocker):
     mock_request_state = mocker.Mock()
     mock_request_state.is_signed_in = True
-    mock_request_state.payload = {"data": {"types": ["family"], "family_id": 1}}
+    mock_request_state.payload = {
+        "sub": "user_id_123",
+        "sid": "session_id_123",
+        "data": {"types": ["family"], "family_id": "1"},
+    }
     mocker.patch("app.auth.decorators._authenticate_request", return_value=mock_request_state)
+
+    # Mock get_family_user
+    mock_user = mocker.Mock()
+    mock_user.user_data.family_id = "1"
+    mocker.patch("app.routes.child.get_family_user", return_value=mock_user)
 
 
 def test_create_care_day_duplicate_date_different_provider(client, seed_db):
@@ -91,8 +100,14 @@ def test_create_care_day_duplicate_date_same_provider(client, seed_db):
     assert "Care day already exists for this date" in response.json["error"]
 
 
-def test_get_month_allocation_no_provider_id(client, seed_db):
+def test_get_month_allocation_no_provider_id(client, seed_db, app):
     allocation, _, _, _ = seed_db
+
+    # Add child data to mock Supabase
+    from tests.supabase_mocks import create_mock_child_data
+
+    app.supabase_client.tables["child"].data = [create_mock_child_data(child_id=1, family_id="1")]
+
     response = client.get(
         f"/child/{allocation.child_supabase_id}/allocation/{allocation.date.month}/{allocation.date.year}"
     )
