@@ -5,7 +5,6 @@ from flask import current_app
 from rq_scheduler import Scheduler
 
 from app import create_app
-from app.jobs.example_job import example_schedule_job
 from app.jobs.monthly_allocation_job import schedule_monthly_allocation_job
 from app.utils.redis import create_redis_connection
 
@@ -14,7 +13,6 @@ if __name__ == "__main__":
     with app.app_context():
         try:
             # Schedule system level jobs here
-            example_schedule_job()
             schedule_monthly_allocation_job()
 
             redis_url = os.getenv("REDIS_URL")
