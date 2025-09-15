@@ -14,7 +14,6 @@ if __name__ == "__main__":
     with app.app_context():
         try:
             # Schedule system level jobs here
-            example_schedule_job()
             schedule_monthly_allocation_job()
 
             redis_url = os.getenv("REDIS_URL")
