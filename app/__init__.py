@@ -1,20 +1,16 @@
-import json
 import os
 
 import sentry_sdk
 from clerk_backend_api import Clerk
 from dotenv import load_dotenv
 from flask import Flask
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
 from sentry_sdk.integrations.flask import FlaskIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+from supabase import create_client
 
 from app.services.payment.payment_service import PaymentService
-from app.sheets.integration import SheetsManager
 
 # Import models to ensure they are registered with SQLAlchemy
-from . import models
 from .constants import ENV_DEVELOPMENT, ENV_PRODUCTION, ENV_STAGING, ENV_TESTING
 
 # Import extensions from the extensions module
@@ -67,6 +63,7 @@ def create_app(config_class=None):
             profiles_sample_rate=app.config.get("SENTRY_PROFILES_SAMPLE_RATE", 1.0),
             environment=app.config.get("FLASK_ENV"),
             release=app.config.get("APP_VERSION", None),
+            enable_logs=True,
         )
         print("Sentry initialized for environment: ", f"{app.config.get('FLASK_ENV')}")
     else:
@@ -82,6 +79,16 @@ def create_app(config_class=None):
         app.clerk_client = Clerk(bearer_auth=clerk_secret_key)
         print("Clerk SDK initialized successfully.")
 
+    # --- Supabase Client Initialization ---
+    supabase_url = app.config.get("SUPABASE_URL")
+    supabase_key = app.config.get("SUPABASE_KEY")
+
+    if not supabase_url or not supabase_key:
+        print("WARNING: SUPABASE_URL or SUPABASE_KEY not found. Supabase client will not be initialized.")
+        app.supabase_client = None
+    else:
+        app.supabase_client = create_client(supabase_url, supabase_key)
+
     app.config["API_KEY"] = os.environ.get("API_KEY")
     if not app.config["API_KEY"]:
         raise ValueError("API_KEY environment variable must be set")
@@ -93,18 +100,6 @@ def create_app(config_class=None):
     db.init_app(app)
     migrate.init_app(app, db)
     csrf.init_app(app)
-
-    # --- Google Sheets Integration ---
-    credentials = app.config.get("GOOGLE_APPLICATION_CREDENTIALS")
-    if credentials:
-        info = json.loads(credentials)
-        creds = service_account.Credentials.from_service_account_info(
-            info, scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
-        )
-
-        app.google_sheets_service = build("sheets", "v4", credentials=creds).spreadsheets()
-
-        app.sheets_manager = SheetsManager(app)
 
     # --- Chek Integration ---
     app.chek_service = ChekService(app)
@@ -165,6 +160,7 @@ def create_app(config_class=None):
     from .routes.payment_rate import bp as payment_rate_bp
     from .routes.payments import bp as payments_bp
     from .routes.provider import bp as provider_bp
+    from .routes.supabase import bp as supabase_bp
 
     app.register_blueprint(main_bp)
     csrf.exempt(main_bp)
@@ -186,5 +182,7 @@ def create_app(config_class=None):
     csrf.exempt(lump_sum_bp)
     app.register_blueprint(payments_bp)
     csrf.exempt(payments_bp)
+    app.register_blueprint(supabase_bp)
+    csrf.exempt(supabase_bp)
 
     return app

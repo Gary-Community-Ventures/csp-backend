@@ -8,12 +8,8 @@ from app.models import (
     ProviderPaymentSettings,
 )
 from app.services.payment.payment_service import PaymentService
-from app.sheets.mappings import (
-    get_child,
-    get_children,
-    get_provider,
-    get_providers,
-)
+from app.supabase.helpers import cols
+from app.supabase.tables import Child, Provider
 
 # Create Flask app context
 app = create_app()
@@ -47,31 +43,24 @@ def run_payment_requests():
     for day in care_days_to_process:
         grouped_care_days[
             (
-                day.provider_google_sheets_id,
-                day.care_month_allocation.google_sheets_child_id,
+                day.provider_supabase_id,
+                day.care_month_allocation.child_supabase_id,
             )
         ].append(day)
 
-    all_children_data = get_children()
-    all_providers_data = get_providers()
-
-    print(f"Processing payments for {len(grouped_care_days)} provider-child groups.")
-    print("-" * 60)
-    print(grouped_care_days)
+    children = Child.query().select(cols(Child.ID)).execute()
+    providers = Provider.query().select(cols(Provider.ID)).execute()
+    child_ids = set([c.id for c in children])
+    provider_ids = set([p.id for p in providers])
 
     for (provider_id, child_id), days in grouped_care_days.items():
-        provider_data = get_provider(provider_id, all_providers_data)
-        child_data = get_child(child_id, all_children_data)
-
-        if not provider_data:
+        if provider_id not in provider_ids:
             app.logger.warning(
-                f"run_payment_requests: Skipping payment for provider ID {provider_id}: Provider not found in Google Sheets."
+                f"run_payment_requests: Skipping payment for provider ID {provider_id}: Provider not found"
             )
             continue
-        if not child_data:
-            app.logger.warning(
-                f"run_payment_requests: Skipping payment for child ID {child_id}: Child not found in Google Sheets."
-            )
+        if child_id not in child_ids:
+            app.logger.warning(f"run_payment_requests: Skipping payment for child ID {child_id}: Child not found")
             continue
 
         # Retrieve the ProviderPaymentSettings object
@@ -84,8 +73,6 @@ def run_payment_requests():
 
         # Process payment using the PaymentService
         month_allocation = days[0].care_month_allocation  # All care days belong to same month allocation
-        print(f"Processing payment for provider {provider_id} and child {child_id}...")
-        print(f"Allocated care days: {days}")
         payment_successful = payment_service.process_payment(
             external_provider_id=provider_id,
             external_child_id=child_id,

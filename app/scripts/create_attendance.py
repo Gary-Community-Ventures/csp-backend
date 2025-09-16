@@ -6,20 +6,9 @@ from flask import current_app
 from app import create_app
 from app.extensions import db
 from app.models import Attendance
-from app.sheets.helpers import KeyMap
-from app.sheets.mappings import (
-    ChildColumnNames,
-    FamilyColumnNames,
-    ProviderChildMappingColumnNames,
-    ProviderColumnNames,
-    get_child,
-    get_children,
-    get_families,
-    get_family,
-    get_provider,
-    get_provider_child_mappings,
-    get_providers,
-)
+from app.supabase.columns import Status
+from app.supabase.helpers import cols, unwrap_or_error
+from app.supabase.tables import Child, Family, Guardian, Provider
 from app.utils.email_service import (
     BulkEmailData,
     bulk_send_emails,
@@ -33,29 +22,13 @@ app = create_app()
 app.app_context().push()
 
 
-def create_child_provider_attendance(
-    provider_child_mapping: KeyMap, child_rows: list[KeyMap], provider_rows: list[KeyMap], last_week_date: date
-):
-    child = get_child(provider_child_mapping.get(ProviderChildMappingColumnNames.CHILD_ID), child_rows)
-    provider = get_provider(provider_child_mapping.get(ProviderChildMappingColumnNames.PROVIDER_ID), provider_rows)
-
-    if child is None:
-        app.logger.warning(
-            f"create_child_provider_attendance: Skipping attendance creation for child ID {provider_child_mapping.get(ProviderChildMappingColumnNames.CHILD_ID)}: Child not found in Google Sheets."
-        )
+def create_child_provider_attendance(child: dict, provider: dict, last_week_date: date):
+    if Child.STATUS(child) != Status.APPROVED:
         return
-    if provider is None:
-        app.logger.warning(
-            f"create_child_provider_attendance: Skipping attendance creation for provider ID {provider_child_mapping.get(ProviderChildMappingColumnNames.PROVIDER_ID)}: Provider not found in Google Sheets."
-        )
+    if Provider.STATUS(provider) != Status.APPROVED:
         return
 
-    if child.get(ChildColumnNames.STATUS).lower() != "approved":
-        return
-    if provider.get(ProviderColumnNames.STATUS).lower() != "approved":
-        return
-
-    return Attendance.new(child.get(ChildColumnNames.ID), provider.get(ProviderColumnNames.ID), last_week_date)
+    return Attendance.new(Child.ID(child), Provider.ID(provider), last_week_date)
 
 
 @dataclass
@@ -98,33 +71,54 @@ def provider_message(provider_name: str, link: str, lang: str):
 def create_attendance():
     app.logger.info("create_attendance: Starting attendance creation...")
 
-    child_rows = get_children()
-    provider_rows = get_providers()
-    provider_child_mapping_rows = get_provider_child_mappings()
+    children_result = (
+        Child.query()
+        .select(
+            cols(
+                Child.ID,
+                Child.STATUS,
+                Provider.join(
+                    Provider.ID,
+                    Provider.NAME,
+                    Provider.STATUS,
+                    Provider.EMAIL,
+                    Provider.PHONE_NUMBER,
+                    Provider.LANGUAGE,
+                ),
+                Family.join(
+                    Family.ID,
+                    Family.LANGUAGE,
+                    Guardian.join(
+                        Guardian.FIRST_NAME,
+                        Guardian.EMAIL,
+                        Guardian.PHONE_NUMBER,
+                        Guardian.TYPE,
+                    ),
+                ),
+            ),
+        )
+        .execute()
+    )
+    children = unwrap_or_error(children_result)
 
     last_week_date = Attendance.last_week_date()
 
     attendances: list[Attendance] = []
-    for provider_child_mapping in provider_child_mapping_rows:
-        attendance_obj = create_child_provider_attendance(
-            provider_child_mapping, child_rows, provider_rows, last_week_date
-        )
+    providers = {}
+    families = {}
+    for child in children:
+        for provider in Provider.unwrap(child):
+            attendance_obj = create_child_provider_attendance(child, provider, last_week_date)
 
-        if attendance_obj is not None:
-            attendances.append(attendance_obj)
+            if attendance_obj is not None:
+                attendances.append(attendance_obj)
+                family = Family.unwrap(child)
+                families[Family.ID] = family
+                providers[Provider.ID] = provider
 
     db.session.add_all(attendances)
     db.session.commit()
     app.logger.info("create_attendance: Finished attendance creation.")
-
-    providers = set()
-    families = set()
-    for attendance in attendances:
-        providers.add(attendance.provider_google_sheet_id)
-
-        child = get_child(attendance.child_google_sheet_id, child_rows)
-        family_id = child.get(ChildColumnNames.FAMILY_ID)
-        families.add(family_id)
 
     domain = current_app.config.get("FRONTEND_DOMAIN")
 
@@ -132,16 +126,12 @@ def create_attendance():
 
     bulk_emails: list[BulkEmailData] = []
     bulk_sms: list[BulkSmsData] = []
-    for provider_id in providers:
-        provider = get_provider(provider_id, provider_rows)
-
-        message_data = provider_message(
-            provider.get(ProviderColumnNames.NAME), provider_link, provider.get(ProviderColumnNames.LANGUAGE).lower()
-        )
+    for provider in providers.values():
+        message_data = provider_message(Provider.NAME(provider), provider_link, Provider.LANGUAGE(provider))
 
         bulk_emails.append(
             BulkEmailData(
-                email=provider.get(ProviderColumnNames.EMAIL),
+                email=Provider.EMAIL(provider),
                 subject=message_data.subject,
                 html_content=message_data.email,
             )
@@ -149,25 +139,20 @@ def create_attendance():
 
         bulk_sms.append(
             BulkSmsData(
-                phone_number="+1" + provider.get(ProviderColumnNames.PHONE_NUMBER),
+                phone_number="+1" + Provider.PHONE_NUMBER(provider),
                 message=message_data.sms,
-                lang=provider.get(ProviderColumnNames.LANGUAGE).lower(),
+                lang=Provider.LANGUAGE(provider),
             )
         )
 
     family_link = f"{domain}/family/attendance"
-
-    family_rows = get_families()
-    for family_id in families:
-        family = get_family(family_id, family_rows)
-
-        message_data = family_message(
-            family.get(FamilyColumnNames.FIRST_NAME), family_link, family.get(FamilyColumnNames.LANGUAGE).lower()
-        )
+    for family in families.values():
+        guardian = Guardian.get_primary_guardian(Guardian.unwrap(family))
+        message_data = family_message(Guardian.FIRST_NAME(guardian), family_link, Family.LANGUAGE(family))
 
         bulk_emails.append(
             BulkEmailData(
-                email=family.get(FamilyColumnNames.EMAIL),
+                email=Guardian.EMAIL(guardian),
                 subject=message_data.subject,
                 html_content=message_data.email,
             )
@@ -175,9 +160,9 @@ def create_attendance():
 
         bulk_sms.append(
             BulkSmsData(
-                phone_number="+1" + family.get(FamilyColumnNames.PHONE_NUMBER),
+                phone_number="+1" + Guardian.PHONE_NUMBER(guardian),
                 message=message_data.sms,
-                lang=family.get(FamilyColumnNames.LANGUAGE).lower(),
+                lang=Family.LANGUAGE(family),
             )
         )
 

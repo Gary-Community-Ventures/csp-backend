@@ -1,5 +1,4 @@
 from datetime import date
-from unittest.mock import patch
 
 import pytest
 from pytest_mock import MockerFixture
@@ -7,6 +6,7 @@ from pytest_mock import MockerFixture
 from app import create_app
 from app.extensions import db
 from app.models.month_allocation import MonthAllocation
+from tests.supabase_mocks import create_mock_supabase_client, setup_standard_test_data
 
 
 @pytest.fixture
@@ -66,13 +66,23 @@ def mock_clerk_authentication(mocker: MockerFixture):
 
 
 @pytest.fixture
-def app():
+def mock_supabase(mocker: MockerFixture):
+    """Mock Supabase client with standard test data."""
+    mock_client = create_mock_supabase_client(setup_standard_test_data())
+    return mock_client
+
+
+@pytest.fixture
+def app(mock_supabase):
     app = create_app()
     app.config.update(
         {
             "TESTING": True,
         }
     )
+
+    # Set the mock Supabase client
+    app.supabase_client = mock_supabase
 
     with app.app_context():
         db.create_all()
@@ -87,15 +97,9 @@ def client(app):
 
 
 @pytest.fixture
-def mock_get_child():
-    with patch("app.models.month_allocation.get_child") as mock:
-        yield mock
-
-
-@pytest.fixture
 def month_allocation(db_session):
     allocation = MonthAllocation(
-        google_sheets_child_id="1",
+        child_supabase_id="1",
         date=date.today().replace(day=1),
         allocation_cents=100000,
     )

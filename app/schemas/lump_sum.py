@@ -7,7 +7,7 @@ from pydantic import BaseModel
 class AllocatedLumpSumResponse(BaseModel):
     id: int
     care_month_allocation_id: int
-    provider_google_sheets_id: str
+    provider_supabase_id: str
     amount_cents: int
     hours: Optional[float] = None
     paid_at: Optional[datetime] = None

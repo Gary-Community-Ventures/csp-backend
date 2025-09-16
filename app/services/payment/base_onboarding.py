@@ -3,7 +3,7 @@ Base class for onboarding providers and families to Chek payment system.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 
 import sentry_sdk
 from flask import current_app
@@ -12,7 +12,7 @@ from app.exceptions import DataNotFoundException
 from app.extensions import db
 from app.integrations.chek.schemas import Address, UserCreateRequest
 from app.models import FamilyPaymentSettings, ProviderPaymentSettings
-from app.services.payment.utils import format_phone_to_e164
+from app.services.payment.utils import convert_state_to_code, format_phone_to_e164
 
 
 class BaseOnboarding(ABC):
@@ -34,12 +34,12 @@ class BaseOnboarding(ABC):
         pass
 
     @abstractmethod
-    def get_entity_data_from_sheets(self, external_id: str) -> Dict:
-        """Get entity data from Google Sheets."""
+    def get_entity_data(self, external_id: str) -> dict:
+        """Get entity data."""
         pass
 
     @abstractmethod
-    def extract_entity_fields(self, entity_data: Dict) -> Dict:
+    def extract_entity_fields(self, entity_data: dict) -> dict:
         """Extract required fields from entity data."""
         pass
 
@@ -51,13 +51,13 @@ class BaseOnboarding(ABC):
         pass
 
     @abstractmethod
-    def get_chek_status(self, chek_user_id: int) -> Dict:
+    def get_chek_status(self, chek_user_id: int) -> dict:
         """Get the current Chek status for the entity."""
         pass
 
     @abstractmethod
     def update_settings_from_status(
-        self, settings: Union[ProviderPaymentSettings, FamilyPaymentSettings], status: Dict
+        self, settings: Union[ProviderPaymentSettings, FamilyPaymentSettings], status: dict
     ) -> None:
         """Update payment settings from Chek status."""
         pass
@@ -67,7 +67,7 @@ class BaseOnboarding(ABC):
         Generic onboarding flow for any entity.
 
         Args:
-            external_id: External ID from Google Sheets
+            external_id: External ID
 
         Returns:
             Payment settings record for the entity
@@ -83,15 +83,14 @@ class BaseOnboarding(ABC):
                 )
                 return existing_settings
 
-            # Get entity data from Google Sheets
-            entity_data = self.get_entity_data_from_sheets(external_id)
+            entity_data = self.get_entity_data(external_id)
 
             # Extract fields
             fields = self.extract_entity_fields(entity_data)
 
             # Validate required fields
             if not fields["email"]:
-                raise DataNotFoundException(f"{entity_type.capitalize()} {external_id} has no email in Google Sheets")
+                raise DataNotFoundException(f"{entity_type.capitalize()} {external_id} has no email")
 
             # Format phone number
             phone = format_phone_to_e164(fields.get("phone_raw"))
@@ -110,6 +109,7 @@ class BaseOnboarding(ABC):
                 )
                 chek_user_id = str(existing_chek_user.id)
             else:
+                print(fields)
                 # Create new Chek user
                 user_request = UserCreateRequest(
                     email=fields["email"],
@@ -117,11 +117,11 @@ class BaseOnboarding(ABC):
                     first_name=fields.get("first_name", ""),
                     last_name=fields.get("last_name", ""),
                     address=Address(
-                        line1=fields.get("address_line1", ""),
-                        line2=fields.get("address_line2", ""),
-                        city=fields.get("city", ""),
-                        state=fields.get("state", ""),
-                        postal_code=fields.get("zip_code", ""),
+                        line1=fields.get("address_line1") or "",
+                        line2=fields.get("address_line2") or "",
+                        city=fields.get("city") or "",
+                        state=convert_state_to_code(fields.get("state")) or "",
+                        postal_code=fields.get("zip_code") or "",
                         country_code=fields.get("country_code", "US"),
                     ),
                 )
