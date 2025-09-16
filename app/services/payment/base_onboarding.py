@@ -12,7 +12,7 @@ from app.exceptions import DataNotFoundException
 from app.extensions import db
 from app.integrations.chek.schemas import Address, UserCreateRequest
 from app.models import FamilyPaymentSettings, ProviderPaymentSettings
-from app.services.payment.utils import format_phone_to_e164
+from app.services.payment.utils import convert_state_to_code, format_phone_to_e164
 
 
 class BaseOnboarding(ABC):
@@ -119,7 +119,7 @@ class BaseOnboarding(ABC):
                         line1=fields.get("address_line1", ""),
                         line2=fields.get("address_line2", ""),
                         city=fields.get("city", ""),
-                        state=fields.get("state", ""),
+                        state=convert_state_to_code(fields.get("state", "")),
                         postal_code=fields.get("zip_code", ""),
                         country_code=fields.get("country_code", "US"),
                     ),

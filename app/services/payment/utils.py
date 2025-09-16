@@ -2,6 +2,86 @@ import re
 from typing import Optional
 
 
+STATE_NAME_TO_CODE = {
+    "Alabama": "AL",
+    "Alaska": "AK",
+    "Arizona": "AZ",
+    "Arkansas": "AR",
+    "California": "CA",
+    "Colorado": "CO",
+    "Connecticut": "CT",
+    "Delaware": "DE",
+    "Florida": "FL",
+    "Georgia": "GA",
+    "Hawaii": "HI",
+    "Idaho": "ID",
+    "Illinois": "IL",
+    "Indiana": "IN",
+    "Iowa": "IA",
+    "Kansas": "KS",
+    "Kentucky": "KY",
+    "Louisiana": "LA",
+    "Maine": "ME",
+    "Maryland": "MD",
+    "Massachusetts": "MA",
+    "Michigan": "MI",
+    "Minnesota": "MN",
+    "Mississippi": "MS",
+    "Missouri": "MO",
+    "Montana": "MT",
+    "Nebraska": "NE",
+    "Nevada": "NV",
+    "New Hampshire": "NH",
+    "New Jersey": "NJ",
+    "New Mexico": "NM",
+    "New York": "NY",
+    "North Carolina": "NC",
+    "North Dakota": "ND",
+    "Ohio": "OH",
+    "Oklahoma": "OK",
+    "Oregon": "OR",
+    "Pennsylvania": "PA",
+    "Rhode Island": "RI",
+    "South Carolina": "SC",
+    "South Dakota": "SD",
+    "Tennessee": "TN",
+    "Texas": "TX",
+    "Utah": "UT",
+    "Vermont": "VT",
+    "Virginia": "VA",
+    "Washington": "WA",
+    "West Virginia": "WV",
+    "Wisconsin": "WI",
+    "Wyoming": "WY",
+}
+
+
+def convert_state_to_code(state: Optional[str]) -> str:
+    """
+    Convert a state name to its two-letter code.
+
+    Args:
+        state: State name or code
+
+    Returns:
+        Two-letter state code, or original value if already a code or not found
+    """
+    if not state:
+        return ""
+
+    # If it's already a 2-letter code, return as-is
+    state_stripped = state.strip()
+    if len(state_stripped) == 2 and state_stripped.upper() == state_stripped:
+        return state_stripped
+
+    # Try to find the state name in our mapping (case-insensitive)
+    for state_name, code in STATE_NAME_TO_CODE.items():
+        if state_name.lower() == state_stripped.lower():
+            return code
+
+    raise ValueError(f"Invalid state name: {state}")
+
+
 def format_phone_to_e164(phone: Optional[str], default_country: str = "US") -> Optional[str]:
     """
     Format a phone number to E.164 format for Chek API.
