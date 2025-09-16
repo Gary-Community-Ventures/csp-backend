@@ -114,11 +114,11 @@ class Provider(Table):
     STATUS = Column("status", enum_column(Status))
     TYPE = Column("type", enum_column(ProviderType))
     PAYMENT_ENABLED = Column("payment_enabled", bool)
-    ADDRESS_1 = Column("address_1")
-    ADDRESS_2 = Column("address_2")
-    CITY = Column("city")
-    STATE = Column("state")
-    ZIP = Column("zip")
+    ADDRESS_1 = Column("care_location_address_1")
+    ADDRESS_2 = Column("care_location_address_2")
+    CITY = Column("care_location_city")
+    STATE = Column("care_location_state")
+    ZIP = Column("care_location_zip")
     LANGUAGE = Column("language", enum_column(Language))
 
 
