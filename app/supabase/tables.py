@@ -58,7 +58,6 @@ class Guardian(Table):
 
     CREATED_AT = Column("created_at", datetime_column)
     TYPE = Column("type")
-    IS_PRIMARY = Column("is_primary", bool)
     FIRST_NAME = Column("first_name")
     LAST_NAME = Column("last_name")
     EMAIL = Column("email")
@@ -75,7 +74,7 @@ class Guardian(Table):
     @classmethod
     def get_primary_guardian(cls, data: list[dict]) -> dict:
         for g in data:
-            if cls.IS_PRIMARY(g):
+            if cls.TYPE(g).lower() == "primary":
                 return g
 
         return None

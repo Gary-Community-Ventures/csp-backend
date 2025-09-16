@@ -92,7 +92,7 @@ def create_attendance():
                         Guardian.FIRST_NAME,
                         Guardian.EMAIL,
                         Guardian.PHONE_NUMBER,
-                        Guardian.IS_PRIMARY,
+                        Guardian.TYPE,
                     ),
                 ),
             ),

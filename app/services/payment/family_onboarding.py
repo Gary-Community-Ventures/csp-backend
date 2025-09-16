@@ -26,7 +26,7 @@ class FamilyOnboarding(BaseOnboarding):
             cols(
                 Family.ID,
                 Guardian.join(
-                    Guardian.IS_PRIMARY,
+                    Guardian.TYPE,
                     Guardian.FIRST_NAME,
                     Guardian.LAST_NAME,
                     Guardian.EMAIL,

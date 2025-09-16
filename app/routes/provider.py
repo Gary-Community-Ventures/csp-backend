@@ -594,7 +594,7 @@ def accept_family_invite(invite_id: str):
     family_result = Family.select_by_id(
         cols(
             Family.ID,
-            Guardian.join(Guardian.FIRST_NAME, Guardian.LAST_NAME, Guardian.IS_PRIMARY),
+            Guardian.join(Guardian.FIRST_NAME, Guardian.LAST_NAME, Guardian.TYPE),
             Child.join(Child.ID, Child.FIRST_NAME, Child.LAST_NAME, Child.FAMILY_ID),
         ),
         int(user.user_data.family_id),

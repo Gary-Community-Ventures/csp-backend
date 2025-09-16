@@ -267,7 +267,7 @@ def invite_provider():
     family_result = Family.select_by_id(
         cols(
             Family.ID,
-            Guardian.join(Guardian.FIRST_NAME, Guardian.LAST_NAME, Guardian.IS_PRIMARY),
+            Guardian.join(Guardian.FIRST_NAME, Guardian.LAST_NAME, Guardian.TYPE),
             Child.join(Child.ID, Child.FIRST_NAME, Child.LAST_NAME),
         ),
         int(family_id),
@@ -363,7 +363,7 @@ def get_invite_data(child_id: str, provider_id: Optional[str] = None):
             Family.join(
                 Family.ID,
                 Guardian.join(
-                    Guardian.FIRST_NAME, Guardian.LAST_NAME, Guardian.EMAIL, Guardian.PHONE_NUMBER, Guardian.IS_PRIMARY
+                    Guardian.FIRST_NAME, Guardian.LAST_NAME, Guardian.EMAIL, Guardian.PHONE_NUMBER, Guardian.TYPE
                 ),
             ),
             Provider.join(Provider.ID, Child.join(Child.ID)),
