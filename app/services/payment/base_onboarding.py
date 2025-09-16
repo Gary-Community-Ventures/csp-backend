@@ -116,11 +116,11 @@ class BaseOnboarding(ABC):
                     first_name=fields.get("first_name", ""),
                     last_name=fields.get("last_name", ""),
                     address=Address(
-                        line1=fields.get("address_line1", ""),
-                        line2=fields.get("address_line2", ""),
-                        city=fields.get("city", ""),
-                        state=convert_state_to_code(fields.get("state", "")),
-                        postal_code=fields.get("zip_code", ""),
+                        line1=fields.get("address_line1") or "",
+                        line2=fields.get("address_line2") or "",
+                        city=fields.get("city") or "",
+                        state=convert_state_to_code(fields.get("state")) or "",
+                        postal_code=fields.get("zip_code") or "",
                         country_code=fields.get("country_code", "US"),
                     ),
                 )
