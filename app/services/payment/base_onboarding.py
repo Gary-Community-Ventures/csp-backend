@@ -109,6 +109,7 @@ class BaseOnboarding(ABC):
                 )
                 chek_user_id = str(existing_chek_user.id)
             else:
+                print(fields)
                 # Create new Chek user
                 user_request = UserCreateRequest(
                     email=fields["email"],
