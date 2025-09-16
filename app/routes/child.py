@@ -45,6 +45,7 @@ def get_month_allocation(child_id, month, year):
         return jsonify({"error": "Allocation not found"}), 400
 
     provider_id = request.args.get("provider_id")
+    print(f"{provider_id=}") # FIXME: remove
     if provider_id:
         care_days_query = AllocatedCareDay.query.filter_by(
             care_month_allocation_id=allocation.id,
@@ -53,16 +54,22 @@ def get_month_allocation(child_id, month, year):
     else:
         care_days_query = AllocatedCareDay.query.filter_by(care_month_allocation_id=allocation.id)
     care_days = care_days_query.all()
+    print(f"{care_days=}") # FIXME: remove
 
     # Serialize care_days using Pydantic model
     serialized_care_days = []
     for day in care_days:
         care_day_data = AllocatedCareDayResponse.model_validate(day).model_dump()
         serialized_care_days.append(care_day_data)
+    print(f"{serialized_care_days=}") # FIXME: remove
+    print(f"{allocation=}") # FIXME: remove
+
 
     # Serialize allocation using MonthAllocationResponse
     serialized_allocation = MonthAllocationResponse.model_validate(allocation).model_dump()
     serialized_allocation["care_days"] = serialized_care_days
+    print(f"{serialized_allocation=}") # FIXME: remove
+
 
     return custom_jsonify(serialized_allocation)
 
