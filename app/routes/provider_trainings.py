@@ -73,8 +73,6 @@ def update_trainings():
         if value is not None:
             data_to_update[field_name] = now if value else None
 
-    if not data_to_update:
-        return jsonify({"error": "No fields to update"}), 400
 
     updated_provider_result = (
         current_app.supabase_client.table(Provider.TABLE_NAME)
