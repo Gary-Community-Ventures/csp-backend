@@ -14,6 +14,13 @@ from app.supabase.tables import Provider
 
 bp = Blueprint("provider_trainings", __name__, url_prefix="/provider")
 
+ALL_TRAINING_COLUMNS = [
+    Provider.CPR_ONLINE_TRAINING_COMPLETED_AT,
+    Provider.CHILD_SAFETY_MODULE_TRAINING_COMPLETED_AT,
+    Provider.SAFE_SLEEP_FOR_INFANTS_TRAINING_COMPLETED_AT,
+    Provider.HOME_SAFETY_AND_INJURY_PREVENTION_TRAINING_COMPLETED_AT,
+]
+
 
 @bp.get("/trainings")
 @auth_required(ClerkUserType.PROVIDER)
@@ -24,21 +31,14 @@ def get_trainings():
     user = get_provider_user()
     provider_id = user.user_data.provider_id
 
-    all_training_columns = [
-        Provider.CPR_ONLINE_TRAINING_COMPLETED_AT,
-        Provider.CHILD_SAFETY_MODULE_TRAINING_COMPLETED_AT,
-        Provider.SAFE_SLEEP_FOR_INFANTS_TRAINING_COMPLETED_AT,
-        Provider.HOME_SAFETY_AND_INJURY_PREVENTION_TRAINING_COMPLETED_AT,
-    ]
-
     provider_result = Provider.select_by_id(
-        cols(*all_training_columns),
+        cols(*ALL_TRAINING_COLUMNS),
         int(provider_id),
     ).execute()
 
     provider_data = unwrap_or_abort(provider_result)
 
-    response_data = {field.name: field(provider_data) for field in all_training_columns}
+    response_data = {field.name: field(provider_data) for field in ALL_TRAINING_COLUMNS}
 
     return (
         ProviderTrainingResponse(**response_data).model_dump_json(by_alias=True),
@@ -73,7 +73,6 @@ def update_trainings():
         if value is not None:
             data_to_update[field_name] = now if value else None
 
-
     updated_provider_result = (
         current_app.supabase_client.table(Provider.TABLE_NAME)
         .update(data_to_update)
@@ -86,14 +85,7 @@ def update_trainings():
     if not updated_provider_data:
         return jsonify({"error": "Failed to update provider trainings"}), 500
 
-    all_training_columns = [
-        Provider.CPR_ONLINE_TRAINING_COMPLETED_AT,
-        Provider.CHILD_SAFETY_MODULE_TRAINING_COMPLETED_AT,
-        Provider.SAFE_SLEEP_FOR_INFANTS_TRAINING_COMPLETED_AT,
-        Provider.HOME_SAFETY_AND_INJURY_PREVENTION_TRAINING_COMPLETED_AT,
-    ]
-
-    response_data = {field.name: field(updated_provider_data[0]) for field in all_training_columns}
+    response_data = {field.name: field(updated_provider_data[0]) for field in ALL_TRAINING_COLUMNS}
 
     return (
         ProviderTrainingResponse(**response_data).model_dump_json(by_alias=True),
