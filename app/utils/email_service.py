@@ -893,13 +893,11 @@ def get_broadcast_emails() -> list[EmailLog]:
 
 def get_email_stats() -> dict:
     """Get overall email statistics."""
-    from sqlalchemy import func
-
     total = EmailLog.query.count()
     sent = EmailLog.query.filter(EmailLog.status == "sent").count()
     failed = EmailLog.query.filter(EmailLog.status == "failed").count()
-    internal = EmailLog.query.filter(EmailLog.is_internal == True).count()
-    external = EmailLog.query.filter(EmailLog.is_internal == False).count()
+    internal = EmailLog.query.filter(EmailLog.is_internal.is_(True)).count()
+    external = EmailLog.query.filter(EmailLog.is_internal.is_(False)).count()
 
     return {
         "total_emails": total,

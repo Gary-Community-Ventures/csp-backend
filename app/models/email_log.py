@@ -74,22 +74,22 @@ class EmailLog(db.Model, TimestampMixin):
     @classmethod
     def get_internal_emails(cls):
         """Get all internal emails"""
-        return cls.query.filter(cls.is_internal == True).all()
+        return cls.query.filter(cls.is_internal.is_(True)).all()
 
     @classmethod
     def get_external_emails(cls):
         """Get all external emails"""
-        return cls.query.filter(cls.is_internal == False).all()
+        return cls.query.filter(cls.is_internal.is_(False)).all()
 
     @classmethod
     def get_failed_internal_emails(cls):
         """Get failed internal emails"""
-        return cls.query.filter(cls.status == EmailStatus.FAILED, cls.is_internal == True).all()
+        return cls.query.filter(cls.status == EmailStatus.FAILED, cls.is_internal.is_(True)).all()
 
     @classmethod
     def get_failed_external_emails(cls):
         """Get failed external emails"""
-        return cls.query.filter(cls.status == EmailStatus.FAILED, cls.is_internal == False).all()
+        return cls.query.filter(cls.status == EmailStatus.FAILED, cls.is_internal.is_(False)).all()
 
     @classmethod
     def get_emails_by_sender(cls, from_email: str):
@@ -104,8 +104,6 @@ class EmailLog(db.Model, TimestampMixin):
         Example: If to_emails = ["user1@example.com", "user2@example.com", "user3@example.com"]
         Searching for "user2@example.com" will find this email.
         """
-        from sqlalchemy import func
-
         # Use PostgreSQL's JSON array contains operator
         # This checks if the recipient_email is in the JSON array
         return cls.query.filter(cls.to_emails.op("@>")([recipient_email])).all()
