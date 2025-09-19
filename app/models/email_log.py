@@ -18,7 +18,7 @@ class EmailLog(db.Model, TimestampMixin):
     id = db.Column(UUID(as_uuid=True), index=True, primary_key=True, default=uuid.uuid4)
 
     # Email Details
-    from_email = db.Column(db.String(255), nullable=False)
+    from_email = db.Column(db.String(255), nullable=False, index=True)
     to_emails = db.Column(db.JSON, nullable=False)  # Array of recipient email addresses
     subject = db.Column(db.String(500), nullable=False)  # Increased for prefixed subjects
     html_content = db.Column(db.Text, nullable=False)
@@ -90,6 +90,64 @@ class EmailLog(db.Model, TimestampMixin):
     def get_failed_external_emails(cls):
         """Get failed external emails"""
         return cls.query.filter(cls.status == EmailStatus.FAILED, cls.is_internal == False).all()
+
+    @classmethod
+    def get_emails_by_sender(cls, from_email: str):
+        """Get all emails sent from a specific email address"""
+        return cls.query.filter(cls.from_email == from_email).all()
+
+    @classmethod
+    def get_emails_by_recipient(cls, recipient_email: str):
+        """Get all emails where recipient_email appears in the to_emails array.
+        Works correctly even when email is sent to multiple recipients.
+
+        Example: If to_emails = ["user1@example.com", "user2@example.com", "user3@example.com"]
+        Searching for "user2@example.com" will find this email.
+        """
+        from sqlalchemy import func
+
+        # Use PostgreSQL's JSON array contains operator
+        # This checks if the recipient_email is in the JSON array
+        return cls.query.filter(cls.to_emails.op("@>")([recipient_email])).all()
+
+    @classmethod
+    def get_emails_by_any_recipient_contains(cls, search_term: str):
+        """Get all emails where any recipient contains the search term (partial match).
+        Useful for domain searches like '@example.com'
+
+        Example: Searching for '@garycommunity.org' will find all emails
+        sent to any email address at that domain.
+        """
+        from sqlalchemy import String, cast
+
+        # Cast JSON to string and search within it
+        return cls.query.filter(cast(cls.to_emails, String).ilike(f"%{search_term}%")).all()
+
+    @classmethod
+    def get_emails_by_exact_recipient_list(cls, recipient_list: list):
+        """Get emails sent to EXACTLY this list of recipients (no more, no less)"""
+        # This checks for exact JSON equality
+        return cls.query.filter(cls.to_emails == recipient_list).all()
+
+    @classmethod
+    def get_emails_containing_all_recipients(cls, recipient_list: list):
+        """Get emails that include ALL specified recipients (but may include others too)"""
+        # Use PostgreSQL's @> operator to check if to_emails contains all recipients
+        return cls.query.filter(cls.to_emails.op("@>")(recipient_list)).all()
+
+    @classmethod
+    def search_emails(cls, search_term: str):
+        """Search emails by sender, recipients, or subject
+        Returns emails where search_term appears in from_email, to_emails, or subject"""
+        from sqlalchemy import String, cast, or_
+
+        return cls.query.filter(
+            or_(
+                cls.from_email.ilike(f"%{search_term}%"),
+                cls.subject.ilike(f"%{search_term}%"),
+                cast(cls.to_emails, String).ilike(f"%{search_term}%"),
+            )
+        ).all()
 
     def mark_as_sent(self, sendgrid_message_id=None, sendgrid_status_code=None):
         """Mark email as successfully sent"""
