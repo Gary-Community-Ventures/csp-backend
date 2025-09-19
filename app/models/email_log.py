@@ -37,6 +37,7 @@ class EmailLog(db.Model, TimestampMixin):
     # Context & Metadata
     email_type = db.Column(db.String(50), nullable=True, index=True)  # "payment_notification", "provider_invite", etc.
     context_data = db.Column(db.JSON, nullable=True)  # Additional context like provider_id, child_id, etc.
+    is_internal = db.Column(db.Boolean, nullable=False, default=False, index=True)  # True if sent to internal team
 
     @property
     def recipients_count(self):
@@ -70,6 +71,26 @@ class EmailLog(db.Model, TimestampMixin):
         """Get all emails of a specific type"""
         return cls.query.filter(cls.email_type == email_type).all()
 
+    @classmethod
+    def get_internal_emails(cls):
+        """Get all internal emails"""
+        return cls.query.filter(cls.is_internal == True).all()
+
+    @classmethod
+    def get_external_emails(cls):
+        """Get all external emails"""
+        return cls.query.filter(cls.is_internal == False).all()
+
+    @classmethod
+    def get_failed_internal_emails(cls):
+        """Get failed internal emails"""
+        return cls.query.filter(cls.status == EmailStatus.FAILED, cls.is_internal == True).all()
+
+    @classmethod
+    def get_failed_external_emails(cls):
+        """Get failed external emails"""
+        return cls.query.filter(cls.status == EmailStatus.FAILED, cls.is_internal == False).all()
+
     def mark_as_sent(self, sendgrid_message_id=None, sendgrid_status_code=None):
         """Mark email as successfully sent"""
         self.status = EmailStatus.SENT
@@ -88,4 +109,5 @@ class EmailLog(db.Model, TimestampMixin):
         db.session.commit()
 
     def __repr__(self):
-        return f"<EmailLog {self.id} - Status: {self.status} - Type: {self.email_type} - Recipients: {self.recipients_count}>"
+        internal_status = "Internal" if self.is_internal else "External"
+        return f"<EmailLog {self.id} - Status: {self.status} - Type: {self.email_type} - {internal_status} - Recipients: {self.recipients_count}>"

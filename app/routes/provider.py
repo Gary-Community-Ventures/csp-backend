@@ -465,7 +465,19 @@ def invite_family():
         )
 
         from_email = get_from_email_internal()
-        email_sent = send_email(from_email, data["family_email"], message.subject, message.email)
+        email_sent = send_email(
+            from_email,
+            data["family_email"],
+            message.subject,
+            message.email,
+            email_type="provider_family_invitation",
+            context_data={
+                "provider_name": provider_name,
+                "provider_id": Provider.ID(provider),
+                "family_email": data["family_email"],
+                "invitation_id": invitation.public_id,
+            },
+        )
         if email_sent:
             invitation.record_email_sent()
 

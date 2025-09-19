@@ -32,6 +32,7 @@ def send_email_with_logging(
     from_name: str = "CAP Support",
     email_type: str = None,
     context_data: dict = None,
+    is_internal: bool = False,
 ) -> bool:
     """
     Send an email using SendGrid with comprehensive logging.
@@ -60,6 +61,7 @@ def send_email_with_logging(
         from_name=from_name,
         email_type=email_type,
         context_data=context_data or {},
+        is_internal=is_internal,
     )
 
     try:
@@ -120,10 +122,17 @@ def send_email_with_logging(
 
 
 def send_email(
-    from_email: str, to_emails: Union[str, list[str]], subject: str, html_content: str, from_name: str = "CAP Support"
+    from_email: str,
+    to_emails: Union[str, list[str]],
+    subject: str,
+    html_content: str,
+    from_name: str = "CAP Support",
+    email_type: str = None,
+    context_data: dict = None,
+    is_internal: bool = False,
 ) -> bool:
     """
-    Backward compatible send_email function that uses the new logging system.
+    Send an email using SendGrid with comprehensive logging.
     """
     return send_email_with_logging(
         from_email=from_email,
@@ -131,8 +140,9 @@ def send_email(
         subject=subject,
         html_content=html_content,
         from_name=from_name,
-        email_type="legacy",
-        context_data={},
+        email_type=email_type or "legacy",
+        context_data=context_data or {},
+        is_internal=is_internal,
     )
 
 
@@ -284,7 +294,7 @@ def send_care_days_payment_email(
 
     html_content = system_message(subject, description, rows)
 
-    return send_email_with_logging(
+    return send_email(
         from_email=from_email,
         to_emails=to_emails,
         subject=subject,
@@ -296,6 +306,7 @@ def send_care_days_payment_email(
             "amount_cents": amount_in_cents,
             "care_days_count": len(care_days),
         },
+        is_internal=True,
     )
 
 
@@ -350,6 +361,15 @@ def send_lump_sum_payment_email(
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
+        email_type="lump_sum_payment",
+        context_data={
+            "provider_id": provider_id,
+            "child_id": child_id,
+            "amount_cents": amount_in_cents,
+            "hours": hours,
+            "month": month,
+        },
+        is_internal=True,
     )
 
 
@@ -386,6 +406,14 @@ def send_provider_invited_email(family_name: str, family_id: str, provider_email
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
+        email_type="provider_invited",
+        context_data={
+            "family_name": family_name,
+            "family_id": family_id,
+            "provider_email": provider_email,
+            "invite_ids": ids,
+        },
+        is_internal=True,
     )
 
 
@@ -422,6 +450,16 @@ def send_provider_invite_accept_email(
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
+        email_type="provider_invite_accepted",
+        context_data={
+            "provider_name": provider_name,
+            "provider_id": provider_id,
+            "parent_name": parent_name,
+            "parent_id": parent_id,
+            "child_name": child_name,
+            "child_id": child_id,
+        },
+        is_internal=True,
     )
 
 
@@ -460,6 +498,14 @@ def send_new_payment_rate_email(provider_id: str, child_id: str, half_day_rate_c
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
+        email_type="payment_rate_created",
+        context_data={
+            "provider_id": provider_id,
+            "child_id": child_id,
+            "half_day_rate_cents": half_day_rate_cents,
+            "full_day_rate_cents": full_day_rate_cents,
+        },
+        is_internal=True,
     )
 
 
@@ -577,6 +623,16 @@ def send_payment_notification(
         to_emails=[provider_email],
         subject=subject,
         html_content=html_content,
+        email_type="payment_notification",
+        context_data={
+            "provider_name": provider_name,
+            "provider_email": provider_email,
+            "provider_id": provider_id,
+            "child_name": child_name,
+            "child_id": child_id,
+            "amount_cents": amount_cents,
+            "payment_method": payment_method,
+        },
     )
 
 
@@ -606,6 +662,14 @@ def send_family_invited_email(provider_name: str, provider_id: str, family_email
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
+        email_type="family_invited",
+        context_data={
+            "provider_name": provider_name,
+            "provider_id": provider_id,
+            "family_email": family_email,
+            "invite_id": id,
+        },
+        is_internal=True,
     )
 
 
@@ -650,6 +714,15 @@ def send_family_invite_accept_email(
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
+        email_type="family_invite_accepted",
+        context_data={
+            "provider_name": provider_name,
+            "provider_id": provider_id,
+            "parent_name": parent_name,
+            "parent_id": parent_id,
+            "children": [format_name(child) for child in children],
+        },
+        is_internal=True,
     )
 
 
@@ -726,6 +799,16 @@ def retry_failed_email(email_log_id: str) -> bool:
 def get_failed_emails() -> list[EmailLog]:
     """Get all failed emails that can be retried."""
     return EmailLog.get_failed_emails()
+
+
+def get_failed_internal_emails() -> list[EmailLog]:
+    """Get all failed internal emails."""
+    return EmailLog.get_failed_internal_emails()
+
+
+def get_failed_external_emails() -> list[EmailLog]:
+    """Get all failed external emails."""
+    return EmailLog.get_failed_external_emails()
 
 
 def retry_failed_emails_batch() -> dict:
