@@ -52,6 +52,22 @@ def send_email_with_logging(
     else:
         to_emails_list = to_emails
 
+    # Convert UUIDs and other non-serializable objects in context_data to strings
+    if context_data:
+        serializable_context = {}
+        for key, value in context_data.items():
+            if hasattr(value, "__class__") and value.__class__.__name__ == "UUID":
+                serializable_context[key] = str(value)
+            elif isinstance(value, list):
+                # Handle lists that might contain UUIDs
+                serializable_context[key] = [
+                    str(v) if hasattr(v, "__class__") and v.__class__.__name__ == "UUID" else v for v in value
+                ]
+            else:
+                serializable_context[key] = value
+    else:
+        serializable_context = {}
+
     # Create EmailLog record
     email_log = EmailLog(
         from_email=from_email,
@@ -60,7 +76,7 @@ def send_email_with_logging(
         html_content=html_content,
         from_name=from_name,
         email_type=email_type,
-        context_data=context_data or {},
+        context_data=serializable_context,
         is_internal=is_internal,
     )
 

@@ -329,9 +329,9 @@ def invite_provider():
                 email_type="family_provider_invitation",
                 context_data={
                     "family_name": family_name,
-                    "family_id": family_id,
+                    "family_id": str(family_id),
                     "provider_email": data["provider_email"],
-                    "invitation_ids": [i.public_id for i in invitations],
+                    "invitation_ids": [str(i.public_id) for i in invitations],
                 },
             )
             if email_sent:

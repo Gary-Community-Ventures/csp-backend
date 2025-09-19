@@ -104,7 +104,11 @@ class EmailLog(db.Model, TimestampMixin):
         self.status = EmailStatus.FAILED
         self.error_message = error_message
         self.sendgrid_status_code = sendgrid_status_code
-        self.attempt_count += 1
+        # Ensure attempt_count is not None before incrementing
+        if self.attempt_count is None:
+            self.attempt_count = 1
+        else:
+            self.attempt_count += 1
         self.last_attempt_at = db.func.current_timestamp()
         db.session.commit()
 
