@@ -1,0 +1,91 @@
+import uuid
+
+from sqlalchemy.dialects.postgresql import UUID
+
+from ..extensions import db
+from .mixins import TimestampMixin
+
+
+class EmailStatus:
+    PENDING = "pending"
+    SENT = "sent"
+    FAILED = "failed"
+
+
+class EmailLog(db.Model, TimestampMixin):
+    __tablename__ = "email_log"
+
+    id = db.Column(UUID(as_uuid=True), index=True, primary_key=True, default=uuid.uuid4)
+
+    # Email Details
+    from_email = db.Column(db.String(255), nullable=False)
+    to_emails = db.Column(db.JSON, nullable=False)  # Array of recipient email addresses
+    subject = db.Column(db.String(500), nullable=False)  # Increased for prefixed subjects
+    html_content = db.Column(db.Text, nullable=False)
+    from_name = db.Column(db.String(100), nullable=False, default="CAP Support")
+
+    # Status & Retry Tracking
+    status = db.Column(db.String(20), nullable=False, default=EmailStatus.PENDING, index=True)
+    attempt_count = db.Column(db.Integer, nullable=False, default=1)
+    last_attempt_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    error_message = db.Column(db.Text, nullable=True)
+
+    # SendGrid Response Data
+    sendgrid_message_id = db.Column(db.String(100), nullable=True)
+    sendgrid_status_code = db.Column(db.Integer, nullable=True)
+
+    # Context & Metadata
+    email_type = db.Column(db.String(50), nullable=True, index=True)  # "payment_notification", "provider_invite", etc.
+    context_data = db.Column(db.JSON, nullable=True)  # Additional context like provider_id, child_id, etc.
+
+    @property
+    def recipients_count(self):
+        """Get the number of recipients"""
+        if isinstance(self.to_emails, list):
+            return len(self.to_emails)
+        return 1 if self.to_emails else 0
+
+    @property
+    def is_pending(self):
+        """Check if email is pending"""
+        return self.status == EmailStatus.PENDING
+
+    @property
+    def is_successful(self):
+        """Check if email was sent successfully"""
+        return self.status == EmailStatus.SENT
+
+    @property
+    def is_failed(self):
+        """Check if email failed to send"""
+        return self.status == EmailStatus.FAILED
+
+    @classmethod
+    def get_failed_emails(cls):
+        """Get all failed emails that can be retried"""
+        return cls.query.filter(cls.status == EmailStatus.FAILED).all()
+
+    @classmethod
+    def get_emails_by_type(cls, email_type: str):
+        """Get all emails of a specific type"""
+        return cls.query.filter(cls.email_type == email_type).all()
+
+    def mark_as_sent(self, sendgrid_message_id=None, sendgrid_status_code=None):
+        """Mark email as successfully sent"""
+        self.status = EmailStatus.SENT
+        self.sendgrid_message_id = sendgrid_message_id
+        self.sendgrid_status_code = sendgrid_status_code
+        self.last_attempt_at = db.func.current_timestamp()
+        db.session.commit()
+
+    def mark_as_failed(self, error_message=None, sendgrid_status_code=None):
+        """Mark email as failed and increment attempt count"""
+        self.status = EmailStatus.FAILED
+        self.error_message = error_message
+        self.sendgrid_status_code = sendgrid_status_code
+        self.attempt_count += 1
+        self.last_attempt_at = db.func.current_timestamp()
+        db.session.commit()
+
+    def __repr__(self):
+        return f"<EmailLog {self.id} - Status: {self.status} - Type: {self.email_type} - Recipients: {self.recipients_count}>"
