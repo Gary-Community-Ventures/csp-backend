@@ -21,6 +21,11 @@ ALL_TRAINING_COLUMNS = [
     Provider.HOME_SAFETY_AND_INJURY_PREVENTION_TRAINING_COMPLETED_AT,
 ]
 
+ALL_TRAINING_COLUMNS_WITH_CPR = ALL_TRAINING_COLUMNS + [
+    Provider.CPR_CERTIFIED,
+    Provider.CPR_TRAINING_LINK,
+]
+
 
 @bp.get("/trainings")
 @auth_required(ClerkUserType.PROVIDER)
@@ -32,13 +37,21 @@ def get_trainings():
     provider_id = user.user_data.provider_id
 
     provider_result = Provider.select_by_id(
-        cols(*ALL_TRAINING_COLUMNS),
+        cols(*ALL_TRAINING_COLUMNS_WITH_CPR),
         int(provider_id),
     ).execute()
 
     provider_data = unwrap_or_abort(provider_result)
 
     response_data = {field.name: field(provider_data) for field in ALL_TRAINING_COLUMNS}
+
+    # Add CPR fields with appropriate transformation
+    cpr_certified = None
+    if Provider.CPR_CERTIFIED(provider_data) is not None:
+        cpr_certified = Provider.CPR_CERTIFIED(provider_data).lower() == "yes"
+
+    response_data["cpr_certified"] = cpr_certified
+    response_data["cpr_training_link"] = Provider.CPR_TRAINING_LINK(provider_data)
 
     return (
         ProviderTrainingResponse(**response_data).model_dump_json(by_alias=True),
