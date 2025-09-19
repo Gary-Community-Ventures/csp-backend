@@ -1,6 +1,7 @@
 from app.models import (
     AllocatedCareDay,
     AllocatedLumpSum,
+    EmailLog,
     FamilyInvitation,
     FamilyPaymentSettings,
     MonthAllocation,
@@ -35,4 +36,5 @@ ADMIN_MODELS = [
     ModelAdminConfig(Payment, "Payments", "Financial", "PaymentAdminView"),
     ModelAdminConfig(PaymentAttempt, "Payment Attempts", "Financial", "PaymentAttemptAdminView"),
     ModelAdminConfig(PaymentIntent, "Payment Intents", "Financial", "PaymentIntentAdminView"),
+    ModelAdminConfig(EmailLog, "Email Logs", "System"),
 ]
