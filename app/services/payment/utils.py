@@ -1,7 +1,6 @@
 import re
 from typing import Optional
 
-
 STATE_NAME_TO_CODE = {
     "Alabama": "AL",
     "Alaska": "AK",

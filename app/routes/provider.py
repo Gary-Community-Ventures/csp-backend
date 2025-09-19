@@ -97,6 +97,8 @@ def get_provider_data():
             Provider.PAYMENT_ENABLED,
             Provider.STATUS,
             Provider.TYPE,
+            Provider.CPR_CERTIFIED,
+            Provider.CPR_TRAINING_LINK,
             Child.join(Child.ID, Child.FIRST_NAME, Child.LAST_NAME),
         ),
         int(provider_id),
@@ -110,6 +112,11 @@ def get_provider_data():
 
     provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_supabase_id=provider_id).first()
 
+    # Can be "yes", "no", "I don't know" or None. Normalize to boolean or None for FE.
+    cpr_certified = None
+    if Provider.CPR_CERTIFIED(provider_data) is not None:
+        cpr_certified = Provider.CPR_CERTIFIED(provider_data).lower() == "yes"
+
     provider_info = {
         "id": Provider.ID(provider_data),
         "first_name": Provider.FIRST_NAME(provider_data),
@@ -117,6 +124,8 @@ def get_provider_data():
         "is_payment_enabled": Provider.PAYMENT_ENABLED(provider_data),
         "is_payable": provider_payment_settings.is_payable if provider_payment_settings else False,
         "type": Provider.TYPE(provider_data).lower(),
+        "cpr_certified": cpr_certified,
+        "cpr_training_link": Provider.CPR_TRAINING_LINK(provider_data),
     }
 
     children = []

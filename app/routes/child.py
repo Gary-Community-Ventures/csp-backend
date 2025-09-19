@@ -60,11 +60,9 @@ def get_month_allocation(child_id, month, year):
         care_day_data = AllocatedCareDayResponse.model_validate(day).model_dump()
         serialized_care_days.append(care_day_data)
 
-
     # Serialize allocation using MonthAllocationResponse
     serialized_allocation = MonthAllocationResponse.model_validate(allocation).model_dump()
     serialized_allocation["care_days"] = serialized_care_days
-
 
     return custom_jsonify(serialized_allocation)
 
