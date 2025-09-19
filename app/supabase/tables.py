@@ -119,6 +119,16 @@ class Provider(Table):
     STATE = Column("care_location_state")
     ZIP = Column("care_location_zip")
     LANGUAGE = Column("language", enum_column(Language))
+    CPR_CERTIFIED = Column("cpr_certified")
+    CPR_TRAINING_LINK = Column("cpr_training_link")
+    CPR_ONLINE_TRAINING_COMPLETED_AT = Column("cpr_online_training_completed_at", datetime_column)
+    CHILD_SAFETY_MODULE_TRAINING_COMPLETED_AT = Column("child_safety_module_training_completed_at", datetime_column)
+    SAFE_SLEEP_FOR_INFANTS_TRAINING_COMPLETED_AT = Column(
+        "safe_sleep_for_infants_training_completed_at", datetime_column
+    )
+    HOME_SAFETY_AND_INJURY_PREVENTION_TRAINING_COMPLETED_AT = Column(
+        "home_safety_and_injury_prevention_training_completed_at", datetime_column
+    )
 
 
 class ProviderChildMapping(Table):
