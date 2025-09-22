@@ -424,8 +424,8 @@ def send_payment_notification(
                 The CAP Team</p>
                 
                 <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
-                <p style="font-size: 12px; color: #666;">
-                    This is an automated payment notification from the CAP system.
+                <p style="font-size: 12px; color: #666; text-align: center;">
+                    This is an automated notification from the CAP portal system.<br>
                 </p>
             </div>
         </body>
