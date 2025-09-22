@@ -8,7 +8,7 @@ from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
 from app.models.email_log import EmailLog
-from app.utils.email.core import add_subject_prefix
+from app.utils.email.config import add_subject_prefix
 from app.utils.email.queries import get_failed_emails
 
 

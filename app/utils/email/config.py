@@ -5,6 +5,17 @@ Email configuration helper functions.
 from flask import current_app
 
 
+def add_subject_prefix(subject: str) -> str:
+    """Add environment prefix to email subjects for non-production environments."""
+    environment = current_app.config.get("FLASK_ENV", "development")
+    prefix = ""
+
+    if environment != "production":
+        prefix = f"[{environment.upper()}]"
+
+    return f"{prefix} {subject}"
+
+
 def get_from_email_internal() -> str:
     """Get the internal email sender address from configuration."""
     if not current_app.config.get("FROM_EMAIL_INTERNAL"):

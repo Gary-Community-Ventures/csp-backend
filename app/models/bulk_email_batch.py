@@ -81,6 +81,18 @@ class BulkEmailBatch(db.Model):
         self.completed_at = datetime.utcnow()
         self.update_status()
 
+    def mark_all_sent(self, count: int, status_code: int = None):
+        """Mark all emails in batch as successfully sent."""
+        self.successful_sends = count
+        self.failed_sends = 0
+        self.update_status()
+
+    def mark_all_failed(self, count: int):
+        """Mark all emails in batch as failed."""
+        self.successful_sends = 0
+        self.failed_sends = count
+        self.status = BatchStatus.FAILED
+
     @classmethod
     def get_recent_batches(cls, limit: int = 10):
         """Get recent batches ordered by creation date"""
