@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from flask import current_app
 
 from app.models import AllocatedCareDay
+from app.supabase.helpers import format_name
+from app.supabase.tables import Child
 from app.utils.email.config import (
     get_from_email_external,
     get_internal_email_config,
@@ -21,8 +23,7 @@ class SystemMessageRow:
 
 
 def html_link(link: str, text: str):
-    """Create an HTML link element."""
-    return f'<a href="{link}">{text}</a>'
+    return f"<a href='{link}' style='color: #0066cc; text-decoration: underline;'>{text}</a>"
 
 
 def system_message(subject: str, description: str, rows: list[SystemMessageRow]):
@@ -457,16 +458,9 @@ def send_family_invited_email(provider_name: str, provider_id: str, family_email
     rows = [
         SystemMessageRow(
             title="Provider Name",
-            value=provider_name,
+            value=f"{provider_name} (ID: {provider_id})",
         ),
-        SystemMessageRow(
-            title="Provider ID",
-            value=provider_id,
-        ),
-        SystemMessageRow(
-            title="Family Email",
-            value=family_email,
-        ),
+        SystemMessageRow(title="Family Email", value=family_email),
         SystemMessageRow(
             title="Invite ID",
             value=id,
@@ -474,7 +468,7 @@ def send_family_invited_email(provider_name: str, provider_id: str, family_email
     ]
 
     subject = "Provider Has Invited A Family Notification"
-    description = f"A provider has invited a family to join:"
+    description = f"A proivder has invited a family:"
     html_content = system_message(subject, description, rows)
 
     return send_email(
@@ -494,29 +488,37 @@ def send_family_invited_email(provider_name: str, provider_id: str, family_email
 
 
 def send_family_invite_accept_email(
-    family_name: str, family_id: str, provider_name: str, provider_id: str, child_name: str, child_id: str
+    provider_name: str,
+    provider_id: str,
+    parent_name: str,
+    parent_id: str,
+    children: list[dict],
 ):
     """Send notification when a family accepts a provider's invite."""
     from_email, to_emails = get_internal_email_config()
 
     current_app.logger.info(
-        f"Sending accept invite request email to {to_emails} for provider ID: {provider_id} for family ID: {family_id} for child ID: {child_id}"
+        f"Sending accept invite request email to {to_emails} for provider ID: {provider_id} for family ID: {parent_id} for child IDs: {[Child.ID(c) for c in children]}"
     )
 
     rows = [
-        SystemMessageRow(
-            title="Family Name",
-            value=f"{family_name} (ID: {family_id})",
-        ),
         SystemMessageRow(
             title="Provider Name",
             value=f"{provider_name} (ID: {provider_id})",
         ),
         SystemMessageRow(
-            title="Child Name",
-            value=f"{child_name} (ID: {child_id})",
+            title=f"Parent Name",
+            value=f"{parent_name} (ID: {parent_id})",
         ),
     ]
+
+    for child in children:
+        rows.append(
+            SystemMessageRow(
+                title="Child Name",
+                value=f"{format_name(child)} (ID: {Child.ID(child)})",
+            )
+        )
 
     subject = "New Add Family Invite Accepted Notification"
     description = f"A new family invite request has been accepted:"

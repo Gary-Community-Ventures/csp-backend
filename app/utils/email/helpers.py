@@ -4,7 +4,7 @@ Helper utilities for email functionality.
 
 import sys
 import traceback
-from typing import Any, Optional
+from typing import Optional
 
 import sentry_sdk
 from flask import current_app
