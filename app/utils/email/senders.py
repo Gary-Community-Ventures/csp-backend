@@ -435,7 +435,7 @@ def send_payment_notification(
 
     return send_email(
         from_email=from_email,
-        to_emails=provider_email,
+        to_emails=[provider_email],
         subject=subject,
         html_content=html_content,
         email_type="payment_notification",
