@@ -9,12 +9,9 @@ from app.models import Attendance
 from app.supabase.columns import Status
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child, Family, Guardian, Provider
-from app.utils.email_service import (
-    BulkEmailData,
-    bulk_send_emails,
-    get_from_email_external,
-    html_link,
-)
+from app.utils.email.config import get_from_email_external
+from app.utils.email.core import BulkEmailData, bulk_send_emails
+from app.utils.email.senders import html_link
 from app.utils.sms_service import BulkSmsData, bulk_send_sms
 
 # Create Flask app context
@@ -166,7 +163,9 @@ def create_attendance():
             )
         )
 
-    bulk_send_emails(get_from_email_external(), bulk_emails)
+    # Send emails with batch tracking
+    batch_name = f"Attendance Reminder - {last_week_date}"
+    bulk_send_emails(get_from_email_external(), bulk_emails, batch_name=batch_name)
     bulk_send_sms(bulk_sms)
 
     current_app.logger.info("create_attendance: Finished sending attendance emails and SMS.")

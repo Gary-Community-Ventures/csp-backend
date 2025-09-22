@@ -22,10 +22,10 @@ from app.services.allocation_service import AllocationService
 from app.supabase.helpers import cols, format_name, unwrap_or_abort
 from app.supabase.tables import Child, Family, Guardian, Provider
 from app.utils.date_utils import get_current_month_start, get_next_month_start
-from app.utils.email_service import (
-    get_from_email_internal,
+from app.utils.email.config import get_from_email_internal
+from app.utils.email.core import send_email
+from app.utils.email.senders import (
     html_link,
-    send_email,
     send_provider_invite_accept_email,
     send_provider_invited_email,
 )

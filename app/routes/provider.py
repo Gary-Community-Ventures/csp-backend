@@ -31,10 +31,10 @@ from app.schemas.provider_payment import (
 )
 from app.supabase.helpers import UnwrapError, cols, format_name, unwrap_or_abort
 from app.supabase.tables import Child, Family, Guardian, Provider
-from app.utils.email_service import (
-    get_from_email_internal,
+from app.utils.email.config import get_from_email_internal
+from app.utils.email.core import send_email
+from app.utils.email.senders import (
     html_link,
-    send_email,
     send_family_invite_accept_email,
     send_family_invited_email,
 )

@@ -39,6 +39,10 @@ class EmailLog(db.Model, TimestampMixin):
     context_data = db.Column(db.JSON, nullable=True)  # Additional context like provider_id, child_id, etc.
     is_internal = db.Column(db.Boolean, nullable=False, default=False, index=True)  # True if sent to internal team
 
+    # Bulk Email Tracking
+    bulk_batch_id = db.Column(UUID(as_uuid=True), db.ForeignKey("bulk_email_batch.id"), nullable=True)
+    bulk_batch = db.relationship("BulkEmailBatch", back_populates="email_logs")
+
     @property
     def recipients_count(self):
         """Get the number of recipients"""
