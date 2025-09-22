@@ -19,13 +19,18 @@ def get_from_email_external() -> str:
     return str(current_app.config.get("FROM_EMAIL_EXTERNAL"))
 
 
-def get_internal_emails() -> tuple[str, list[str]]:
-    """Get internal email configuration (from address and recipient list)."""
-    # Ensure email addresses are strings
-    from_email = get_from_email_internal()
+def get_internal_email_recipients() -> list[str]:
+    """Get internal email recipient list."""
     to_emails = current_app.config.get("INTERNAL_EMAIL_RECIPIENTS", [])
 
     # Filter out empty strings from the list (in case of trailing commas in env var)
     to_emails = [email.strip() for email in to_emails if email.strip()]
 
+    return to_emails
+
+
+def get_internal_email_config() -> tuple[str, list[str]]:
+    """Get internal email configuration (from address and recipient list)."""
+    from_email = get_from_email_internal()
+    to_emails = get_internal_email_recipients()
     return from_email, to_emails

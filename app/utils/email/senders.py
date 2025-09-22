@@ -9,7 +9,7 @@ from flask import current_app
 from app.models import AllocatedCareDay
 from app.utils.email.config import (
     get_from_email_external,
-    get_internal_emails,
+    get_internal_email_config,
 )
 from app.utils.email.core import send_email
 
@@ -67,7 +67,7 @@ def send_care_days_payment_email(
     """Send email notification for care days payment processing."""
     amount_dollars = amount_in_cents / 100
 
-    from_email, to_emails = get_internal_emails()
+    from_email, to_emails = get_internal_email_config()
 
     current_app.logger.info(
         f"Sending payment processed notification to {to_emails} for provider ID: {provider_id} from child ID: {child_id}"
@@ -132,7 +132,7 @@ def send_lump_sum_payment_email(
     """Send email notification for lump sum payment processing."""
     amount_dollars = amount_in_cents / 100
 
-    from_email, to_emails = get_internal_emails()
+    from_email, to_emails = get_internal_email_config()
 
     current_app.logger.info(
         f"Sending lump sum payment processed email to {to_emails} for provider ID: {provider_id} from child ID: {child_id}"
@@ -185,7 +185,7 @@ def send_lump_sum_payment_email(
 
 def send_provider_invited_email(family_name: str, family_id: str, provider_email: str, ids: list[str]):
     """Send notification when a family invites a provider."""
-    from_email, to_emails = get_internal_emails()
+    from_email, to_emails = get_internal_email_config()
 
     current_app.logger.info(f"Sending invite sent request email to {to_emails} for family ID: {family_id}")
 
@@ -232,7 +232,7 @@ def send_provider_invite_accept_email(
     provider_name: str, provider_id: str, parent_name: str, parent_id: str, child_name: str, child_id: str
 ):
     """Send notification when a provider accepts an invite."""
-    from_email, to_emails = get_internal_emails()
+    from_email, to_emails = get_internal_email_config()
 
     current_app.logger.info(
         f"Sending accept invite request email to {to_emails} for family ID: {parent_id} for provider ID: {provider_id} for child ID: {child_id}"
@@ -277,7 +277,7 @@ def send_provider_invite_accept_email(
 
 def send_new_payment_rate_email(provider_id: str, child_id: str, half_day_rate_cents: int, full_day_rate_cents: int):
     """Send notification when a new payment rate is created."""
-    from_email, to_emails = get_internal_emails()
+    from_email, to_emails = get_internal_email_config()
 
     current_app.logger.info(
         f"Sending new payment rate email to {to_emails} for child ID: {child_id} for provider ID: {provider_id}"
@@ -450,7 +450,7 @@ def send_payment_notification(
 
 def send_family_invited_email(provider_name: str, provider_id: str, family_email: str, id: str):
     """Send notification when a provider invites a family."""
-    from_email, to_emails = get_internal_emails()
+    from_email, to_emails = get_internal_email_config()
 
     current_app.logger.info(f"Sending invite sent request email to {to_emails} for provider ID: {provider_id}")
 
@@ -497,7 +497,7 @@ def send_family_invite_accept_email(
     family_name: str, family_id: str, provider_name: str, provider_id: str, child_name: str, child_id: str
 ):
     """Send notification when a family accepts a provider's invite."""
-    from_email, to_emails = get_internal_emails()
+    from_email, to_emails = get_internal_email_config()
 
     current_app.logger.info(
         f"Sending accept invite request email to {to_emails} for provider ID: {provider_id} for family ID: {family_id} for child ID: {child_id}"
