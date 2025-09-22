@@ -1,16 +1,17 @@
 """email log model
 
-Revision ID: 2044edc7a81e
+Revision ID: ba1b2a344dba
 Revises: e8385996b8f1
-Create Date: 2025-09-22 21:01:35.265314
+Create Date: 2025-09-22 22:06:55.677683
 
 """
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = "2044edc7a81e"
+revision = "ba1b2a344dba"
 down_revision = "e8385996b8f1"
 branch_labels = None
 depends_on = None
@@ -32,7 +33,7 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("started_at", sa.DateTime(), nullable=True),
         sa.Column("completed_at", sa.DateTime(), nullable=True),
-        sa.Column("batch_metadata", sa.JSON(), nullable=True),
+        sa.Column("batch_metadata", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
     with op.batch_alter_table("bulk_email_batch", schema=None) as batch_op:
@@ -42,7 +43,7 @@ def upgrade():
         "email_log",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("from_email", sa.String(length=255), nullable=False),
-        sa.Column("to_emails", sa.JSON(), nullable=False),
+        sa.Column("to_emails", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("subject", sa.String(length=500), nullable=False),
         sa.Column("html_content", sa.Text(), nullable=False),
         sa.Column("from_name", sa.String(length=100), nullable=False),
@@ -53,7 +54,7 @@ def upgrade():
         sa.Column("sendgrid_message_id", sa.String(length=100), nullable=True),
         sa.Column("sendgrid_status_code", sa.Integer(), nullable=True),
         sa.Column("email_type", sa.String(length=50), nullable=True),
-        sa.Column("context_data", sa.JSON(), nullable=True),
+        sa.Column("context_data", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("is_internal", sa.Boolean(), nullable=False),
         sa.Column("bulk_batch_id", sa.UUID(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),

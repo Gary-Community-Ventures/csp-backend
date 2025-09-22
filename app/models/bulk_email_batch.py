@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.extensions import db
 
@@ -42,7 +42,7 @@ class BulkEmailBatch(db.Model):
     completed_at = db.Column(db.DateTime)
 
     # Additional context for attendance reminders
-    batch_metadata = db.Column(db.JSON)  # Can store: week_date, provider_count, family_count
+    batch_metadata = db.Column(JSONB)  # Can store: week_date, provider_count, family_count
 
     # Relationships
     email_logs = db.relationship("EmailLog", back_populates="bulk_batch", lazy="dynamic")

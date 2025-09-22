@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from ..extensions import db
 from .mixins import TimestampMixin
@@ -19,7 +19,7 @@ class EmailLog(db.Model, TimestampMixin):
 
     # Email Details
     from_email = db.Column(db.String(255), nullable=False, index=True)
-    to_emails = db.Column(db.JSON, nullable=False)  # Array of recipient email addresses
+    to_emails = db.Column(JSONB, nullable=False)  # Array of recipient email addresses
     subject = db.Column(db.String(500), nullable=False)  # Increased for prefixed subjects
     html_content = db.Column(db.Text, nullable=False)
     from_name = db.Column(db.String(100), nullable=False, default="CAP Support")
@@ -36,7 +36,7 @@ class EmailLog(db.Model, TimestampMixin):
 
     # Context & Metadata
     email_type = db.Column(db.String(50), nullable=True, index=True)  # "payment_notification", "provider_invite", etc.
-    context_data = db.Column(db.JSON, nullable=True)  # Additional context like provider_id, child_id, etc.
+    context_data = db.Column(JSONB, nullable=True)  # Additional context like provider_id, child_id, etc.
     is_internal = db.Column(db.Boolean, nullable=False, default=False, index=True)  # True if sent to internal team
 
     # Bulk Email Tracking

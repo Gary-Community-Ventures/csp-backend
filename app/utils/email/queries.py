@@ -2,7 +2,7 @@
 Email query functions for searching, filtering, and analyzing email logs.
 """
 
-from sqlalchemy import String, cast, func, or_
+from sqlalchemy import String, cast, or_
 
 from app.models.email_log import EmailLog
 
@@ -75,13 +75,6 @@ def get_emails_by_domain(domain: str) -> list[EmailLog]:
     return EmailLog.get_emails_by_any_recipient_contains(domain)
 
 
-def get_broadcast_emails() -> list[EmailLog]:
-    """Get all emails sent to multiple recipients (broadcasts)."""
-    return (
-        EmailLog.query.filter(func.json_array_length(EmailLog.to_emails) > 1).order_by(EmailLog.created_at.desc()).all()
-    )
-
-
 def get_email_stats() -> dict:
     """Get overall email statistics."""
     total = EmailLog.query.count()
@@ -97,5 +90,4 @@ def get_email_stats() -> dict:
         "success_rate": f"{(sent/total*100):.1f}%" if total > 0 else "0%",
         "internal": internal,
         "external": external,
-        "broadcasts": get_broadcast_emails(),
     }
