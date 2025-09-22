@@ -521,7 +521,7 @@ def send_family_invite_accept_email(
         )
 
     subject = "New Add Family Invite Accepted Notification"
-    description = f"A new family invite request has been accepted:"
+    description = f"A new family invite has been accepted:"
     html_content = system_message(subject, description, rows)
 
     return send_email(
