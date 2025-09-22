@@ -531,12 +531,10 @@ def send_family_invite_accept_email(
         html_content=html_content,
         email_type="family_invite_accepted",
         context_data={
-            "family_name": family_name,
-            "family_id": family_id,
+            "parent_name": parent_name,
+            "parent_id": parent_id,
             "provider_name": provider_name,
             "provider_id": provider_id,
-            "child_name": child_name,
-            "child_id": child_id,
         },
         is_internal=True,
     )
