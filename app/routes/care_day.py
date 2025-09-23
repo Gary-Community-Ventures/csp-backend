@@ -96,7 +96,7 @@ def update_care_day(care_day_id):
         )
         # If changing the type results in over-allocation, soft delete the care day
         # As that resets the day to the default empty state
-        if care_day.care_month_allocation.remaining_unselected_cents - care_day.amount_cents < new_cost:
+        if care_day.care_month_allocation.remaining_unselected_cents + care_day.amount_cents < new_cost:
             care_day.soft_delete()
             return jsonify(AllocatedCareDayResponse.model_validate(care_day).model_dump())
         else:
