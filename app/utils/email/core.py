@@ -4,6 +4,7 @@ Core email sending functionality with SendGrid integration and logging.
 
 from dataclasses import dataclass
 from datetime import datetime
+from http import HTTPStatus
 from typing import Union
 
 from flask import current_app
@@ -179,7 +180,7 @@ def bulk_send_emails(from_email: str, data: list[BulkEmailData], batch_name: str
         current_app.logger.info(f"SendGrid emails sent with status code: {response.status_code}")
 
         # Update tracking on success
-        if response.status_code in [200, 202]:
+        if response.status_code in [HTTPStatus.OK, HTTPStatus.ACCEPTED]:
             for record in email_records:
                 record.status = EmailStatus.SENT
                 record.sendgrid_status_code = response.status_code
