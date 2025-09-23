@@ -1,8 +1,8 @@
 """email log model
 
-Revision ID: ba1b2a344dba
+Revision ID: 2b1592a23861
 Revises: e8385996b8f1
-Create Date: 2025-09-22 22:06:55.677683
+Create Date: 2025-09-23 15:49:05.989416
 
 """
 
@@ -11,7 +11,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = "ba1b2a344dba"
+revision = "2b1592a23861"
 down_revision = "e8385996b8f1"
 branch_labels = None
 depends_on = None
@@ -68,7 +68,6 @@ def upgrade():
     with op.batch_alter_table("email_log", schema=None) as batch_op:
         batch_op.create_index(batch_op.f("ix_email_log_email_type"), ["email_type"], unique=False)
         batch_op.create_index(batch_op.f("ix_email_log_from_email"), ["from_email"], unique=False)
-        batch_op.create_index(batch_op.f("ix_email_log_id"), ["id"], unique=False)
         batch_op.create_index(batch_op.f("ix_email_log_is_internal"), ["is_internal"], unique=False)
         batch_op.create_index(batch_op.f("ix_email_log_status"), ["status"], unique=False)
 
@@ -92,7 +91,6 @@ def downgrade():
     with op.batch_alter_table("email_log", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_email_log_status"))
         batch_op.drop_index(batch_op.f("ix_email_log_is_internal"))
-        batch_op.drop_index(batch_op.f("ix_email_log_id"))
         batch_op.drop_index(batch_op.f("ix_email_log_from_email"))
         batch_op.drop_index(batch_op.f("ix_email_log_email_type"))
 

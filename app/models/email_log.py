@@ -15,7 +15,7 @@ class EmailStatus:
 class EmailLog(db.Model, TimestampMixin):
     __tablename__ = "email_log"
 
-    id = db.Column(UUID(as_uuid=True), index=True, primary_key=True, default=uuid.uuid4)
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Email Details
     from_email = db.Column(db.String(255), nullable=False, index=True)
