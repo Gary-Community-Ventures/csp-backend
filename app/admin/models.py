@@ -37,6 +37,6 @@ ADMIN_MODELS = [
     ModelAdminConfig(Payment, "Payments", "Financial", "PaymentAdminView"),
     ModelAdminConfig(PaymentAttempt, "Payment Attempts", "Financial", "PaymentAttemptAdminView"),
     ModelAdminConfig(PaymentIntent, "Payment Intents", "Financial", "PaymentIntentAdminView"),
-    ModelAdminConfig(EmailRecord, "Email Logs", "System"),
+    ModelAdminConfig(EmailRecord, "Email Records", "System"),
     ModelAdminConfig(BulkEmailBatch, "Bulk Email Batches", "System"),
 ]
