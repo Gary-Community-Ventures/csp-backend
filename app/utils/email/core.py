@@ -185,10 +185,14 @@ def bulk_send_emails(from_email: str, data: list[BulkEmailData], batch_name: str
 
         # Update tracking on success
         if response.status_code in [HTTPStatus.OK, HTTPStatus.ACCEPTED]:
+            # Extract message ID from response for bulk emails too
+            sendgrid_message_id = extract_sendgrid_message_id(response)
+
             for record in email_records:
                 record.status = EmailStatus.SENT
                 record.sendgrid_status_code = response.status_code
-            batch.mark_all_sent(len(email_records))
+                record.sendgrid_message_id = sendgrid_message_id
+            batch.mark_all_sent()
 
         batch.mark_completed()
         db.session.commit()
@@ -208,7 +212,7 @@ def bulk_send_emails(from_email: str, data: list[BulkEmailData], batch_name: str
             record.status = EmailStatus.FAILED
             record.error_message = str(e)[:500]
 
-        batch.mark_all_failed(len(email_records))
+        batch.mark_all_failed()
         batch.mark_completed()
         db.session.commit()
 

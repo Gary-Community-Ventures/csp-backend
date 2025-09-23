@@ -10,6 +10,7 @@ from sendgrid.helpers.mail import Mail
 from app.extensions import db
 from app.models.email_record import EmailRecord
 from app.utils.email.config import add_subject_prefix
+from app.utils.email.helpers import extract_sendgrid_message_id
 from app.utils.email.queries import get_failed_emails
 
 
@@ -46,13 +47,10 @@ def retry_failed_email(email_record_id: str) -> bool:
         sendgrid_client = SendGridAPIClient(current_app.config.get("SENDGRID_API_KEY"))
         response = sendgrid_client.send(message)
 
-        # Extract message ID from response headers if available
-        sendgrid_message_id = None
-        if hasattr(response, "headers") and "X-Message-Id" in response.headers:
-            sendgrid_message_id = response.headers["X-Message-Id"]
-
         # Update the same record as successful
-        email_record.mark_as_sent(sendgrid_message_id=sendgrid_message_id, sendgrid_status_code=response.status_code)
+        email_record.mark_as_sent(
+            sendgrid_message_id=extract_sendgrid_message_id(response), sendgrid_status_code=response.status_code
+        )
         db.session.add(email_record)
         db.session.commit()
 
