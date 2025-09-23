@@ -25,9 +25,6 @@ from app.models import (
 business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
 
 
-# Helper functions removed - using hardcoded predictable dates instead
-
-
 @pytest.fixture
 def seed_db(app):
     with app.app_context():
