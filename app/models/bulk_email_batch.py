@@ -5,6 +5,8 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.extensions import db
 
+from .mixins import TimestampMixin
+
 
 class BatchStatus:
     """Email batch status constants"""
@@ -16,7 +18,7 @@ class BatchStatus:
     FAILED = "failed"
 
 
-class BulkEmailBatch(db.Model):
+class BulkEmailBatch(db.Model, TimestampMixin):
     """Model to track bulk email sends for attendance reminders and other campaigns"""
 
     __tablename__ = "bulk_email_batch"
@@ -81,16 +83,16 @@ class BulkEmailBatch(db.Model):
         self.completed_at = datetime.utcnow()
         self.update_status()
 
-    def mark_all_sent(self, count: int, status_code: int = None):
+    def mark_all_sent(self):
         """Mark all emails in batch as successfully sent."""
-        self.successful_sends = count
+        self.successful_sends = self.total_recipients
         self.failed_sends = 0
         self.update_status()
 
-    def mark_all_failed(self, count: int):
+    def mark_all_failed(self):
         """Mark all emails in batch as failed."""
         self.successful_sends = 0
-        self.failed_sends = count
+        self.failed_sends = self.total_recipients
         self.status = BatchStatus.FAILED
 
     @classmethod

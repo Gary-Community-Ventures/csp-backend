@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
@@ -145,21 +146,15 @@ class EmailRecord(db.Model, TimestampMixin):
         self.status = EmailStatus.SENT
         self.sendgrid_message_id = sendgrid_message_id
         self.sendgrid_status_code = sendgrid_status_code
-        self.last_attempt_at = db.func.current_timestamp()
-        db.session.commit()
+        self.last_attempt_at = datetime.now(timezone.utc)
 
     def mark_as_failed(self, error_message=None, sendgrid_status_code=None):
         """Mark email as failed and increment attempt count"""
         self.status = EmailStatus.FAILED
         self.error_message = error_message
         self.sendgrid_status_code = sendgrid_status_code
-        # Ensure attempt_count is not None before incrementing
-        if self.attempt_count is None:
-            self.attempt_count = 1
-        else:
-            self.attempt_count += 1
-        self.last_attempt_at = db.func.current_timestamp()
-        db.session.commit()
+        self.attempt_count += 1
+        self.last_attempt_at = datetime.now(timezone.utc)
 
     def __repr__(self):
         internal_status = "Internal" if self.is_internal else "External"

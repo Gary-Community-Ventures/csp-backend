@@ -98,6 +98,8 @@ def send_email(
 
         # Mark as successful
         email_record.mark_as_sent(sendgrid_message_id=sendgrid_message_id, sendgrid_status_code=response.status_code)
+        db.session.add(email_record)
+        db.session.commit()
 
         current_app.logger.info(f"SendGrid email sent with status code: {response.status_code}")
         return True
@@ -115,6 +117,8 @@ def send_email(
 
         # Mark as failed
         email_record.mark_as_failed(error_message=error_message, sendgrid_status_code=sendgrid_status_code)
+        db.session.add(email_record)
+        db.session.commit()
 
         return False
 

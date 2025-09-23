@@ -7,6 +7,7 @@ from flask import current_app
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
+from app.extensions import db
 from app.models.email_record import EmailRecord
 from app.utils.email.config import add_subject_prefix
 from app.utils.email.queries import get_failed_emails
@@ -52,6 +53,8 @@ def retry_failed_email(email_record_id: str) -> bool:
 
         # Update the same record as successful
         email_record.mark_as_sent(sendgrid_message_id=sendgrid_message_id, sendgrid_status_code=response.status_code)
+        db.session.add(email_record)
+        db.session.commit()
 
         current_app.logger.info(
             f"Successfully retried email {email_record_id} with status code: {response.status_code}"
@@ -64,6 +67,8 @@ def retry_failed_email(email_record_id: str) -> bool:
         sendgrid_status_code = getattr(e, "status_code", None)
 
         email_record.mark_as_failed(error_message=error_message, sendgrid_status_code=sendgrid_status_code)
+        db.session.add(email_record)
+        db.session.commit()
 
         current_app.logger.error(f"Failed to retry email {email_record_id}: {e}")
 
