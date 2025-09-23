@@ -121,26 +121,6 @@ class EmailRecord(db.Model, TimestampMixin):
         # Cast JSON to string and search within it
         return cls.query.filter(cast(cls.to_emails, String).ilike(f"%{search_term}%"))
 
-    @classmethod
-    def get_emails_containing_all_recipients(cls, recipient_list: list):
-        """Get emails that include ALL specified recipients (but may include others too)"""
-        # Use PostgreSQL's @> operator to check if to_emails contains all recipients
-        return cls.query.filter(cls.to_emails.op("@>")(recipient_list))
-
-    @classmethod
-    def search_emails(cls, search_term: str):
-        """Search emails by sender, recipients, or subject
-        Returns emails where search_term appears in from_email, to_emails, or subject"""
-        from sqlalchemy import String, cast, or_
-
-        return cls.query.filter(
-            or_(
-                cls.from_email.ilike(f"%{search_term}%"),
-                cls.subject.ilike(f"%{search_term}%"),
-                cast(cls.to_emails, String).ilike(f"%{search_term}%"),
-            )
-        )
-
     def mark_as_sent(self, sendgrid_message_id=None, sendgrid_status_code=None):
         """Mark email as successfully sent"""
         self.status = EmailStatus.SENT
