@@ -140,10 +140,9 @@ def bulk_send_emails(from_email: str, data: list[BulkEmailData], email_type: str
 
     batch = BulkEmailBatch(
         batch_name=batch_name,
-        batch_type="bulk_send",
+        batch_type=email_type,
         total_recipients=len(data),
         from_email=from_email,
-        initiated_by="bulk_send_emails",
     )
     db.session.add(batch)
     db.session.flush()

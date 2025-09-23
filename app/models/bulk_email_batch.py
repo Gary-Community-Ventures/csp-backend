@@ -35,7 +35,6 @@ class BulkEmailBatch(db.Model, TimestampMixin):
 
     # Status tracking
     status = db.Column(db.String(50), nullable=False, default=BatchStatus.PENDING, index=True)
-    initiated_by = db.Column(db.String(255))  # e.g., "attendance_cron", "admin_user"
     from_email = db.Column(db.String(255), nullable=False)
 
     # Timestamps
@@ -96,17 +95,6 @@ class BulkEmailBatch(db.Model, TimestampMixin):
         self.status = BatchStatus.FAILED
 
     @classmethod
-    def get_recent_batches(cls, limit: int = 10):
-        """Get recent batches ordered by creation date"""
-        return cls.query.order_by(cls.created_at.desc()).limit(limit)
-
-    @classmethod
-    def get_attendance_batches(cls, limit: int = 10):
-        """Get recent attendance reminder batches"""
-        return cls.query.filter_by(batch_type="attendance_reminder").order_by(cls.created_at.desc()).limit(limit)
-
-    def get_failed_emails(self):
-        """Get all failed email records in this batch"""
-        from app.models.email_record import EmailStatus
-
-        return self.email_records.filter_by(status=EmailStatus.FAILED)
+    def get_batches_by_type(cls, batch_type: str, limit: int = 10):
+        """Get recent batches by type"""
+        return cls.query.filter_by(batch_type=batch_type).order_by(cls.created_at.desc()).limit(limit)
