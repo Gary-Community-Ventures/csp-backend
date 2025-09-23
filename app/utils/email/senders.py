@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from flask import current_app
 
+from app.enums.email_type import EmailType
 from app.models import AllocatedCareDay
 from app.supabase.helpers import format_name
 from app.supabase.tables import Child
@@ -109,7 +110,7 @@ def send_care_days_payment_email(
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
-        email_type="care_days_payment",
+        email_type=EmailType.CARE_DAYS_PAYMENT,
         context_data={
             "provider_id": provider_id,
             "child_id": child_id,
@@ -172,7 +173,7 @@ def send_lump_sum_payment_email(
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
-        email_type="lump_sum_payment",
+        email_type=EmailType.LUMP_SUM_PAYMENT,
         context_data={
             "provider_id": provider_id,
             "child_id": child_id,
@@ -218,7 +219,7 @@ def send_provider_invited_email(family_name: str, family_id: str, provider_email
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
-        email_type="provider_invited",
+        email_type=EmailType.PROVIDER_INVITED,
         context_data={
             "family_name": family_name,
             "family_id": family_id,
@@ -263,7 +264,7 @@ def send_provider_invite_accept_email(
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
-        email_type="provider_invite_accepted",
+        email_type=EmailType.PROVIDER_INVITE_ACCEPTED,
         context_data={
             "provider_name": provider_name,
             "provider_id": provider_id,
@@ -312,7 +313,7 @@ def send_new_payment_rate_email(provider_id: str, child_id: str, half_day_rate_c
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
-        email_type="payment_rate_created",
+        email_type=EmailType.PAYMENT_RATE_CREATED,
         context_data={
             "provider_id": provider_id,
             "child_id": child_id,
@@ -438,7 +439,7 @@ def send_payment_notification(
         to_emails=[provider_email],
         subject=subject,
         html_content=html_content,
-        email_type="payment_notification",
+        email_type=EmailType.PAYMENT_NOTIFICATION,
         context_data={
             "provider_id": provider_id,
             "child_id": child_id,
@@ -476,7 +477,7 @@ def send_family_invited_email(provider_name: str, provider_id: str, family_email
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
-        email_type="family_invited",
+        email_type=EmailType.FAMILY_INVITED,
         context_data={
             "provider_name": provider_name,
             "provider_id": provider_id,
@@ -529,7 +530,7 @@ def send_family_invite_accept_email(
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
-        email_type="family_invite_accepted",
+        email_type=EmailType.FAMILY_INVITE_ACCEPTED,
         context_data={
             "parent_name": parent_name,
             "parent_id": parent_id,

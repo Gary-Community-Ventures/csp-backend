@@ -1,6 +1,6 @@
-import sentry_sdk
 from flask import current_app
 
+from app.enums.email_type import EmailType
 from app.models.email_record import EmailRecord
 from app.utils.email.core import send_email
 
@@ -41,8 +41,8 @@ def resend_email(email_record_id: str) -> bool:
         to_emails=email_record.to_emails,
         subject=email_record.subject,
         html_content=email_record.html_content,
+        email_type=EmailType.RESEND,  # Mark as resend type
         from_name=email_record.from_name,
-        email_type="resend",  # Mark as resend type
         context_data=resend_context,  # Include original reference and context
         is_internal=email_record.is_internal,
     )

@@ -4,6 +4,7 @@ from datetime import date
 from flask import current_app
 
 from app import create_app
+from app.enums.email_type import EmailType
 from app.extensions import db
 from app.models import Attendance
 from app.supabase.columns import Status
@@ -165,7 +166,7 @@ def create_attendance():
 
     # Send emails with batch tracking
     batch_name = f"Attendance Reminder - {last_week_date}"
-    bulk_send_emails(get_from_email_external(), bulk_emails, batch_name=batch_name)
+    bulk_send_emails(get_from_email_external(), bulk_emails, EmailType.ATTENDANCE_REMINDER, batch_name=batch_name)
     bulk_send_sms(bulk_sms)
 
     current_app.logger.info("create_attendance: Finished sending attendance emails and SMS.")

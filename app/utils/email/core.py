@@ -35,8 +35,8 @@ def send_email(
     to_emails: Union[str, list[str]],
     subject: str,
     html_content: str,
+    email_type: str,
     from_name: str = "CAP Support",
-    email_type: str = None,
     context_data: dict = None,
     is_internal: bool = False,
 ) -> bool:
@@ -47,14 +47,13 @@ def send_email(
     :param to_emails: Recipient email address(es).
     :param subject: Subject of the email.
     :param html_content: HTML content of the email.
+    :param email_type: Type of email for categorization (required).
     :param from_name: Sender's display name.
-    :param email_type: Type of email for categorization.
     :param context_data: Additional context for logging.
     :param is_internal: Whether this is an internal email.
     :return: True if the email was sent successfully, False otherwise.
     """
     # Default values for optional parameters
-    email_type = email_type or "legacy"
     context_data = context_data or {}
 
     # Normalize to_emails to a list for consistent storage
@@ -123,12 +122,13 @@ def send_email(
         return False
 
 
-def bulk_send_emails(from_email: str, data: list[BulkEmailData], batch_name: str = None):
+def bulk_send_emails(from_email: str, data: list[BulkEmailData], email_type: str, batch_name: str = None):
     """
     Send bulk emails with tracking via BulkEmailBatch model.
 
     :param from_email: Sender's email address.
     :param data: List of BulkEmailData with recipient information.
+    :param email_type: Type of email for categorization (required).
     :param batch_name: Optional name for the batch (for tracking).
     :return: True if successful, False otherwise.
     """
@@ -160,6 +160,7 @@ def bulk_send_emails(from_email: str, data: list[BulkEmailData], batch_name: str
             html_content=item.html_content,
             status=EmailStatus.PENDING,
             bulk_batch_id=batch.id,
+            email_type=email_type,
         )
         email_records.append(record)
         db.session.add(record)
