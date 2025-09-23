@@ -1,8 +1,8 @@
-"""email log model
+"""email record model
 
-Revision ID: 2b1592a23861
+Revision ID: 3aed93cca9bc
 Revises: e8385996b8f1
-Create Date: 2025-09-23 15:49:05.989416
+Create Date: 2025-09-23 16:11:20.165908
 
 """
 
@@ -11,7 +11,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = "2b1592a23861"
+revision = "3aed93cca9bc"
 down_revision = "e8385996b8f1"
 branch_labels = None
 depends_on = None
@@ -40,7 +40,7 @@ def upgrade():
         batch_op.create_index(batch_op.f("ix_bulk_email_batch_status"), ["status"], unique=False)
 
     op.create_table(
-        "email_log",
+        "email_record",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("from_email", sa.String(length=255), nullable=False),
         sa.Column("to_emails", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
@@ -65,11 +65,11 @@ def upgrade():
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    with op.batch_alter_table("email_log", schema=None) as batch_op:
-        batch_op.create_index(batch_op.f("ix_email_log_email_type"), ["email_type"], unique=False)
-        batch_op.create_index(batch_op.f("ix_email_log_from_email"), ["from_email"], unique=False)
-        batch_op.create_index(batch_op.f("ix_email_log_is_internal"), ["is_internal"], unique=False)
-        batch_op.create_index(batch_op.f("ix_email_log_status"), ["status"], unique=False)
+    with op.batch_alter_table("email_record", schema=None) as batch_op:
+        batch_op.create_index(batch_op.f("ix_email_record_email_type"), ["email_type"], unique=False)
+        batch_op.create_index(batch_op.f("ix_email_record_from_email"), ["from_email"], unique=False)
+        batch_op.create_index(batch_op.f("ix_email_record_is_internal"), ["is_internal"], unique=False)
+        batch_op.create_index(batch_op.f("ix_email_record_status"), ["status"], unique=False)
 
     with op.batch_alter_table("payment_rate", schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f("unique_provider_child_rate"), type_="unique")
@@ -88,13 +88,13 @@ def downgrade():
             postgresql_nulls_not_distinct=False,
         )
 
-    with op.batch_alter_table("email_log", schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f("ix_email_log_status"))
-        batch_op.drop_index(batch_op.f("ix_email_log_is_internal"))
-        batch_op.drop_index(batch_op.f("ix_email_log_from_email"))
-        batch_op.drop_index(batch_op.f("ix_email_log_email_type"))
+    with op.batch_alter_table("email_record", schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f("ix_email_record_status"))
+        batch_op.drop_index(batch_op.f("ix_email_record_is_internal"))
+        batch_op.drop_index(batch_op.f("ix_email_record_from_email"))
+        batch_op.drop_index(batch_op.f("ix_email_record_email_type"))
 
-    op.drop_table("email_log")
+    op.drop_table("email_record")
     with op.batch_alter_table("bulk_email_batch", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_bulk_email_batch_status"))
 

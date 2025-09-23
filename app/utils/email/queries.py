@@ -1,25 +1,25 @@
 """
-Email query functions for searching, filtering, and analyzing email logs.
+Email query functions for searching, filtering, and analyzing email records.
 """
 
 from sqlalchemy import String, cast, or_
 
-from app.models.email_log import EmailLog
+from app.models.email_record import EmailRecord
 
 
-def get_failed_emails() -> list[EmailLog]:
+def get_failed_emails() -> list[EmailRecord]:
     """Get all failed emails that can be retried."""
-    return EmailLog.get_failed_emails()
+    return EmailRecord.get_failed_emails()
 
 
-def get_failed_internal_emails() -> list[EmailLog]:
+def get_failed_internal_emails() -> list[EmailRecord]:
     """Get all failed internal emails."""
-    return EmailLog.get_failed_internal_emails()
+    return EmailRecord.get_failed_internal_emails()
 
 
-def get_failed_external_emails() -> list[EmailLog]:
+def get_failed_external_emails() -> list[EmailRecord]:
     """Get all failed external emails."""
-    return EmailLog.get_failed_external_emails()
+    return EmailRecord.get_failed_external_emails()
 
 
 def search_emails_by_address(email_address: str) -> dict:
@@ -33,8 +33,8 @@ def search_emails_by_address(email_address: str) -> dict:
     :param email_address: The email address to search for
     :return: Dictionary with sent and received emails
     """
-    sent_emails = EmailLog.get_emails_by_sender(email_address)
-    received_emails = EmailLog.get_emails_by_recipient(email_address)
+    sent_emails = EmailRecord.get_emails_by_sender(email_address)
+    received_emails = EmailRecord.get_emails_by_recipient(email_address)
 
     return {
         "sent_from": sent_emails,
@@ -45,43 +45,43 @@ def search_emails_by_address(email_address: str) -> dict:
     }
 
 
-def get_email_history_for_provider(provider_email: str) -> list[EmailLog]:
+def get_email_history_for_provider(provider_email: str) -> list[EmailRecord]:
     """Get all emails related to a provider."""
     return (
-        EmailLog.query.filter(
+        EmailRecord.query.filter(
             or_(
-                EmailLog.from_email == provider_email,
-                EmailLog.to_emails.contains([provider_email]),
-                cast(EmailLog.context_data, String).ilike(f"%{provider_email}%"),
+                EmailRecord.from_email == provider_email,
+                EmailRecord.to_emails.contains([provider_email]),
+                cast(EmailRecord.context_data, String).ilike(f"%{provider_email}%"),
             )
         )
-        .order_by(EmailLog.created_at.desc())
+        .order_by(EmailRecord.created_at.desc())
         .all()
     )
 
 
-def get_recent_emails(limit: int = 100) -> list[EmailLog]:
+def get_recent_emails(limit: int = 100) -> list[EmailRecord]:
     """Get the most recent emails."""
-    return EmailLog.query.order_by(EmailLog.created_at.desc()).limit(limit).all()
+    return EmailRecord.query.order_by(EmailRecord.created_at.desc()).limit(limit).all()
 
 
-def get_emails_by_domain(domain: str) -> list[EmailLog]:
+def get_emails_by_domain(domain: str) -> list[EmailRecord]:
     """
     Get all emails sent to any address at a specific domain.
 
     Example: get_emails_by_domain('@garycommunity.org')
     Will find all emails sent to anyone@garycommunity.org
     """
-    return EmailLog.get_emails_by_any_recipient_contains(domain)
+    return EmailRecord.get_emails_by_any_recipient_contains(domain)
 
 
 def get_email_stats() -> dict:
     """Get overall email statistics."""
-    total = EmailLog.query.count()
-    sent = EmailLog.query.filter(EmailLog.status == "sent").count()
-    failed = EmailLog.query.filter(EmailLog.status == "failed").count()
-    internal = EmailLog.query.filter(EmailLog.is_internal.is_(True)).count()
-    external = EmailLog.query.filter(EmailLog.is_internal.is_(False)).count()
+    total = EmailRecord.query.count()
+    sent = EmailRecord.query.filter(EmailRecord.status == "sent").count()
+    failed = EmailRecord.query.filter(EmailRecord.status == "failed").count()
+    internal = EmailRecord.query.filter(EmailRecord.is_internal.is_(True)).count()
+    external = EmailRecord.query.filter(EmailRecord.is_internal.is_(False)).count()
 
     return {
         "total_emails": total,

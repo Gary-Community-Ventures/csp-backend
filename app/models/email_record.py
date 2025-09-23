@@ -12,8 +12,8 @@ class EmailStatus:
     FAILED = "failed"
 
 
-class EmailLog(db.Model, TimestampMixin):
-    __tablename__ = "email_log"
+class EmailRecord(db.Model, TimestampMixin):
+    __tablename__ = "email_record"  # Keep table name for backward compatibility
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
@@ -41,7 +41,7 @@ class EmailLog(db.Model, TimestampMixin):
 
     # Bulk Email Tracking
     bulk_batch_id = db.Column(UUID(as_uuid=True), db.ForeignKey("bulk_email_batch.id"), nullable=True)
-    bulk_batch = db.relationship("BulkEmailBatch", back_populates="email_logs")
+    bulk_batch = db.relationship("BulkEmailBatch", back_populates="email_records")
 
     @property
     def recipients_count(self):
@@ -174,4 +174,4 @@ class EmailLog(db.Model, TimestampMixin):
 
     def __repr__(self):
         internal_status = "Internal" if self.is_internal else "External"
-        return f"<EmailLog {self.id} - Status: {self.status} - Type: {self.email_type} - {internal_status} - Recipients: {self.recipients_count}>"
+        return f"<EmailRecord {self.id} - Status: {self.status} - Type: {self.email_type} - {internal_status} - Recipients: {self.recipients_count}>"

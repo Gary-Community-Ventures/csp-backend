@@ -45,7 +45,7 @@ class BulkEmailBatch(db.Model):
     batch_metadata = db.Column(JSONB)  # Can store: week_date, provider_count, family_count
 
     # Relationships
-    email_logs = db.relationship("EmailLog", back_populates="bulk_batch", lazy="dynamic")
+    email_records = db.relationship("EmailRecord", back_populates="bulk_batch", lazy="dynamic")
 
     def __repr__(self):
         return f"<BulkEmailBatch {self.batch_name} - {self.status}>"
@@ -104,10 +104,10 @@ class BulkEmailBatch(db.Model):
         return cls.query.filter_by(batch_type="attendance_reminder").order_by(cls.created_at.desc()).limit(limit).all()
 
     def get_failed_emails(self):
-        """Get all failed email logs in this batch"""
-        from app.models.email_log import EmailStatus
+        """Get all failed email records in this batch"""
+        from app.models.email_record import EmailStatus
 
-        return self.email_logs.filter_by(status=EmailStatus.FAILED).all()
+        return self.email_records.filter_by(status=EmailStatus.FAILED).all()
 
     def to_dict(self) -> dict:
         """Convert batch to dictionary for API responses"""

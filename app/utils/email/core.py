@@ -11,7 +11,7 @@ from sendgrid import Personalization, SendGridAPIClient, Substitution, To
 from sendgrid.helpers.mail import Mail
 
 from app.extensions import db
-from app.models.email_log import EmailLog, EmailStatus
+from app.models.email_record import EmailRecord, EmailStatus
 from app.utils.email.config import add_subject_prefix
 from app.utils.email.helpers import (
     extract_sendgrid_message_id,
@@ -65,8 +65,8 @@ def send_email(
     # Serialize context data for JSON storage
     serializable_context = serialize_context_data(context_data)
 
-    # Create EmailLog record
-    email_log = EmailLog(
+    # Create EmailRecord
+    email_record = EmailRecord(
         from_email=from_email,
         to_emails=to_emails_list,
         subject=subject,
@@ -78,7 +78,7 @@ def send_email(
     )
 
     try:
-        db.session.add(email_log)
+        db.session.add(email_record)
         db.session.commit()
 
         # Send the email
@@ -96,7 +96,7 @@ def send_email(
         sendgrid_message_id = extract_sendgrid_message_id(response)
 
         # Mark as successful
-        email_log.mark_as_sent(sendgrid_message_id=sendgrid_message_id, sendgrid_status_code=response.status_code)
+        email_record.mark_as_sent(sendgrid_message_id=sendgrid_message_id, sendgrid_status_code=response.status_code)
 
         current_app.logger.info(f"SendGrid email sent with status code: {response.status_code}")
         return True
@@ -109,11 +109,11 @@ def send_email(
             to_emails=to_emails,
             subject=subject,
             email_type=email_type,
-            email_log_id=str(email_log.id),
+            email_record_id=str(email_record.id),
         )
 
         # Mark as failed
-        email_log.mark_as_failed(error_message=error_message, sendgrid_status_code=sendgrid_status_code)
+        email_record.mark_as_failed(error_message=error_message, sendgrid_status_code=sendgrid_status_code)
 
         return False
 
@@ -145,10 +145,10 @@ def bulk_send_emails(from_email: str, data: list[BulkEmailData], batch_name: str
 
     batch.mark_started()
 
-    # Create EmailLog records for each email
-    email_logs = []
+    # Create EmailRecord for each email
+    email_records = []
     for item in data:
-        log = EmailLog(
+        record = EmailRecord(
             from_email=from_email,
             to_emails=[item.email],
             subject=item.subject,
@@ -156,8 +156,8 @@ def bulk_send_emails(from_email: str, data: list[BulkEmailData], batch_name: str
             status=EmailStatus.PENDING,
             bulk_batch_id=batch.id,
         )
-        email_logs.append(log)
-        db.session.add(log)
+        email_records.append(record)
+        db.session.add(record)
 
     db.session.flush()
 
@@ -180,10 +180,10 @@ def bulk_send_emails(from_email: str, data: list[BulkEmailData], batch_name: str
 
         # Update tracking on success
         if response.status_code in [200, 202]:
-            for log in email_logs:
-                log.status = EmailStatus.SENT
-                log.sendgrid_status_code = response.status_code
-            batch.mark_all_sent(len(email_logs))
+            for record in email_records:
+                record.status = EmailStatus.SENT
+                record.sendgrid_status_code = response.status_code
+            batch.mark_all_sent(len(email_records))
 
         batch.mark_completed()
         db.session.commit()
@@ -199,11 +199,11 @@ def bulk_send_emails(from_email: str, data: list[BulkEmailData], batch_name: str
         )
 
         # Update tracking on failure
-        for log in email_logs:
-            log.status = EmailStatus.FAILED
-            log.error_message = str(e)[:500]
+        for record in email_records:
+            record.status = EmailStatus.FAILED
+            record.error_message = str(e)[:500]
 
-        batch.mark_all_failed(len(email_logs))
+        batch.mark_all_failed(len(email_records))
         batch.mark_completed()
         db.session.commit()
 
