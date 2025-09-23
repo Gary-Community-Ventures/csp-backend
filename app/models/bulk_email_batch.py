@@ -96,34 +96,15 @@ class BulkEmailBatch(db.Model):
     @classmethod
     def get_recent_batches(cls, limit: int = 10):
         """Get recent batches ordered by creation date"""
-        return cls.query.order_by(cls.created_at.desc()).limit(limit).all()
+        return cls.query.order_by(cls.created_at.desc()).limit(limit)
 
     @classmethod
     def get_attendance_batches(cls, limit: int = 10):
         """Get recent attendance reminder batches"""
-        return cls.query.filter_by(batch_type="attendance_reminder").order_by(cls.created_at.desc()).limit(limit).all()
+        return cls.query.filter_by(batch_type="attendance_reminder").order_by(cls.created_at.desc()).limit(limit)
 
     def get_failed_emails(self):
         """Get all failed email records in this batch"""
         from app.models.email_record import EmailStatus
 
-        return self.email_records.filter_by(status=EmailStatus.FAILED).all()
-
-    def to_dict(self) -> dict:
-        """Convert batch to dictionary for API responses"""
-        return {
-            "id": str(self.id),
-            "batch_name": self.batch_name,
-            "batch_type": self.batch_type,
-            "total_recipients": self.total_recipients,
-            "successful_sends": self.successful_sends,
-            "failed_sends": self.failed_sends,
-            "status": self.status,
-            "success_rate": round(self.success_rate, 2),
-            "initiated_by": self.initiated_by,
-            "from_email": self.from_email,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "started_at": self.started_at.isoformat() if self.started_at else None,
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
-            "batch_metadata": self.batch_metadata,
-        }
+        return self.email_records.filter_by(status=EmailStatus.FAILED)

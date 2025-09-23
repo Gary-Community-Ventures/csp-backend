@@ -13,7 +13,7 @@ class EmailStatus:
 
 
 class EmailRecord(db.Model, TimestampMixin):
-    __tablename__ = "email_record"  # Keep table name for backward compatibility
+    __tablename__ = "email_record"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
@@ -68,37 +68,32 @@ class EmailRecord(db.Model, TimestampMixin):
     @classmethod
     def get_failed_emails(cls):
         """Get all failed emails that can be retried"""
-        return cls.query.filter(cls.status == EmailStatus.FAILED).all()
+        return cls.query.filter(cls.status == EmailStatus.FAILED)
 
     @classmethod
     def get_emails_by_type(cls, email_type: str):
         """Get all emails of a specific type"""
-        return cls.query.filter(cls.email_type == email_type).all()
+        return cls.query.filter(cls.email_type == email_type)
 
     @classmethod
     def get_internal_emails(cls):
         """Get all internal emails"""
-        return cls.query.filter(cls.is_internal.is_(True)).all()
+        return cls.query.filter(cls.is_internal.is_(True))
 
     @classmethod
     def get_external_emails(cls):
         """Get all external emails"""
-        return cls.query.filter(cls.is_internal.is_(False)).all()
+        return cls.query.filter(cls.is_internal.is_(False))
 
     @classmethod
     def get_failed_internal_emails(cls):
         """Get failed internal emails"""
-        return cls.query.filter(cls.status == EmailStatus.FAILED, cls.is_internal.is_(True)).all()
+        return cls.query.filter(cls.status == EmailStatus.FAILED, cls.is_internal.is_(True))
 
     @classmethod
     def get_failed_external_emails(cls):
         """Get failed external emails"""
-        return cls.query.filter(cls.status == EmailStatus.FAILED, cls.is_internal.is_(False)).all()
-
-    @classmethod
-    def get_emails_by_sender(cls, from_email: str):
-        """Get all emails sent from a specific email address"""
-        return cls.query.filter(cls.from_email == from_email).all()
+        return cls.query.filter(cls.status == EmailStatus.FAILED, cls.is_internal.is_(False))
 
     @classmethod
     def get_emails_by_recipient(cls, recipient_email: str):
@@ -110,7 +105,7 @@ class EmailRecord(db.Model, TimestampMixin):
         """
         # Use PostgreSQL's JSON array contains operator
         # This checks if the recipient_email is in the JSON array
-        return cls.query.filter(cls.to_emails.op("@>")([recipient_email])).all()
+        return cls.query.filter(cls.to_emails.op("@>")([recipient_email]))
 
     @classmethod
     def get_emails_by_any_recipient_contains(cls, search_term: str):
@@ -123,19 +118,13 @@ class EmailRecord(db.Model, TimestampMixin):
         from sqlalchemy import String, cast
 
         # Cast JSON to string and search within it
-        return cls.query.filter(cast(cls.to_emails, String).ilike(f"%{search_term}%")).all()
-
-    @classmethod
-    def get_emails_by_exact_recipient_list(cls, recipient_list: list):
-        """Get emails sent to EXACTLY this list of recipients (no more, no less)"""
-        # This checks for exact JSON equality
-        return cls.query.filter(cls.to_emails == recipient_list).all()
+        return cls.query.filter(cast(cls.to_emails, String).ilike(f"%{search_term}%"))
 
     @classmethod
     def get_emails_containing_all_recipients(cls, recipient_list: list):
         """Get emails that include ALL specified recipients (but may include others too)"""
         # Use PostgreSQL's @> operator to check if to_emails contains all recipients
-        return cls.query.filter(cls.to_emails.op("@>")(recipient_list)).all()
+        return cls.query.filter(cls.to_emails.op("@>")(recipient_list))
 
     @classmethod
     def search_emails(cls, search_term: str):
@@ -149,7 +138,7 @@ class EmailRecord(db.Model, TimestampMixin):
                 cls.subject.ilike(f"%{search_term}%"),
                 cast(cls.to_emails, String).ilike(f"%{search_term}%"),
             )
-        ).all()
+        )
 
     def mark_as_sent(self, sendgrid_message_id=None, sendgrid_status_code=None):
         """Mark email as successfully sent"""
