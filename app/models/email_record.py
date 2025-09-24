@@ -20,7 +20,7 @@ class EmailRecord(db.Model, TimestampMixin):
 
     # Email Details
     from_email = db.Column(db.String(255), nullable=False, index=True)
-    to_emails = db.Column(JSONB, nullable=False)  # Array of recipient email addresses
+    to_emails = db.Column(db.ARRAY(db.String(255)), nullable=False)  # Array of recipient email addresses
     subject = db.Column(db.String(500), nullable=False)  # Increased for prefixed subjects
     html_content = db.Column(db.Text, nullable=False)
     from_name = db.Column(db.String(100), nullable=False, default="CAP Support")
@@ -104,22 +104,7 @@ class EmailRecord(db.Model, TimestampMixin):
         Example: If to_emails = ["user1@example.com", "user2@example.com", "user3@example.com"]
         Searching for "user2@example.com" will find this email.
         """
-        # Use PostgreSQL's JSON array contains operator
-        # This checks if the recipient_email is in the JSON array
-        return cls.query.filter(cls.to_emails.op("@>")([recipient_email]))
-
-    @classmethod
-    def get_emails_by_any_recipient_contains(cls, search_term: str):
-        """Get all emails where any recipient contains the search term (partial match).
-        Useful for domain searches like '@example.com'
-
-        Example: Searching for '@garycommunity.org' will find all emails
-        sent to any email address at that domain.
-        """
-        from sqlalchemy import String, cast
-
-        # Cast JSON to string and search within it
-        return cls.query.filter(cast(cls.to_emails, String).ilike(f"%{search_term}%"))
+        return cls.query.filter(cls.to_emails.contains([recipient_email]))
 
     def mark_as_sent(self, sendgrid_message_id=None, sendgrid_status_code=None):
         """Mark email as successfully sent"""

@@ -1,8 +1,8 @@
 """email record model
 
-Revision ID: 3aed93cca9bc
+Revision ID: d458ce0f02ff
 Revises: e8385996b8f1
-Create Date: 2025-09-23 16:11:20.165908
+Create Date: 2025-09-24 21:40:56.253207
 
 """
 
@@ -11,7 +11,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = "3aed93cca9bc"
+revision = "d458ce0f02ff"
 down_revision = "e8385996b8f1"
 branch_labels = None
 depends_on = None
@@ -28,12 +28,12 @@ def upgrade():
         sa.Column("successful_sends", sa.Integer(), nullable=False),
         sa.Column("failed_sends", sa.Integer(), nullable=False),
         sa.Column("status", sa.String(length=50), nullable=False),
-        sa.Column("initiated_by", sa.String(length=255), nullable=True),
         sa.Column("from_email", sa.String(length=255), nullable=False),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("started_at", sa.DateTime(), nullable=True),
         sa.Column("completed_at", sa.DateTime(), nullable=True),
         sa.Column("batch_metadata", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     with op.batch_alter_table("bulk_email_batch", schema=None) as batch_op:
@@ -43,7 +43,7 @@ def upgrade():
         "email_record",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("from_email", sa.String(length=255), nullable=False),
-        sa.Column("to_emails", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("to_emails", sa.ARRAY(sa.String(length=255)), nullable=False),
         sa.Column("subject", sa.String(length=500), nullable=False),
         sa.Column("html_content", sa.Text(), nullable=False),
         sa.Column("from_name", sa.String(length=100), nullable=False),
