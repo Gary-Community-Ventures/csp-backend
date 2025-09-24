@@ -132,6 +132,13 @@ def create_attendance():
                 email=Provider.EMAIL(provider),
                 subject=message_data.subject,
                 html_content=message_data.email,
+                context_data={
+                    "provider_id": Provider.ID(provider),
+                    "provider_name": Provider.NAME(provider),
+                    "provider_language": Provider.LANGUAGE(provider),
+                    "recipient_type": "provider",
+                    "reminder_date": last_week_date.isoformat(),
+                },
             )
         )
 
@@ -153,6 +160,14 @@ def create_attendance():
                 email=Guardian.EMAIL(guardian),
                 subject=message_data.subject,
                 html_content=message_data.email,
+                context_data={
+                    "family_id": Family.ID(family),
+                    "guardian_id": Guardian.ID(guardian),
+                    "guardian_name": Guardian.FIRST_NAME(guardian),
+                    "family_language": Family.LANGUAGE(family),
+                    "recipient_type": "guardian",
+                    "reminder_date": last_week_date.isoformat(),
+                },
             )
         )
 

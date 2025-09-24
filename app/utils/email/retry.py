@@ -95,30 +95,18 @@ def retry_failed_emails_batch() -> dict:
     current_app.logger.info(f"Starting batch retry for {len(failed_emails)} failed emails")
 
     for email_record in failed_emails:
-        try:
-            success = retry_failed_email(str(email_record.id))
-            if success:
-                results["retry_successful"] += 1
-                results["details"].append(
-                    {"email_id": str(email_record.id), "email_type": email_record.email_type, "status": "success"}
-                )
-            else:
-                results["retry_failed"] += 1
-                results["details"].append(
-                    {"email_id": str(email_record.id), "email_type": email_record.email_type, "status": "failed"}
-                )
-        except Exception as e:
+
+        success = retry_failed_email(str(email_record.id))
+        if success:
+            results["retry_successful"] += 1
+            results["details"].append(
+                {"email_id": str(email_record.id), "email_type": email_record.email_type, "status": "success"}
+            )
+        else:
             results["retry_failed"] += 1
             results["details"].append(
-                {
-                    "email_id": str(email_record.id),
-                    "email_type": email_record.email_type,
-                    "status": "error",
-                    "error": str(e),
-                }
+                {"email_id": str(email_record.id), "email_type": email_record.email_type, "status": "failed"}
             )
-            current_app.logger.error(f"Error in batch retry for email {email_record.id}: {e}")
-
     current_app.logger.info(
         f"Batch retry completed: {results['retry_successful']} successful, {results['retry_failed']} failed"
     )

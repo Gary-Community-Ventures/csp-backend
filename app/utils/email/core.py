@@ -28,6 +28,7 @@ class BulkEmailData:
     email: str
     subject: str
     html_content: str
+    context_data: dict = None
 
 
 def send_email(
@@ -152,6 +153,9 @@ def bulk_send_emails(from_email: str, data: list[BulkEmailData], email_type: str
     # Create EmailRecord for each email
     email_records = []
     for item in data:
+        # Serialize context data for JSON storage
+        serializable_context = serialize_context_data(item.context_data or {})
+        
         record = EmailRecord(
             from_email=from_email,
             to_emails=[item.email],
@@ -160,6 +164,7 @@ def bulk_send_emails(from_email: str, data: list[BulkEmailData], email_type: str
             status=EmailStatus.PENDING,
             bulk_batch_id=batch.id,
             email_type=email_type,
+            context_data=serializable_context,
         )
         email_records.append(record)
         db.session.add(record)
