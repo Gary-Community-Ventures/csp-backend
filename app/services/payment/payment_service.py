@@ -157,7 +157,7 @@ class PaymentService:
         Creates a Payment record ONLY when payment attempt succeeds.
         Links to the intent and successful attempt, marks items as paid.
         """
-        from app.utils.email_service import send_payment_notification
+        from app.utils.email.senders import send_payment_notification
 
         provider_payment_settings = intent.provider_payment_settings
         family_payment_settings = intent.family_payment_settings

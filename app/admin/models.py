@@ -1,6 +1,8 @@
 from app.models import (
     AllocatedCareDay,
     AllocatedLumpSum,
+    BulkEmailBatch,
+    EmailRecord,
     FamilyInvitation,
     FamilyPaymentSettings,
     MonthAllocation,
@@ -35,4 +37,6 @@ ADMIN_MODELS = [
     ModelAdminConfig(Payment, "Payments", "Financial", "PaymentAdminView"),
     ModelAdminConfig(PaymentAttempt, "Payment Attempts", "Financial", "PaymentAttemptAdminView"),
     ModelAdminConfig(PaymentIntent, "Payment Intents", "Financial", "PaymentIntentAdminView"),
+    ModelAdminConfig(EmailRecord, "Email Records", "System"),
+    ModelAdminConfig(BulkEmailBatch, "Bulk Email Batches", "System"),
 ]

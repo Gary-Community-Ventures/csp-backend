@@ -1,10 +1,14 @@
-from datetime import date, timedelta
+from datetime import date
 
 import pytest
+from freezegun import freeze_time
 
 from app.enums.care_day_type import CareDayType
 from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation, PaymentRate
+
+# Freeze time for all tests in this module to ensure predictable behavior
+TEST_FROZEN_TIME = "2025-01-15 10:00:00"  # Wednesday, Jan 15, 2025 at 10 AM
 
 
 @pytest.fixture
@@ -26,20 +30,20 @@ def seed_db(app):
         db.session.add(payment_rate)
         db.session.add(payment_rate_2)
 
-        # Create a MonthAllocation for testing
+        # Create a MonthAllocation for January 2025 (our frozen time)
         allocation = MonthAllocation(
-            date=date.today().replace(day=1),
+            date=date(2025, 1, 1),  # January 1, 2025
             allocation_cents=1000000,
             child_supabase_id="1",
         )
         db.session.add(allocation)
         db.session.commit()
 
-        # Create a care day that is new (never submitted)
+        # Create a care day that is new (never submitted) - date in same month as allocation
         care_day_new = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
             provider_supabase_id="1",
-            date=date.today() + timedelta(days=7),  # Set date to a week in the future
+            date=date(2025, 1, 22),  # Future date in January (TEST_FROZEN_TIME is Jan 15)
             type=CareDayType.FULL_DAY,
             amount_cents=payment_rate.full_day_rate_cents,
             last_submitted_at=None,
@@ -48,6 +52,13 @@ def seed_db(app):
         db.session.commit()
 
         yield allocation, care_day_new, payment_rate, payment_rate_2
+
+
+# Freeze time for all tests in this file
+@pytest.fixture(autouse=True)
+def freeze_test_time():
+    with freeze_time(TEST_FROZEN_TIME):
+        yield
 
 
 # Mock the authentication for all tests in this file

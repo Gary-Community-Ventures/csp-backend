@@ -4,17 +4,15 @@ from datetime import date
 from flask import current_app
 
 from app import create_app
+from app.enums.email_type import EmailType
 from app.extensions import db
 from app.models import Attendance
 from app.supabase.columns import Status
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child, Family, Guardian, Provider
-from app.utils.email_service import (
-    BulkEmailData,
-    bulk_send_emails,
-    get_from_email_external,
-    html_link,
-)
+from app.utils.email.config import get_from_email_external
+from app.utils.email.core import BulkEmailData, bulk_send_emails
+from app.utils.email.senders import html_link
 from app.utils.sms_service import BulkSmsData, bulk_send_sms
 
 # Create Flask app context
@@ -134,6 +132,13 @@ def create_attendance():
                 email=Provider.EMAIL(provider),
                 subject=message_data.subject,
                 html_content=message_data.email,
+                context_data={
+                    "provider_id": Provider.ID(provider),
+                    "provider_name": Provider.NAME(provider),
+                    "provider_language": Provider.LANGUAGE(provider),
+                    "recipient_type": "provider",
+                    "reminder_date": last_week_date.isoformat(),
+                },
             )
         )
 
@@ -155,6 +160,14 @@ def create_attendance():
                 email=Guardian.EMAIL(guardian),
                 subject=message_data.subject,
                 html_content=message_data.email,
+                context_data={
+                    "family_id": Family.ID(family),
+                    "guardian_id": Guardian.ID(guardian),
+                    "guardian_name": Guardian.FIRST_NAME(guardian),
+                    "family_language": Family.LANGUAGE(family),
+                    "recipient_type": "guardian",
+                    "reminder_date": last_week_date.isoformat(),
+                },
             )
         )
 
@@ -166,7 +179,9 @@ def create_attendance():
             )
         )
 
-    bulk_send_emails(get_from_email_external(), bulk_emails)
+    # Send emails with batch tracking
+    batch_name = f"Attendance Reminder - {last_week_date}"
+    bulk_send_emails(get_from_email_external(), bulk_emails, EmailType.ATTENDANCE_REMINDER, batch_name=batch_name)
     bulk_send_sms(bulk_sms)
 
     current_app.logger.info("create_attendance: Finished sending attendance emails and SMS.")
