@@ -17,13 +17,13 @@ def capture_sentry_exception(e: Exception, extra_context: dict = None):
 
 def serialize_context_data(context_data: dict) -> dict:
     """Convert non-JSON-serializable objects to strings for JSON storage.
-    
+
     Handles UUIDs, dates, and other objects by converting them to strings.
     Raises ValueError if a value cannot be serialized.
     """
     import json
     from uuid import UUID
-    
+
     if not context_data:
         return {}
 
@@ -31,17 +31,17 @@ def serialize_context_data(context_data: dict) -> dict:
         # JSON-serializable types: str, int, float, bool, None
         if value is None or isinstance(value, (str, int, float, bool)):
             return value
-        
+
         # Handle lists and dicts recursively
         if isinstance(value, list):
             return [serialize_value(item) for item in value]
         if isinstance(value, dict):
             return {k: serialize_value(v) for k, v in value.items()}
-            
+
         # Handle common non-JSON-serializable types
         if isinstance(value, UUID):
             return str(value)
-            
+
         # Try to convert to string as fallback
         try:
             str_value = str(value)
@@ -57,7 +57,7 @@ def serialize_context_data(context_data: dict) -> dict:
             serializable_context[key] = serialize_value(value)
         except ValueError as e:
             raise ValueError(f"Cannot serialize context_data key '{key}': {e}") from e
-            
+
     return serializable_context
 
 

@@ -155,7 +155,7 @@ def bulk_send_emails(from_email: str, data: list[BulkEmailData], email_type: str
     for item in data:
         # Serialize context data for JSON storage
         serializable_context = serialize_context_data(item.context_data or {})
-        
+
         record = EmailRecord(
             from_email=from_email,
             to_emails=[item.email],
