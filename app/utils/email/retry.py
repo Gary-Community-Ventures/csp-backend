@@ -2,6 +2,8 @@
 Email retry and resend functionality for handling email operations.
 """
 
+from datetime import datetime, timezone
+
 import sentry_sdk
 from flask import current_app
 from sendgrid import SendGridAPIClient
@@ -13,7 +15,6 @@ from app.models.email_record import EmailRecord
 from app.utils.email.config import add_subject_prefix
 from app.utils.email.core import send_email
 from app.utils.email.helpers import extract_sendgrid_message_id
-from app.utils.email.queries import get_failed_emails
 
 
 def resend_emails(email_records: list[EmailRecord], resend_successful: bool = False) -> dict:
@@ -111,7 +112,9 @@ def _resend_as_new_email(email_record: EmailRecord) -> bool:
 def _retry_existing_email(email_record: EmailRecord) -> bool:
     """Retry a failed email by updating the existing record (used internally)."""
     try:
-        current_app.logger.info(f"Retrying failed email {email_record.id} (attempt #{email_record.attempt_count + 1})")
+        email_record.last_attempt_at = datetime.now(timezone.utc)
+        email_record.attempt_count += 1
+        current_app.logger.info(f"Retrying failed email {email_record.id} (attempt #{email_record.attempt_count})")
 
         message = Mail(
             from_email=(email_record.from_email, email_record.from_name),
@@ -156,7 +159,7 @@ def _retry_existing_email(email_record: EmailRecord) -> bool:
         return False
 
 
-# Convenience functions for backward compatibility and common use cases
+# Convenience functions
 def retry_failed_email(email_record_id: str) -> bool:
     """Retry a single failed email by ID."""
     email_record = EmailRecord.query.filter_by(id=email_record_id).first()
@@ -170,7 +173,7 @@ def retry_failed_email(email_record_id: str) -> bool:
 
 def retry_failed_emails_batch() -> dict:
     """Retry all failed emails in batch."""
-    failed_emails = get_failed_emails()
+    failed_emails = EmailRecord.get_failed_emails().all()
     return resend_emails(failed_emails, resend_successful=False)
 
 

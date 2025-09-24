@@ -118,7 +118,6 @@ class EmailRecord(db.Model, TimestampMixin):
         self.status = EmailStatus.FAILED
         self.error_message = error_message
         self.sendgrid_status_code = sendgrid_status_code
-        self.attempt_count += 1
         self.last_attempt_at = datetime.now(timezone.utc)
 
     def __repr__(self):
