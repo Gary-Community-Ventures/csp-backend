@@ -27,7 +27,7 @@ class Table:
 
     @classmethod
     def select_by_id(cls, columns: str, id: int) -> SyncSelectRequestBuilder:
-        return cls.query().select(columns).eq(cls.ID, id).single()
+        return cls.query().select(columns).eq(cls.ID, id).maybe_single()
 
     @classmethod
     def unwrap(cls, data: dict):
@@ -118,7 +118,7 @@ class Provider(Table):
     CITY = Column("care_location_city")
     STATE = Column("care_location_state")
     ZIP = Column("care_location_zip")
-    LANGUAGE = Column("language", enum_column(Language))
+    LANGUAGE = Column("preferred_language", enum_column(Language))
     CPR_CERTIFIED = Column("cpr_certified")
     CPR_TRAINING_LINK = Column("cpr_training_link")
     CPR_ONLINE_TRAINING_COMPLETED_AT = Column("cpr_online_training_completed_at", datetime_column)

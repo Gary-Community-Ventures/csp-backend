@@ -53,7 +53,7 @@ def process_single_allocation(allocation: MonthAllocation, child_name: str, dry_
 
     try:
         transaction = current_app.payment_service.allocate_funds_to_family(
-            child_external_id=child_id, amount=allocation.allocation_cents, date=allocation.date
+            child_id=child_id, amount=allocation.allocation_cents, date=allocation.date
         )
 
         if not transaction or not transaction.transfer or not transaction.transfer.id:
@@ -70,6 +70,7 @@ def process_single_allocation(allocation: MonthAllocation, child_name: str, dry_
     except Exception as e:
         print(f"❌ Failed")
         print(f"    Error: {str(e)}")
+        raise
         return str(e)
 
 

@@ -22,6 +22,8 @@ exec:
 	docker compose exec backend $(ARGS)
 run:
 	docker compose run --rm backend python -m app.scripts.$(ARGS)
+shell:
+	docker compose exec backend flask shell
 db:
 	docker compose exec backend flask db $(ARGS)
 db-shell:
