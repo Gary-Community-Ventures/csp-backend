@@ -34,7 +34,7 @@ class PaymentNotificationTemplate:
         """Get the intro text in the specified language."""
         intros = {
             Language.ENGLISH: "We're pleased to inform you that a payment is heading your way.",
-            Language.SPANISH: "Nos complace informarle que un pago está en camino hacia usted.",
+            Language.SPANISH: "Nos complace informarle que un pago se dirige hacia usted.",
         }
         return intros.get(language, intros[Language.ENGLISH])
 
