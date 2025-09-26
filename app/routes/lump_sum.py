@@ -15,7 +15,7 @@ from app.models.month_allocation import MonthAllocation
 from app.schemas.lump_sum import AllocatedLumpSumCreateRequest, AllocatedLumpSumResponse
 from app.supabase.helpers import cols, unwrap_or_abort
 from app.supabase.tables import Child, Provider
-from app.utils.email_service import send_lump_sum_payment_email
+from app.utils.email.senders import send_lump_sum_payment_email
 
 bp = Blueprint("lump_sum", __name__, url_prefix="/lump-sums")
 

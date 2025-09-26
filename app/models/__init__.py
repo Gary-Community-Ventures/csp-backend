@@ -1,6 +1,8 @@
 from .allocated_care_day import AllocatedCareDay
 from .allocated_lump_sum import AllocatedLumpSum
 from .attendance import Attendance
+from .bulk_email_batch import BulkEmailBatch
+from .email_record import EmailRecord
 from .family_invitation import FamilyInvitation
 from .family_payment_settings import FamilyPaymentSettings
 from .month_allocation import MonthAllocation
@@ -20,6 +22,8 @@ __all__ = [
     "PaymentRate",
     "ProviderInvitation",
     "Attendance",
+    "BulkEmailBatch",
+    "EmailRecord",
     "FamilyInvitation",
     "Payment",
     "PaymentAttempt",

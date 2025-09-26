@@ -195,6 +195,13 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         day_type: CareDayType,
     ):
         """Create a new care day with proper validation"""
+        # Validate that care date is in the same month as the allocation
+        if care_date.year != allocation.date.year or care_date.month != allocation.date.month:
+            raise ValueError(
+                f"Care date {care_date.isoformat()} must be in the same month as the allocation "
+                f"({allocation.date.strftime('%B %Y')})"
+            )
+
         # Prevent creating care days in the past (using business timezone)
         business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
         today_business = datetime.now(business_tz).date()

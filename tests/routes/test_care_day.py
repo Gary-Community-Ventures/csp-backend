@@ -2,8 +2,12 @@ import zoneinfo
 from datetime import date, datetime, timedelta, timezone
 
 import pytest
+from freezegun import freeze_time
 
 from app.constants import BUSINESS_TIMEZONE
+
+# Freeze time for all tests in this module to ensure predictable behavior
+TEST_FROZEN_TIME = "2025-01-15 10:00:00"  # Wednesday, Jan 15, 2025 at 10 AM
 from app.enums.care_day_type import CareDayType
 from app.enums.payment_method import PaymentMethod
 from app.extensions import db
@@ -33,9 +37,9 @@ def seed_db(app):
         )
         db.session.add(payment_rate)
 
-        # Create a MonthAllocation for testing
+        # Create a MonthAllocation for January 2025 (our frozen time)
         allocation = MonthAllocation(
-            date=date.today().replace(day=1),
+            date=date(2025, 1, 1),  # January 1, 2025
             allocation_cents=1000000,
             child_supabase_id="1",
         )
@@ -46,7 +50,7 @@ def seed_db(app):
         care_day_new = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
             provider_supabase_id="1",
-            date=date.today() + timedelta(days=14),  # Set date to two weeks in the future
+            date=date(2025, 1, 20),  # Future date in January
             type=CareDayType.FULL_DAY,
             amount_cents=payment_rate.full_day_rate_cents,
             last_submitted_at=None,
@@ -55,15 +59,10 @@ def seed_db(app):
         db.session.commit()
 
         # Create a care day that can be updated/deleted
-        # Use a date in next week to ensure it's not locked
-        days_until_next_monday = (7 - date.today().weekday()) % 7
-        if days_until_next_monday == 0:
-            days_until_next_monday = 7  # If today is Monday, use next Monday
-        next_week_date = date.today() + timedelta(days=days_until_next_monday + 2)  # Next Wednesday
         care_day_updatable = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
             provider_supabase_id="1",
-            date=next_week_date,
+            date=date(2025, 1, 22),  # Future date in January
             type=CareDayType.FULL_DAY,
             amount_cents=payment_rate.full_day_rate_cents,
             last_submitted_at=None,  # Never submitted
@@ -71,28 +70,23 @@ def seed_db(app):
         db.session.add(care_day_updatable)
         db.session.commit()
 
-        # Create a locked care day
-        locked_date = datetime.now(timezone.utc) - timedelta(days=7)  # A week ago
+        # Create a locked care day (from a past date that would be locked)
         care_day_locked = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
             provider_supabase_id="1",
-            date=locked_date.date(),
+            date=date(2025, 1, 6),  # Early in January, would be locked
             type=CareDayType.FULL_DAY,
             amount_cents=payment_rate.full_day_rate_cents,
             last_submitted_at=datetime.now(timezone.utc),  # Submitted
         )
-        # Manually set created_at and updated_at to be in the past for testing is_locked
-        care_day_locked.created_at = locked_date - timedelta(days=1)
-        care_day_locked.updated_at = locked_date - timedelta(days=1)
         db.session.add(care_day_locked)
         db.session.commit()
 
         # Create a soft-deleted care day
-        # Use a date in next week to ensure it's not locked
         care_day_soft_deleted = AllocatedCareDay(
             care_month_allocation_id=allocation.id,
             provider_supabase_id="1",
-            date=next_week_date + timedelta(days=1),  # Day after the updatable one
+            date=date(2025, 1, 25),  # Future date in January
             type=CareDayType.FULL_DAY,
             amount_cents=payment_rate.full_day_rate_cents,
             deleted_at=datetime.now(timezone.utc),
@@ -101,6 +95,13 @@ def seed_db(app):
         db.session.commit()
 
         yield allocation, care_day_new, care_day_updatable, care_day_locked, care_day_soft_deleted, payment_rate
+
+
+# Freeze time for all tests in this file
+@pytest.fixture(autouse=True)
+def freeze_test_time():
+    with freeze_time(TEST_FROZEN_TIME):
+        yield
 
 
 # Mock the authentication for all tests in this file
@@ -115,19 +116,21 @@ def mock_authentication(mocker):
 # --- POST /care-days ---
 def test_create_care_day_success(client, seed_db):
     allocation, _, _, _, _, payment_rate = seed_db
+    # Use a future date in January that won't be locked (TEST_FROZEN_TIME is Jan 15, Wed)
+    care_date = date(2025, 1, 21)  # Next Tuesday - safely in future and won't be locked
     response = client.post(
         "/care-days",
         json={
             "allocation_id": allocation.id,
             "provider_id": "1",
-            "date": (date.today() + timedelta(days=10)).isoformat(),
+            "date": care_date.isoformat(),
             "type": CareDayType.FULL_DAY.value,
         },
     )
     assert response.status_code == 201
     assert response.json["day_count"] == 1.0
     assert response.json["amount_cents"] == payment_rate.full_day_rate_cents
-    assert AllocatedCareDay.query.filter_by(date=date.today() + timedelta(days=10)).first() is not None
+    assert AllocatedCareDay.query.filter_by(date=care_date).first() is not None
 
 
 def test_create_care_day_missing_fields(client, seed_db):
@@ -231,18 +234,36 @@ def test_create_care_day_exceeds_allocation(client, seed_db):
         allocation = db.session.get(MonthAllocation, allocation.id)
         assert allocation.paid_cents == allocation.allocation_cents
 
-    # Now try to create a care day - should fail due to exceeded allocation
+    # Now try to create a care day - use a future date in January
+    care_date = date(2025, 1, 28)  # Future date in January
     response = client.post(
         "/care-days",
         json={
             "allocation_id": allocation.id,
             "provider_id": "1",
-            "date": (date.today() + timedelta(days=60)).isoformat(),
+            "date": care_date.isoformat(),
             "type": CareDayType.FULL_DAY.value,
         },
     )
     assert response.status_code == 400
     assert "Adding this care day would exceed monthly allocation" in response.json["error"]
+
+
+def test_create_care_day_wrong_month(client, seed_db):
+    allocation, _, _, _, _, _ = seed_db
+    # Try to create a care day in a different month - should fail
+    different_month_date = date(2025, 2, 15)  # February (different from January allocation)
+    response = client.post(
+        "/care-days",
+        json={
+            "allocation_id": allocation.id,
+            "provider_id": "1",
+            "date": different_month_date.isoformat(),
+            "type": CareDayType.FULL_DAY.value,
+        },
+    )
+    assert response.status_code == 400
+    assert "must be in the same month as the allocation" in response.json["error"]
 
 
 def test_create_care_day_restore_soft_deleted(client, seed_db):
@@ -269,13 +290,14 @@ def test_create_care_day_restore_soft_deleted(client, seed_db):
 
 def test_create_care_day_past_date_fails(client, seed_db):
     allocation, _, _, _, _, _ = seed_db
-    past_date = datetime.now(business_tz) - timedelta(days=1)
+    # Use a past date in January (TEST_FROZEN_TIME is Jan 15)
+    past_date = date(2025, 1, 10)  # Past date in January
     response = client.post(
         "/care-days",
         json={
             "allocation_id": allocation.id,
             "provider_id": "1",
-            "date": past_date.date().isoformat(),
+            "date": past_date.isoformat(),
             "type": "Full Day",
         },
     )
