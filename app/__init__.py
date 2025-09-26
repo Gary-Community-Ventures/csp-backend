@@ -83,9 +83,6 @@ def create_app(config_class=None):
     supabase_url = app.config.get("SUPABASE_URL")
     supabase_key = app.config.get("SUPABASE_KEY")
 
-    print(f"Supabase URL: {supabase_url if supabase_url else 'Not Set'}")
-    print(f"Supabase Key: {supabase_key if supabase_key else 'Not Set'}")
-
     if not supabase_url or not supabase_key:
         print("WARNING: SUPABASE_URL or SUPABASE_KEY not found. Supabase client will not be initialized.")
         app.supabase_client = None
