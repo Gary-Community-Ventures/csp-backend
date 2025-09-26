@@ -58,6 +58,19 @@ class AttendanceMessages:
         emails_to_send = list(emails.values())
         text_messages_to_send = list(text_messages.values())
 
+        # TODO: update this copy when we have it.
+        todo_message = "TODO: UPDATE COPY. DON'T FORGET TO UPDATE THESE MESSAGES: "  # FIXME: remove
+        emails_to_send = [  # FIXME: remove
+            BulkEmailData(email.email, todo_message + email.subject, todo_message + email.html_content)  # FIXME: remove
+            for email in emails_to_send  # FIXME: remove
+        ]  # FIXME: remove
+        text_messages_to_send = [  # FIXME: remove
+            BulkSmsData(
+                text_message.phone_number, todo_message + text_message.message, text_message.lang
+            )  # FIXME: remove
+            for text_message in text_messages_to_send  # FIXME: remove
+        ]  # FIXME: remove
+
         return emails_to_send, text_messages_to_send
 
 
@@ -113,14 +126,14 @@ class FamilyAttendanceMessages(AttendanceMessages):
         if lang == "es":
             return MessageCopy(
                 subject="Acción necesaria - Asistencia CAP",
-                email=f"<html><body>¡Hola {family_name}! Por favor, confirme las horas de atención de la semana pasada y programe la atención para la semana siguiente (si aún no lo ha hecho) antes del final del día para que su proveedor pueda recibir el pago. Haga clic {html_link(link , 'aquí')} para acceder a su portal.</body></html>",
-                sms=f"¡Hola {family_name}! Por favor, confirme las horas de atención de la semana pasada y programe la atención para la semana siguiente (si aún no lo ha hecho) antes del final del día para que su proveedor pueda recibir el pago. Enlace para confirmar: {link}",
+                email=f"<html><body>¡Hola {family_name}! Por favor, confirme los días de atención de la semana pasada y programe la atención para la semana siguiente (si aún no lo ha hecho) antes del final del día para que su proveedor pueda recibir el pago. Haga clic {html_link(link , 'aquí')} para acceder a su portal.</body></html>",
+                sms=f"¡Hola {family_name}! Por favor, confirme los días de atención de la semana pasada y programe la atención para la semana siguiente (si aún no lo ha hecho) antes del final del día para que su proveedor pueda recibir el pago. Enlace para confirmar: {link}",
             )
 
         return MessageCopy(
             subject="Action Needed - CAP Attendance",
-            email=f"<html><body>Hi {family_name}! Please confirm the hours of care for the past week and schedule care for the following week (if you haven’t done so already) by the end of the day, so your provider can get paid. Click {html_link(link, 'here')} to access your portal.</html></body>",
-            sms=f"Hi {family_name}!  Please confirm the hours of care for the past week and schedule care for the following week (if you haven’t done so already) by the end of the day, so your provider can get paid. Link to confirm: {link}",
+            email=f"<html><body>Hi {family_name}! Please confirm the days of care for the past week and schedule care for the following week (if you haven't done so already) by the end of the day, so your provider can get paid. Click {html_link(link, 'here')} to access your portal.</html></body>",
+            sms=f"Hi {family_name}!  Please confirm the days of care for the past week and schedule care for the following week (if you haven't done so already) by the end of the day, so your provider can get paid. Link to confirm: {link}",
         )
 
 
