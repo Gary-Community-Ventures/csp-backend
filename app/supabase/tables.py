@@ -27,7 +27,7 @@ class Table:
 
     @classmethod
     def select_by_id(cls, columns: str, id: int) -> SyncSelectRequestBuilder:
-        return cls.query().select(columns).eq(cls.ID, id).single()
+        return cls.query().select(columns).eq(cls.ID, id).maybe_single()
 
     @classmethod
     def unwrap(cls, data: dict):

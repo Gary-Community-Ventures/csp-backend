@@ -1,6 +1,8 @@
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
+from sqlalchemy import or_
+
 from ..extensions import db
 from .mixins import TimestampMixin
 
@@ -8,16 +10,31 @@ from .mixins import TimestampMixin
 class Attendance(db.Model, TimestampMixin):
     id = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     week = db.Column(db.Date, nullable=False, index=True)
-    child_google_sheet_id = db.Column(db.String(64), nullable=True, index=True)
+
     child_supabase_id = db.Column(db.String(64), nullable=True, index=True)
-    provider_google_sheet_id = db.Column(db.String(64), nullable=True, index=True)
-    provider_supabase_id = db.Column(db.String(64), nullable=True, index=True)
-    family_entered_hours = db.Column(db.Integer, nullable=True)
+    family_entered_full_days = db.Column(db.Integer, nullable=True)
+    family_entered_half_days = db.Column(db.Integer, nullable=True)
     family_entered_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    provider_entered_hours = db.Column(db.Integer, nullable=True)
-    provider_entered_at = db.Column(db.DateTime(timezone=True), nullable=True)
     family_opened_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    provider_supabase_id = db.Column(db.String(64), nullable=True, index=True)
+    provider_entered_full_days = db.Column(db.Integer, nullable=True)
+    provider_entered_half_days = db.Column(db.Integer, nullable=True)
+    provider_entered_at = db.Column(db.DateTime(timezone=True), nullable=True)
     provider_opened_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    child_google_sheet_id = db.Column(
+        db.String(64), nullable=True, index=True
+    )  # DEPRECATED: use child_supabase_id instead
+    provider_google_sheet_id = db.Column(
+        db.String(64), nullable=True, index=True
+    )  # DEPRECATED: use provider_supabase_id instead
+    family_entered_hours = db.Column(
+        db.Integer, nullable=True
+    )  # DEPRECATED: use family_entered_full_days and family_entered_half_days instead
+    provider_entered_hours = db.Column(
+        db.Integer, nullable=True
+    )  # DEPRECATED: use provider_entered_full_days and provider_entered_half_days instead
 
     def __repr__(self):
         return f"<Attendance {self.id} - Child: {self.child_supabase_id} - Provider: {self.provider_supabase_id}>"
@@ -34,14 +51,16 @@ class Attendance(db.Model, TimestampMixin):
     def new(child_id: str, provider_id: str, date: date):
         return Attendance(week=date, child_supabase_id=child_id, provider_supabase_id=provider_id)
 
-    def set_family_entered(self, hours: int):
-        self.family_entered_hours = hours
+    def set_family_entered(self, full_days: int, half_days: int):
+        self.family_entered_full_days = full_days
+        self.family_entered_half_days = half_days
         self.family_entered_at = datetime.now(timezone.utc)
 
         return self
 
-    def set_provider_entered(self, hours: int):
-        self.provider_entered_hours = hours
+    def set_provider_entered(self, full_days: int, half_days: int):
+        self.provider_entered_full_days = full_days
+        self.provider_entered_half_days = half_days
         self.provider_entered_at = datetime.now(timezone.utc)
 
         return self
@@ -64,8 +83,18 @@ class Attendance(db.Model, TimestampMixin):
 
     @classmethod
     def filter_by_child_ids(cls, child_ids: list[str]):
-        return cls.query.filter(cls.child_supabase_id.in_(child_ids), cls.family_entered_hours.is_(None))
+        return cls.query.filter(
+            cls.child_supabase_id.in_(child_ids),
+            cls.family_entered_full_days.is_(None),
+            cls.family_entered_half_days.is_(None),
+            cls.family_entered_hours.is_(None),  # NOTE: so old attendance doesn't show up
+        )
 
     @classmethod
     def filter_by_provider_id(cls, provider_id: str):
-        return cls.query.filter(cls.provider_supabase_id == provider_id, cls.provider_entered_hours.is_(None))
+        return cls.query.filter(
+            cls.provider_supabase_id == provider_id,
+            cls.provider_entered_full_days.is_(None),
+            cls.provider_entered_half_days.is_(None),
+            cls.provider_entered_hours.is_(None),  # NOTE: so old attendance doesn't show up
+        )
