@@ -37,7 +37,7 @@ def create_child_provider_attendance(
             AllocatedCareDay.payment_id.isnot(None),
         ).first()
 
-        if payed_care_days is not None:
+        if payed_care_days is None:
             return
 
     return Attendance.new(Child.ID(child), Provider.ID(provider), last_week_date)
@@ -77,7 +77,7 @@ def create_attendance(dry_run=False):
             attendance_obj = create_child_provider_attendance(child, provider, last_week_date, last_week_range)
 
             if dry_run:
-                app.logger.info(f"Attendance: {attendance_obj}")
+                app.logger.info(f"Created: {attendance_obj}")
 
             if attendance_obj is not None:
                 attendances.append(attendance_obj)
