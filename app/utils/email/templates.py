@@ -109,7 +109,7 @@ class PaymentNotificationTemplate:
             Language.SPANISH: [
                 "Los fondos se han cargado en su tarjeta virtual",
                 "Puede usar su tarjeta inmediatamente para compras",
-                "Consulte el saldo de su tarjeta en su cuenta Chek",
+                "Verifique el saldo de su tarjeta en su cuenta Chek",
             ],
         }
         return instructions.get(language, instructions[Language.ENGLISH])
