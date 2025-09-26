@@ -1,8 +1,6 @@
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import or_
-
 from ..extensions import db
 from .mixins import TimestampMixin
 
@@ -81,19 +79,39 @@ class Attendance(db.Model, TimestampMixin):
 
         return self
 
+    def center_is_due(self) -> bool:
+        if self.provider_entered_full_days is not None and self.provider_entered_half_days is not None:
+            return False
+
+        today: date = datetime.now(timezone.utc).date()
+
+        if today.year > self.week.year:
+            return True
+
+        if today.month > self.week.month:
+            return True
+
+        return False
+
     @classmethod
     def filter_by_child_ids(cls, child_ids: list[str]):
+        return cls.filter_by_due_family_attendance().filter(cls.child_supabase_id.in_(child_ids))
+
+    @classmethod
+    def filter_by_provider_id(cls, provider_id: str):
+        return cls.filter_by_due_provider_attendance().filter(cls.provider_supabase_id == provider_id)
+
+    @classmethod
+    def filter_by_due_family_attendance(cls):
         return cls.query.filter(
-            cls.child_supabase_id.in_(child_ids),
             cls.family_entered_full_days.is_(None),
             cls.family_entered_half_days.is_(None),
             cls.family_entered_hours.is_(None),  # NOTE: so old attendance doesn't show up
         )
 
     @classmethod
-    def filter_by_provider_id(cls, provider_id: str):
+    def filter_by_due_provider_attendance(cls):
         return cls.query.filter(
-            cls.provider_supabase_id == provider_id,
             cls.provider_entered_full_days.is_(None),
             cls.provider_entered_half_days.is_(None),
             cls.provider_entered_hours.is_(None),  # NOTE: so old attendance doesn't show up

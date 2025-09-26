@@ -1,74 +1,49 @@
+import argparse
 from dataclasses import dataclass
 from datetime import date
-
-from flask import current_app
 
 from app import create_app
 from app.extensions import db
 from app.models import Attendance
-from app.supabase.columns import Status
+from app.models.allocated_care_day import AllocatedCareDay
+from app.supabase.columns import ProviderType, Status
 from app.supabase.helpers import cols, unwrap_or_error
-from app.supabase.tables import Child, Family, Guardian, Provider
-from app.utils.email_service import (
-    BulkEmailData,
-    bulk_send_emails,
-    get_from_email_external,
-    html_link,
-)
-from app.utils.sms_service import BulkSmsData, bulk_send_sms
+from app.supabase.tables import Child, Family, Provider
+from app.utils.date_utils import get_week_range
 
 # Create Flask app context
 app = create_app()
 app.app_context().push()
 
 
-def create_child_provider_attendance(child: dict, provider: dict, last_week_date: date):
+def create_child_provider_attendance(
+    child: dict, provider: dict, last_week_date: date, last_week_range: tuple[date, date]
+):
     if Child.STATUS(child) != Status.APPROVED:
         return
     if Provider.STATUS(provider) != Status.APPROVED:
         return
 
+    if not Child.PAYMENT_ENABLED(child):
+        return
+    if not Provider.PAYMENT_ENABLED(provider):
+        return
+
+    if Provider.TYPE(provider) != ProviderType.CENTER:
+        # NOTE: don't create attendance for providers that are not scheduled
+        week_start, week_end = last_week_range
+        payed_care_days = AllocatedCareDay.query.filter(
+            AllocatedCareDay.date >= week_start,
+            AllocatedCareDay.date <= week_end,
+            AllocatedCareDay.payment_id.isnot(None),
+        ).first()
+
+        if payed_care_days is not None:
+            return
+
     return Attendance.new(Child.ID(child), Provider.ID(provider), last_week_date)
 
-
-@dataclass
-class MessageCopy:
-    subject: str
-    email: str
-    sms: str
-
-
-def family_message(family_name: str, link: str, lang: str):
-    if lang == "es":
-        return MessageCopy(
-            subject="Acción necesaria - Asistencia CAP",
-            email=f"<html><body>¡Hola {family_name}! Por favor, confirme las horas de atención de la semana pasada y programe la atención para la semana siguiente (si aún no lo ha hecho) antes del final del día para que su proveedor pueda recibir el pago. Haga clic {html_link(link, 'aquí')} para acceder a su portal.</body></html>",
-            sms=f"¡Hola {family_name}! Por favor, confirme las horas de atención de la semana pasada y programe la atención para la semana siguiente (si aún no lo ha hecho) antes del final del día para que su proveedor pueda recibir el pago. Enlace para confirmar: {link}",
-        )
-
-    return MessageCopy(
-        subject="Action Needed - CAP Attendance",
-        email=f"<html><body>Hi {family_name}! Please confirm the hours of care for the past week and schedule care for the following week (if you haven’t done so already) by the end of the day, so your provider can get paid. Click {html_link(link, 'here')} to access your portal.</html></body>",
-        sms=f"Hi {family_name}!  Please confirm the hours of care for the past week and schedule care for the following week (if you haven’t done so already) by the end of the day, so your provider can get paid. Link to confirm: {link}",
-    )
-
-
-def provider_message(provider_name: str, link: str, lang: str):
-    if lang == "es":
-        return MessageCopy(
-            subject="Acción necesaria - Asistencia CAP",
-            email=f"<html><body>Hola {provider_name}. Por favor, complete la lista de asistencia de todos los niños bajo su cuidado que reciben el subsidio de CAP antes del final del día para que puedan recibir su pago a tiempo. Haga clic {html_link(link, 'aquí')} para acceder a su portal.</body></html>",
-            sms=f"Hola {provider_name}. Por favor, complete la lista de asistencia de todos los niños bajo su cuidado que reciben el subsidio de CAP antes del final del día para que puedan recibir su pago a tiempo. Enlace para confirmar: {link}",
-        )
-
-    return MessageCopy(
-        subject="Action Needed - CAP Attendance",
-        email=f"<html><body>Hi {provider_name}! Please fill out attendance for all children in your care who receive CAP subsidy by the end of the day, so you can get paid on time. Click {html_link(link, 'here')} to access your portal.</body></html>",
-        sms=f"Hi {provider_name}! Please fill out attendance for all children in your care who receive CAP subsidy by the end of the day, so you can get paid on time. Link to confirm: {link}",
-    )
-
-
-def create_attendance():
+def create_attendance(dry_run=False):
     app.logger.info("create_attendance: Starting attendance creation...")
 
     children_result = (
@@ -77,23 +52,15 @@ def create_attendance():
             cols(
                 Child.ID,
                 Child.STATUS,
+                Child.PAYMENT_ENABLED,
                 Provider.join(
                     Provider.ID,
-                    Provider.NAME,
                     Provider.STATUS,
-                    Provider.EMAIL,
-                    Provider.PHONE_NUMBER,
-                    Provider.LANGUAGE,
+                    Provider.PAYMENT_ENABLED,
+                    Provider.TYPE,
                 ),
                 Family.join(
                     Family.ID,
-                    Family.LANGUAGE,
-                    Guardian.join(
-                        Guardian.FIRST_NAME,
-                        Guardian.EMAIL,
-                        Guardian.PHONE_NUMBER,
-                        Guardian.TYPE,
-                    ),
                 ),
             ),
         )
@@ -102,75 +69,31 @@ def create_attendance():
     children = unwrap_or_error(children_result)
 
     last_week_date = Attendance.last_week_date()
+    last_week_range = get_week_range(last_week_date)
 
     attendances: list[Attendance] = []
-    providers = {}
-    families = {}
     for child in children:
         for provider in Provider.unwrap(child):
-            attendance_obj = create_child_provider_attendance(child, provider, last_week_date)
+            attendance_obj = create_child_provider_attendance(child, provider, last_week_date, last_week_range)
 
             if attendance_obj is not None:
                 attendances.append(attendance_obj)
-                family = Family.unwrap(child)
-                families[Family.ID] = family
-                providers[Provider.ID] = provider
+
+    if dry_run:
+        app.logger.info(f"Would create {len(attendances)} attendance records")
+        return
 
     db.session.add_all(attendances)
     db.session.commit()
     app.logger.info("create_attendance: Finished attendance creation.")
 
-    domain = current_app.config.get("FRONTEND_DOMAIN")
-
-    provider_link = f"{domain}/provider/attendance"
-
-    bulk_emails: list[BulkEmailData] = []
-    bulk_sms: list[BulkSmsData] = []
-    for provider in providers.values():
-        message_data = provider_message(Provider.NAME(provider), provider_link, Provider.LANGUAGE(provider))
-
-        bulk_emails.append(
-            BulkEmailData(
-                email=Provider.EMAIL(provider),
-                subject=message_data.subject,
-                html_content=message_data.email,
-            )
-        )
-
-        bulk_sms.append(
-            BulkSmsData(
-                phone_number="+1" + Provider.PHONE_NUMBER(provider),
-                message=message_data.sms,
-                lang=Provider.LANGUAGE(provider),
-            )
-        )
-
-    family_link = f"{domain}/family/attendance"
-    for family in families.values():
-        guardian = Guardian.get_primary_guardian(Guardian.unwrap(family))
-        message_data = family_message(Guardian.FIRST_NAME(guardian), family_link, Family.LANGUAGE(family))
-
-        bulk_emails.append(
-            BulkEmailData(
-                email=Guardian.EMAIL(guardian),
-                subject=message_data.subject,
-                html_content=message_data.email,
-            )
-        )
-
-        bulk_sms.append(
-            BulkSmsData(
-                phone_number="+1" + Guardian.PHONE_NUMBER(guardian),
-                message=message_data.sms,
-                lang=Family.LANGUAGE(family),
-            )
-        )
-
-    bulk_send_emails(get_from_email_external(), bulk_emails)
-    bulk_send_sms(bulk_sms)
-
-    current_app.logger.info("create_attendance: Finished sending attendance emails and SMS.")
-
 
 if __name__ == "__main__":
-    create_attendance()
+    parser = argparse.ArgumentParser(description="Create attendance records for a given child provider pairs.")
+    parser.add_argument(
+        "-d", "--dry-run", action="store_true", help="Show what would be created without actually creating"
+    )
+
+    args = parser.parse_args()
+
+    create_attendance(args.dry_run)
