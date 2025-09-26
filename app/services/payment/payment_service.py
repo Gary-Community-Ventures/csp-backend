@@ -201,6 +201,7 @@ class PaymentService:
                 Provider.FIRST_NAME,
                 Provider.LAST_NAME,
                 Provider.EMAIL,
+                Provider.PREFERRED_LANGUAGE,
                 Child.join(Child.ID, Child.FIRST_NAME, Child.LAST_NAME),
             ),
             int(intent.provider_supabase_id),
@@ -218,6 +219,7 @@ class PaymentService:
             child_id=intent.child_supabase_id,
             amount_cents=intent.amount_cents,
             payment_method=attempt.payment_method.value,
+            provider_language=Provider.PREFERRED_LANGUAGE(provider),
         )
         current_app.logger.info(f"Payment notification sent for Payment {payment.id}")
 
