@@ -112,6 +112,15 @@ class FamilyAttendanceMessages(AttendanceMessages):
             email=Guardian.EMAIL(guardian),
             subject=message_data.subject,
             html_content=message_data.email,
+            context_data={
+                "family_id": Family.ID(family),
+                "child_id": Child.ID(child),
+                "guardian_id": Guardian.ID(guardian),
+                "guardian_name": Guardian.FIRST_NAME(guardian),
+                "family_language": lang,
+                "recipient_type": "guardian",
+                "reminder_date": record.week.isoformat(),
+            },
         )
         sms = BulkSmsData(
             phone_number="+1" + Guardian.PHONE_NUMBER(guardian),
@@ -174,6 +183,14 @@ class ProviderAttendanceMessages(AttendanceMessages):
             email=Provider.EMAIL(provider),
             subject=message_data.subject,
             html_content=message_data.email,
+            context_data={
+                "provider_id": Provider.ID(provider),
+                "provider_name": Provider.NAME(provider),
+                "provider_language": lang,
+                "provider_type": Provider.TYPE(provider),
+                "recipient_type": "provider",
+                "reminder_date": record.week.isoformat(),
+            },
         )
         sms = BulkSmsData(
             phone_number="+1" + Provider.PHONE_NUMBER(provider),

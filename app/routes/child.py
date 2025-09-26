@@ -15,9 +15,7 @@ from app.schemas.month_allocation import (
 from app.schemas.payment import PaymentErrorResponse, PaymentProcessedResponse
 from app.supabase.helpers import UnwrapError, cols, unwrap_or_abort
 from app.supabase.tables import Child, Provider
-from app.utils.email_service import (
-    send_care_days_payment_email,
-)
+from app.utils.email.senders import send_care_days_payment_email
 from app.utils.json_utils import custom_jsonify
 
 bp = Blueprint("child", __name__)

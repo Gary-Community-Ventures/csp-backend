@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from app import create_app
+from app.enums.email_type import EmailType
 from app.extensions import db
 from app.models import Attendance
 from app.models.allocated_care_day import AllocatedCareDay

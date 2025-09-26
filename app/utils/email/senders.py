@@ -1,136 +1,20 @@
-import sys
-import traceback
+"""
+Email template functions for various notification types.
+"""
+
 from dataclasses import dataclass
-from typing import Union
 
 from flask import current_app
-from sendgrid import Personalization, SendGridAPIClient, Substitution, To
-from sendgrid.helpers.mail import Mail
 
+from app.enums.email_type import EmailType
 from app.models import AllocatedCareDay
 from app.supabase.helpers import format_name
 from app.supabase.tables import Child
-
-
-def add_subject_prefix(subject: str):
-    environment = current_app.config.get("FLASK_ENV", "development")
-    prefix = ""
-
-    if environment != "production":
-        prefix = f"[{environment.upper()}]"
-
-    return f"{prefix} {subject}"
-
-
-def send_email(
-    from_email: str, to_emails: Union[str, list[str]], subject: str, html_content: str, from_name: str = "CAP Support"
-) -> bool:
-    """
-    Send an email using SendGrid.
-
-    :param from_email: Sender's email address.
-    :param to_email: Recipient's email address.
-    :param subject: Subject of the email.
-    :param html_content: HTML content of the email.
-    :return: True if the email was sent successfully, False otherwise.
-    """
-    try:
-        message = Mail(
-            from_email=(from_email, from_name),
-            to_emails=to_emails,
-            subject=add_subject_prefix(subject),
-            html_content=html_content,
-        )
-
-        sendgrid_client = SendGridAPIClient(current_app.config.get("SENDGRID_API_KEY"))
-        response = sendgrid_client.send(message)
-        current_app.logger.info(f"SendGrid email sent with status code: {response.status_code}")
-        return True
-
-    except Exception as e:
-        exc_type, exc_value, _ = sys.exc_info()
-        exc_traceback = traceback.format_exc()
-        current_app.logger.error(
-            f"Error sending email: {e}",
-            extra={
-                "exc_traceback": exc_traceback,
-                "exc_type": exc_type,
-                "exc_value": exc_value,
-                "from_email": from_email,
-                "to_emails": to_emails,
-                "subject": subject,
-                "html_content": html_content,
-                "e.body": getattr(e, "body", None),
-            },
-        )
-        current_app.logger.error(exc_traceback)
-        return False
-
-
-@dataclass
-class BulkEmailData:
-    email: str
-    subject: str
-    html_content: str
-
-
-def bulk_send_emails(from_email: str, data: list[BulkEmailData]):
-    try:
-        message = Mail(from_email=from_email, to_emails=[], subject="[PLACEHOLDER]", html_content="{body}")
-
-        for message_data in data:
-            personalization = Personalization()
-            personalization.add_to(To(message_data.email))
-            personalization.subject = add_subject_prefix(message_data.subject)
-            personalization.add_substitution(Substitution("{body}", message_data.html_content))
-
-            message.add_personalization(personalization)
-
-        sendgrid_client = SendGridAPIClient(current_app.config.get("SENDGRID_API_KEY"))
-        response = sendgrid_client.send(message)
-        current_app.logger.info(f"SendGrid emails sent with status code: {response.status_code}")
-        return True
-    except Exception as e:
-        exc_type, exc_value, _ = sys.exc_info()
-        exc_traceback = traceback.format_exc()
-        current_app.logger.error(
-            f"Error sending email: {e}",
-            extra={
-                "exc_traceback": exc_traceback,
-                "exc_type": exc_type,
-                "exc_value": exc_value,
-                "from_email": from_email,
-                "data": data,
-                "e.body": getattr(e, "body", None),
-            },
-        )
-        current_app.logger.error(exc_traceback)
-        return False
-
-
-def get_from_email_internal() -> str:
-    # Ensure the FROM_EMAIL_INTERNAL is set in the config
-    if not current_app.config.get("FROM_EMAIL_INTERNAL"):
-        raise ValueError("FROM_EMAIL_INTERNAL is not set in the configuration.")
-    return str(current_app.config.get("FROM_EMAIL_INTERNAL"))
-
-
-def get_from_email_external() -> str:
-    # Ensure the FROM_EMAIL_EXTERNAL is set in the config
-    if not current_app.config.get("FROM_EMAIL_EXTERNAL"):
-        raise ValueError("FROM_EMAIL_EXTERNAL is not set in the configuration.")
-    return str(current_app.config.get("FROM_EMAIL_EXTERNAL"))
-
-
-def get_internal_emails() -> tuple[str, list[str]]:
-    # Ensure email addresses are strings
-    from_email = get_from_email_internal()
-    to_emails = current_app.config.get("INTERNAL_EMAIL_RECIPIENTS", [])
-
-    # Filter out empty strings from the list (in case of trailing commas in env var)
-    to_emails = [email.strip() for email in to_emails if email.strip()]
-
-    return from_email, to_emails
+from app.utils.email.config import (
+    get_from_email_external,
+    get_internal_email_config,
+)
+from app.utils.email.core import send_email
 
 
 @dataclass
@@ -139,7 +23,12 @@ class SystemMessageRow:
     value: str
 
 
+def html_link(link: str, text: str):
+    return f"<a href='{link}' style='color: #0066cc; text-decoration: underline;'>{text}</a>"
+
+
 def system_message(subject: str, description: str, rows: list[SystemMessageRow]):
+    """Create a system message email template with a table of information."""
     html_rows: list[str] = []
     for row in rows:
         html_rows.append(
@@ -177,9 +66,10 @@ def send_care_days_payment_email(
     amount_in_cents: int,
     care_days: list[AllocatedCareDay],
 ) -> bool:
+    """Send email notification for care days payment processing."""
     amount_dollars = amount_in_cents / 100
 
-    from_email, to_emails = get_internal_emails()
+    from_email, to_emails = get_internal_email_config()
 
     current_app.logger.info(
         f"Sending payment processed notification to {to_emails} for provider ID: {provider_id} from child ID: {child_id}"
@@ -220,6 +110,14 @@ def send_care_days_payment_email(
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
+        email_type=EmailType.CARE_DAYS_PAYMENT,
+        context_data={
+            "provider_id": provider_id,
+            "child_id": child_id,
+            "amount_cents": amount_in_cents,
+            "care_days_count": len(care_days),
+        },
+        is_internal=True,
     )
 
 
@@ -233,9 +131,10 @@ def send_lump_sum_payment_email(
     hours: float,
     month: str,
 ) -> bool:
+    """Send email notification for lump sum payment processing."""
     amount_dollars = amount_in_cents / 100
 
-    from_email, to_emails = get_internal_emails()
+    from_email, to_emails = get_internal_email_config()
 
     current_app.logger.info(
         f"Sending lump sum payment processed email to {to_emails} for provider ID: {provider_id} from child ID: {child_id}"
@@ -274,11 +173,21 @@ def send_lump_sum_payment_email(
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
+        email_type=EmailType.LUMP_SUM_PAYMENT,
+        context_data={
+            "provider_id": provider_id,
+            "child_id": child_id,
+            "amount_cents": amount_in_cents,
+            "hours": hours,
+            "month": month,
+        },
+        is_internal=True,
     )
 
 
 def send_provider_invited_email(family_name: str, family_id: str, provider_email: str, ids: list[str]):
-    from_email, to_emails = get_internal_emails()
+    """Send notification when a family invites a provider."""
+    from_email, to_emails = get_internal_email_config()
 
     current_app.logger.info(f"Sending invite sent request email to {to_emails} for family ID: {family_id}")
 
@@ -310,13 +219,22 @@ def send_provider_invited_email(family_name: str, family_id: str, provider_email
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
+        email_type=EmailType.PROVIDER_INVITED,
+        context_data={
+            "family_name": family_name,
+            "family_id": family_id,
+            "provider_email": provider_email,
+            "invite_ids": ids,
+        },
+        is_internal=True,
     )
 
 
 def send_provider_invite_accept_email(
     provider_name: str, provider_id: str, parent_name: str, parent_id: str, child_name: str, child_id: str
 ):
-    from_email, to_emails = get_internal_emails()
+    """Send notification when a provider accepts an invite."""
+    from_email, to_emails = get_internal_email_config()
 
     current_app.logger.info(
         f"Sending accept invite request email to {to_emails} for family ID: {parent_id} for provider ID: {provider_id} for child ID: {child_id}"
@@ -346,11 +264,22 @@ def send_provider_invite_accept_email(
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
+        email_type=EmailType.PROVIDER_INVITE_ACCEPTED,
+        context_data={
+            "provider_name": provider_name,
+            "provider_id": provider_id,
+            "parent_name": parent_name,
+            "parent_id": parent_id,
+            "child_name": child_name,
+            "child_id": child_id,
+        },
+        is_internal=True,
     )
 
 
 def send_new_payment_rate_email(provider_id: str, child_id: str, half_day_rate_cents: int, full_day_rate_cents: int):
-    from_email, to_emails = get_internal_emails()
+    """Send notification when a new payment rate is created."""
+    from_email, to_emails = get_internal_email_config()
 
     current_app.logger.info(
         f"Sending new payment rate email to {to_emails} for child ID: {child_id} for provider ID: {provider_id}"
@@ -384,6 +313,14 @@ def send_new_payment_rate_email(provider_id: str, child_id: str, half_day_rate_c
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
+        email_type=EmailType.PAYMENT_RATE_CREATED,
+        context_data={
+            "provider_id": provider_id,
+            "child_id": child_id,
+            "half_day_rate_cents": half_day_rate_cents,
+            "full_day_rate_cents": full_day_rate_cents,
+        },
+        is_internal=True,
     )
 
 
@@ -400,12 +337,13 @@ def send_payment_notification(
     Sends a payment notification email to the provider when payment is completed.
 
     Args:
+        provider_name: Provider's name
+        provider_email: Provider's email address
         provider_id: Provider's external ID
+        child_name: Child's name
         child_id: Child's external ID
         amount_cents: Payment amount in cents
         payment_method: Method used for payment (CARD or ACH)
-        payment_id: Optional payment ID for reference
-        month: Optional month string (YYYY-MM format)
     """
     from app.enums.payment_method import PaymentMethod
 
@@ -501,11 +439,20 @@ def send_payment_notification(
         to_emails=[provider_email],
         subject=subject,
         html_content=html_content,
+        email_type=EmailType.PAYMENT_NOTIFICATION,
+        context_data={
+            "provider_id": provider_id,
+            "child_id": child_id,
+            "amount_cents": amount_cents,
+            "payment_method": payment_method,
+        },
+        is_internal=False,
     )
 
 
 def send_family_invited_email(provider_name: str, provider_id: str, family_email: str, id: str):
-    from_email, to_emails = get_internal_emails()
+    """Send notification when a provider invites a family."""
+    from_email, to_emails = get_internal_email_config()
 
     current_app.logger.info(f"Sending invite sent request email to {to_emails} for provider ID: {provider_id}")
 
@@ -530,6 +477,14 @@ def send_family_invited_email(provider_name: str, provider_id: str, family_email
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
+        email_type=EmailType.FAMILY_INVITED,
+        context_data={
+            "provider_name": provider_name,
+            "provider_id": provider_id,
+            "family_email": family_email,
+            "invite_id": id,
+        },
+        is_internal=True,
     )
 
 
@@ -540,7 +495,8 @@ def send_family_invite_accept_email(
     parent_id: str,
     children: list[dict],
 ):
-    from_email, to_emails = get_internal_emails()
+    """Send notification when a family accepts a provider's invite."""
+    from_email, to_emails = get_internal_email_config()
 
     current_app.logger.info(
         f"Sending accept invite request email to {to_emails} for provider ID: {provider_id} for family ID: {parent_id} for child IDs: {[Child.ID(c) for c in children]}"
@@ -566,7 +522,7 @@ def send_family_invite_accept_email(
         )
 
     subject = "New Add Family Invite Accepted Notification"
-    description = f"A new family invite request has been submitted:"
+    description = f"A new family invite has been accepted:"
     html_content = system_message(subject, description, rows)
 
     return send_email(
@@ -574,8 +530,12 @@ def send_family_invite_accept_email(
         to_emails=to_emails,
         subject=subject,
         html_content=html_content,
+        email_type=EmailType.FAMILY_INVITE_ACCEPTED,
+        context_data={
+            "parent_name": parent_name,
+            "parent_id": parent_id,
+            "provider_name": provider_name,
+            "provider_id": provider_id,
+        },
+        is_internal=True,
     )
-
-
-def html_link(link: str, text: str):
-    return f"<a href='{link}' style='color: #0066cc; text-decoration: underline;'>{text}</a>"
