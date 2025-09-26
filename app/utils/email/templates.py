@@ -39,6 +39,15 @@ class PaymentNotificationTemplate:
         return intros.get(language, intros[Language.ENGLISH])
 
     @staticmethod
+    def get_email_header(language: Language = Language.ENGLISH) -> str:
+        """Get the main email header/title in the specified language."""
+        headers = {
+            Language.ENGLISH: "New Payment Processed",
+            Language.SPANISH: "Nuevo Pago Procesado",
+        }
+        return headers.get(language, headers[Language.ENGLISH])
+
+    @staticmethod
     def get_payment_details_header(language: Language = Language.ENGLISH) -> str:
         """Get the payment details header in the specified language."""
         headers = {
@@ -168,7 +177,7 @@ class PaymentNotificationTemplate:
             <body style="font-family: sans-serif; line-height: 1.6; color: #333;">
                 <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                     <h2 style="color: #b53363; border-bottom: 2px solid #364f3f; padding-bottom: 10px;">
-                        {cls.get_subject(amount_dollars, language).split(' - ')[0]}
+                        {cls.get_email_header(language)}
                     </h2>
 
                     <p>{cls.get_greeting(provider_name, language)}</p>
