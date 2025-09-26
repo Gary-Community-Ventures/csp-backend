@@ -76,6 +76,9 @@ def create_attendance(dry_run=False):
         for provider in Provider.unwrap(child):
             attendance_obj = create_child_provider_attendance(child, provider, last_week_date, last_week_range)
 
+            if dry_run:
+                app.logger.info(f"Attendance: {attendance_obj}")
+
             if attendance_obj is not None:
                 attendances.append(attendance_obj)
 
