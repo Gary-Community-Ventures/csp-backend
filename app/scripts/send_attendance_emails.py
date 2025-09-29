@@ -6,12 +6,12 @@ from app.models.attendance import Attendance
 from app.supabase.columns import ProviderType
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child, Family, Guardian, Provider
-from app.utils.email_service import (
+from app.utils.email.core import (
     BulkEmailData,
     bulk_send_emails,
-    get_from_email_external,
-    html_link,
 )
+from app.utils.email.config import get_from_email_external
+from app.utils.email.senders import html_link
 from app.utils.sms_service import BulkSmsData, bulk_send_sms
 
 # Create Flask app context
