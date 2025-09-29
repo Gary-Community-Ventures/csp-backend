@@ -32,11 +32,12 @@ def create_child_provider_attendance(
         # NOTE: don't create attendance for providers that are not scheduled
         week_start, week_end = last_week_range
         payed_care_day = AllocatedCareDay.query.filter(
+            AllocatedCareDay.provider_supabase_id == Provider.ID(provider),
+            AllocatedCareDay.child_supabase_id == Child.ID(child),
             AllocatedCareDay.date >= week_start,
             AllocatedCareDay.date <= week_end,
             AllocatedCareDay.payment_id.isnot(None),
         ).first()
-        print(payed_care_day)
 
         if payed_care_day is None:
             return
