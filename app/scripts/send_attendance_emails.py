@@ -88,6 +88,7 @@ class FamilyAttendanceMessages(AttendanceMessages):
                         Family.ID,
                         Family.LANGUAGE,
                         Guardian.join(
+                            Guardian.ID,
                             Guardian.EMAIL,
                             Guardian.PHONE_NUMBER,
                             Guardian.TYPE,
