@@ -36,6 +36,7 @@ def create_child_provider_attendance(
             AllocatedCareDay.date <= week_end,
             AllocatedCareDay.payment_id.isnot(None),
         ).first()
+        print(payed_care_day)
 
         if payed_care_day is None:
             return
