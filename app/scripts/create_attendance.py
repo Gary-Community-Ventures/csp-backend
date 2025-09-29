@@ -33,7 +33,7 @@ def create_child_provider_attendance(
         week_start, week_end = last_week_range
         payed_care_day = AllocatedCareDay.query.filter(
             AllocatedCareDay.provider_supabase_id == Provider.ID(provider),
-            AllocatedCareDay.child_supabase_id == Child.ID(child),
+            AllocatedCareDay.care_month_allocation.has(child_supabase_id=Child.ID(child)),
             AllocatedCareDay.date >= week_start,
             AllocatedCareDay.date <= week_end,
             AllocatedCareDay.payment_id.isnot(None),
