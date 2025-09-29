@@ -31,13 +31,13 @@ def create_child_provider_attendance(
     if Provider.TYPE(provider) != ProviderType.CENTER:
         # NOTE: don't create attendance for providers that are not scheduled
         week_start, week_end = last_week_range
-        payed_care_days = AllocatedCareDay.query.filter(
+        payed_care_day = AllocatedCareDay.query.filter(
             AllocatedCareDay.date >= week_start,
             AllocatedCareDay.date <= week_end,
             AllocatedCareDay.payment_id.isnot(None),
         ).first()
 
-        if payed_care_days is None:
+        if payed_care_day is None:
             return
 
     return Attendance.new(Child.ID(child), Provider.ID(provider), last_week_date)

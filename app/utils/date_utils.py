@@ -1,6 +1,5 @@
 import zoneinfo
 from datetime import date, datetime, timedelta
-from typing import Tuple
 
 from app.constants import BUSINESS_TIMEZONE, DAYS_TO_NEXT_MONTH
 
@@ -16,7 +15,7 @@ def get_next_month_start() -> date:
     return (current_month + timedelta(days=DAYS_TO_NEXT_MONTH)).replace(day=1)
 
 
-def get_week_range(target_date: date) -> Tuple[date, date]:
+def get_week_range(target_date: date) -> tuple[date, date]:
     # Monday is 0, Sunday is 6 in weekday()
     days_since_monday = target_date.weekday()
     week_start = target_date - timedelta(days=days_since_monday)
