@@ -53,7 +53,8 @@ def test_create_lump_sum_success(client, seed_lump_sum_db, mocker, app):
             "allocation_id": allocation.id,
             "provider_id": "providerABC",
             "amount_cents": 50000,  # 500.00
-            "hours": 10.5,
+            "days": 3,
+            "half_days": 1,
         },
     )
     assert response.status_code == 201
@@ -71,7 +72,8 @@ def test_create_lump_sum_success(client, seed_lump_sum_db, mocker, app):
             care_month_allocation_id=allocation.id,
             provider_supabase_id="providerABC",
             amount_cents=50000,
-            hours=10.5,
+            days=3,
+            half_days=1,
         ).first()
         assert lump_sum is not None
         assert lump_sum.submitted_at is not None
@@ -85,7 +87,7 @@ def test_create_lump_sum_missing_cents(client, seed_lump_sum_db):
         json={
             "allocation_id": allocation.id,
             "provider_id": "providerABC",
-            "hours": 10.5,
+            "days": 3,
             # Missing amount_cents
         },
     )
@@ -93,7 +95,7 @@ def test_create_lump_sum_missing_cents(client, seed_lump_sum_db):
     assert any("amount_cents" in err["loc"] for err in response.json["error"])
 
 
-def test_create_lump_sum_missing_hours(client, seed_lump_sum_db):
+def test_create_lump_sum_missing_days(client, seed_lump_sum_db):
     allocation = seed_lump_sum_db
 
     response = client.post(
@@ -102,11 +104,11 @@ def test_create_lump_sum_missing_hours(client, seed_lump_sum_db):
             "allocation_id": allocation.id,
             "provider_id": "providerABC",
             "amount_cents": 50000,  # 500.00
-            # Missing hours
+            # Missing days
         },
     )
     assert response.status_code == 400
-    assert any("hours" in err["loc"] for err in response.json["error"])
+    assert any("days" in err["loc"] for err in response.json["error"])
 
 
 def test_create_lump_sum_allocation_not_found(client):

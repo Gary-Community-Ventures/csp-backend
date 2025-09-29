@@ -21,6 +21,8 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
 
     amount_cents = db.Column(db.Integer, nullable=False)
     hours = db.Column(db.Float, nullable=True)
+    days = db.Column(db.Integer, nullable=True)
+    half_days = db.Column(db.Integer, nullable=True)
 
     # Provider info
     provider_google_sheets_id = db.Column(db.String(64), nullable=True, index=True)
@@ -47,13 +49,20 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
         allocation: "MonthAllocation",
         provider_id: str,
         amount_cents: int,
-        hours: float,
+        days: int,
+        half_days: int,
     ):
         if not isinstance(amount_cents, int) or amount_cents <= 0:
             raise ValueError("Amount must be a positive integer in cents")
 
-        if not isinstance(hours, float) or hours < 0:
-            raise ValueError("Hours must be a positive float")
+        if not isinstance(days, int) or days < 0:
+            raise ValueError("Days must be a non-negative integer")
+
+        if not isinstance(half_days, int) or half_days < 0:
+            raise ValueError("Half days must be a non-negative integer")
+
+        if days == 0 and half_days == 0:
+            raise ValueError("At least one of days or half_days must be greater than zero")
 
         # Check if lump sum exceeds maximum payment amount
         if amount_cents > MAX_PAYMENT_AMOUNT_CENTS:
@@ -72,7 +81,8 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
             provider_supabase_id=provider_id,
             amount_cents=amount_cents,
             submitted_at=datetime.now(timezone.utc),
-            hours=hours,
+            days=days,
+            half_days=half_days,
         )
 
         return lump_sum

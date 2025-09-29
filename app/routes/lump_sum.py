@@ -35,7 +35,8 @@ def create_lump_sum():
     allocation_id = request_data.allocation_id
     provider_id = request_data.provider_id
     amount_cents = request_data.amount_cents
-    hours = request_data.hours
+    days = request_data.days
+    half_days = request_data.half_days
 
     allocation = db.session.get(MonthAllocation, allocation_id)
     if not allocation:
@@ -90,7 +91,8 @@ def create_lump_sum():
             allocation=allocation,
             provider_id=provider_id,
             amount_cents=amount_cents,
-            hours=hours,
+            days=days,
+            half_days=half_days,
         )
         db.session.add(lump_sum)
         db.session.flush()  # Flush to get lump_sum ID before payment processing
@@ -118,7 +120,8 @@ def create_lump_sum():
             child_last_name=Child.LAST_NAME(associated_child),
             child_id=allocation_child_id,
             amount_in_cents=amount_cents,
-            hours=hours,
+            days=days,
+            half_days=half_days,
             month=allocation.date.strftime("%B %Y"),
         )
 
