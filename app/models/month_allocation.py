@@ -26,6 +26,9 @@ def get_allocation_amount(child_id: str) -> int:
     if allocation_dollars is None or allocation_dollars == 0:
         raise ValueError(f"Child {child_id} has no monthly allocation set")
 
+    if Child.PRORATED_ALLOCATION(child) is None:
+        raise ValueError(f"Child {child_id} has no prorated allocation set")
+
     # If no prior allocation exists, use prorated amount
     prior_allocation = MonthAllocation.query.filter_by(child_supabase_id=child_id).first()
     if not prior_allocation:
