@@ -102,6 +102,9 @@ class FamilyAttendanceMessages(AttendanceMessages):
 
     def _message(self, record: Attendance, data):
         child = Child.find_by_id(data, record.child_supabase_id)
+        if child is None:
+            raise self.Skip
+
         family = Family.unwrap(child)
         guardian = Guardian.get_primary_guardian(Guardian.unwrap(family))
         lang = Family.LANGUAGE(family)
@@ -169,6 +172,9 @@ class ProviderAttendanceMessages(AttendanceMessages):
 
     def _message(self, record: Attendance, data):
         provider = Provider.find_by_id(data, record.provider_supabase_id)
+        if provider is None:
+            raise self.Skip
+
         lang = Provider.LANGUAGE(provider)
 
         if Provider.TYPE(provider) == ProviderType.CENTER and not record.center_is_due():
