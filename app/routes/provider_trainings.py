@@ -6,6 +6,8 @@ from app.schemas.provider_training import (
 from app.supabase.helpers import cols, unwrap_or_abort
 from app.supabase.tables import Provider
 
+from flask import Blueprint
+
 bp = Blueprint("provider_trainings", __name__, url_prefix="/provider")
 
 ALL_TRAINING_COLUMNS = [
