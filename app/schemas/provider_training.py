@@ -14,9 +14,3 @@ class ProviderTrainingResponse(BaseModel):
 
     class Config:
         populate_by_name = True
-
-
-class ProviderTrainingUpdateRequest(BaseModel):
-    child_safety_module_training_completed_at: Optional[bool] = None
-    safe_sleep_for_infants_training_completed_at: Optional[bool] = None
-    home_safety_and_injury_prevention_training_completed_at: Optional[bool] = None
