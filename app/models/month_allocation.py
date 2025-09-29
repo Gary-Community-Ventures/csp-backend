@@ -24,7 +24,7 @@ def get_allocation_amount(child_id: str) -> int:
     allocation_dollars = Child.MONTHLY_ALLOCATION(child)
 
     if allocation_dollars is None or allocation_dollars == 0:
-        raise ValueError(f"Child {child_id} has no monthly allocation set")
+        raise ValueError(f"Child {child_id} has invalid monthly allocation: must be greater than 0 (got {allocation_dollars})")
 
     if Child.PRORATED_ALLOCATION(child) is None:
         raise ValueError(f"Child {child_id} has no prorated allocation set")
