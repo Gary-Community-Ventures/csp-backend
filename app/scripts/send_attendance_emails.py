@@ -1,7 +1,9 @@
 import argparse
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from app import create_app
+from app.enums.email_type import EmailType
 from app.models.attendance import Attendance
 from app.supabase.columns import ProviderType
 from app.supabase.helpers import cols, unwrap_or_error
@@ -265,7 +267,8 @@ def send_attendance_emails(send_to_families=False, send_to_providers=False, dry_
         app.logger.info(f"Would send {len(bulk_emails)} emails and {len(bulk_text_messages)} text messages")
         return
 
-    bulk_send_emails(get_from_email_external(), bulk_emails)
+    batch_name = f"Attendance Reminder - {datetime.now(timezone.utc).isoformat()}"
+    bulk_send_emails(get_from_email_external(), bulk_emails, EmailType.ATTENDANCE_REMINDER, batch_name=batch_name)
     bulk_send_sms(bulk_text_messages)
 
     app.logger.info("create_attendance: Finished sending attendance emails and SMS.")
