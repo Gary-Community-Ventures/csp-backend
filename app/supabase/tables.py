@@ -27,7 +27,7 @@ class Table:
 
     @classmethod
     def select_by_id(cls, columns: str, id: int) -> SyncSelectRequestBuilder:
-        return cls.query().select(columns).eq(cls.ID, id).single()
+        return cls.query().select(columns).eq(cls.ID, id).maybe_single()
 
     @classmethod
     def unwrap(cls, data: dict):
@@ -51,6 +51,7 @@ class Family(Table):
     YEARLY_INCOME = Column("yearly_income", float)
     ZIP = Column("zip")
     LANGUAGE = Column("language", enum_column(Language))
+    LINK_ID = Column("link_id")
 
 
 class Guardian(Table):
@@ -129,6 +130,7 @@ class Provider(Table):
     HOME_SAFETY_AND_INJURY_PREVENTION_TRAINING_COMPLETED_AT = Column(
         "home_safety_and_injury_prevention_training_completed_at", datetime_column
     )
+    LINK_ID = Column("link_id")
 
 
 class ProviderChildMapping(Table):

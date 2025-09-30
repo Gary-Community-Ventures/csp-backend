@@ -15,12 +15,13 @@ from app.auth.helpers import get_current_user, get_family_user, get_provider_use
 from app.constants import MAX_CHILDREN_PER_PROVIDER, UNKNOWN
 from app.extensions import db
 from app.models.attendance import Attendance
+from app.models.family_invitation import FamilyInvitation
 from app.models.family_payment_settings import FamilyPaymentSettings
 from app.models.provider_invitation import ProviderInvitation
 from app.models.provider_payment_settings import ProviderPaymentSettings
 from app.services.allocation_service import AllocationService
 from app.supabase.helpers import cols, format_name, unwrap_or_abort
-from app.supabase.tables import Child, Family, Guardian, Provider
+from app.supabase.tables import Child, Family, Guardian, Provider, ProviderChildMapping
 from app.utils.date_utils import get_current_month_start, get_next_month_start
 from app.utils.email.config import get_from_email_internal
 from app.utils.email.core import send_email
@@ -61,8 +62,17 @@ def new_family():
     if "email" not in data:
         abort(400, description="Missing required field: email")
 
-    family_children_result = Child.select_by_family_id(cols(Child.ID), int(family_id)).execute()
-    family_children = unwrap_or_abort(family_children_result)
+    family_result = Family.select_by_id(
+        cols(
+            Family.LINK_ID,
+            Child.join(
+                Child.ID,
+                Provider.join(Provider.ID),
+            ),
+        ),
+        int(family_id),
+    ).execute()
+    family = unwrap_or_abort(family_result)
 
     # Create Chek user and FamilyPaymentSettings
     payment_service = current_app.payment_service
@@ -71,9 +81,11 @@ def new_family():
         f"Created FamilyPaymentSettings for family {family_id} with Chek user {family_settings.chek_user_id}"
     )
 
+    children = Child.unwrap(family)
+
     # Create allocations for current and next month
-    create_allocations(family_children, get_current_month_start())
-    create_allocations(family_children, get_next_month_start())
+    create_allocations(children, get_current_month_start())
+    create_allocations(children, get_next_month_start())
     db.session.commit()
 
     # send clerk invite
@@ -91,6 +103,44 @@ def new_family():
             public_metadata=meta_data,
         )
     )
+
+    link_id = Family.LINK_ID(family)
+    if link_id is None:
+        return jsonify(data)
+
+    invite: FamilyInvitation = FamilyInvitation.invitation_by_id(link_id).first()
+    if invite is None:
+        current_app.logger.warning(f"Family invitation with ID {link_id} not found.")
+        return jsonify(data)
+
+    provider_result = Provider.select_by_id(
+        cols(Provider.ID, Child.join(Child.ID)), int(invite.provider_supabase_id)
+    ).execute()
+    provider = unwrap_or_abort(provider_result)
+    if not provider:
+        current_app.logger.warning(f"Provider with ID {invite.provider_supabase_id} not found.")
+        return jsonify(data)
+
+    extra_slots = MAX_CHILDREN_PER_PROVIDER - len(Child.unwrap(provider))
+
+    for child in children:
+        if extra_slots <= 0:
+            break
+
+        for provider in Provider.unwrap(child):
+            if Provider.ID(provider) == invite.provider_supabase_id:
+                continue
+
+        ProviderChildMapping.query().insert(
+            {
+                ProviderChildMapping.CHILD_ID: Child.ID(child),
+                ProviderChildMapping.PROVIDER_ID: invite.provider_supabase_id,
+            }
+        ).execute()
+
+    invite.record_accepted()
+    db.session.add(invite)
+    db.session.commit()
 
     return jsonify(data)
 
