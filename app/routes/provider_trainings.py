@@ -1,3 +1,5 @@
+from flask import Blueprint
+
 from app.auth.decorators import ClerkUserType, auth_required
 from app.auth.helpers import get_provider_user
 from app.schemas.provider_training import (
@@ -6,15 +8,19 @@ from app.schemas.provider_training import (
 from app.supabase.helpers import cols, unwrap_or_abort
 from app.supabase.tables import Provider
 
-from flask import Blueprint
-
 bp = Blueprint("provider_trainings", __name__, url_prefix="/provider")
 
 ALL_TRAINING_COLUMNS = [
     Provider.CPR_ONLINE_TRAINING_COMPLETED_AT,
-    Provider.CHILD_SAFETY_MODULE_TRAINING_COMPLETED_AT,
-    Provider.SAFE_SLEEP_FOR_INFANTS_TRAINING_COMPLETED_AT,
-    Provider.HOME_SAFETY_AND_INJURY_PREVENTION_TRAINING_COMPLETED_AT,
+    Provider.PDIS_FIRST_AID_CPR_COMPLETED_AT,
+    Provider.PDIS_STANDARD_PRECAUTIONS_COMPLETED_AT,
+    Provider.PDIS_PREVENTING_CHILD_ABUSE_COMPLETED_AT,
+    Provider.PDIS_INFANT_SAFE_SLEEP_COMPLETED_AT,
+    Provider.PDIS_EMERGENCY_PREPAREDNESS_COMPLETED_AT,
+    Provider.PDIS_INJURY_PREVENTION_COMPLETED_AT,
+    Provider.PDIS_PREVENTING_SHAKEN_BABY_COMPLETED_AT,
+    Provider.PDIS_RECOGNIZING_IMPACT_OF_BIAS_COMPLETED_AT,
+    Provider.PDIS_MEDICATION_ADMINISTRATION_PART_ONE_COMPLETED_AT,
 ]
 
 ALL_TRAINING_COLUMNS_WITH_CPR = ALL_TRAINING_COLUMNS + [
