@@ -163,7 +163,7 @@ def send_lump_sum_payment_email(
         ),
         SystemMessageRow(
             title="Half Days",
-            value=f"{half_days:.2f}",
+            value=f"{half_days}",
         ),
         SystemMessageRow(
             title="Month",
