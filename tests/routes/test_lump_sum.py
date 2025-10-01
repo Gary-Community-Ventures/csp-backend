@@ -95,8 +95,13 @@ def test_create_lump_sum_missing_cents(client, seed_lump_sum_db):
     assert any("amount_cents" in err["loc"] for err in response.json["error"])
 
 
-def test_create_lump_sum_missing_days(client, seed_lump_sum_db):
+def test_create_lump_sum_zero_days_and_half_days(client, seed_lump_sum_db, app):
     allocation = seed_lump_sum_db
+
+    # Setup valid child and provider
+    from tests.supabase_mocks import setup_child_provider_relationship
+
+    setup_child_provider_relationship(app)
 
     response = client.post(
         "/lump-sums",
@@ -104,11 +109,11 @@ def test_create_lump_sum_missing_days(client, seed_lump_sum_db):
             "allocation_id": allocation.id,
             "provider_id": "providerABC",
             "amount_cents": 50000,  # 500.00
-            # Missing days
+            # Missing days and half_days will default to 0
         },
     )
     assert response.status_code == 400
-    assert any("days" in err["loc"] for err in response.json["error"])
+    assert "At least one of days or half_days must be greater than zero" in response.json["error"]
 
 
 def test_create_lump_sum_allocation_not_found(client):
@@ -119,7 +124,8 @@ def test_create_lump_sum_allocation_not_found(client):
             "allocation_id": 999,  # Non-existent ID
             "provider_id": "providerABC",
             "amount_cents": 10000,
-            "hours": 5.0,
+            "days": 2,
+            "half_days": 1,
         },
     )
     assert response.status_code == 404
@@ -140,7 +146,8 @@ def test_create_lump_sum_child_not_associated_with_family(client, seed_lump_sum_
             "allocation_id": allocation.id,
             "provider_id": "providerABC",
             "amount_cents": 10000,
-            "hours": 5.0,
+            "days": 2,
+            "half_days": 1,
         },
     )
     assert response.status_code == 403
@@ -161,7 +168,8 @@ def test_create_lump_sum_provider_not_associated_with_child(client, seed_lump_su
             "allocation_id": allocation.id,
             "provider_id": "providerABC",  # This provider is not associated with child123
             "amount_cents": 10000,
-            "hours": 5.0,
+            "days": 2,
+            "half_days": 1,
         },
     )
     assert response.status_code == 403
@@ -182,7 +190,8 @@ def test_create_lump_sum_exceeds_allocation(client, seed_lump_sum_db, app):
             "allocation_id": allocation.id,
             "provider_id": "providerABC",
             "amount_cents": 130000,  # Exceeds 100000 allocation
-            "hours": 5.0,
+            "days": 2,
+            "half_days": 1,
         },
     )
     assert response.status_code == 400
@@ -203,14 +212,15 @@ def test_create_lump_sum_exceeds_max_allowable_amount(client, seed_lump_sum_db, 
             "allocation_id": allocation.id,
             "provider_id": "providerABC",
             "amount_cents": 150000,  # Exceeds 100000 allocation
-            "hours": 5.0,
+            "days": 2,
+            "half_days": 1,
         },
     )
     assert response.status_code == 400
     assert "Lump sum amount $1500.00 exceeds maximum allowed payment of $1400.00" in response.json["error"]
 
 
-def test_create_lump_sum_hours_negative(client, seed_lump_sum_db, app):
+def test_create_lump_sum_days_negative(client, seed_lump_sum_db, app):
     allocation = seed_lump_sum_db
 
     # Setup valid child and provider
@@ -223,9 +233,54 @@ def test_create_lump_sum_hours_negative(client, seed_lump_sum_db, app):
         json={
             "allocation_id": allocation.id,
             "provider_id": "providerABC",
-            "amount_cents": 150000,  # Exceeds 100000 allocation
-            "hours": -5.0,
+            "amount_cents": 50000,
+            "days": -1,
+            "half_days": 0,
         },
     )
     assert response.status_code == 400
-    assert "Hours must be a positive float" in response.json["error"]
+    assert "Days must be a non-negative integer" in response.json["error"]
+
+
+def test_create_lump_sum_half_days_negative(client, seed_lump_sum_db, app):
+    allocation = seed_lump_sum_db
+
+    # Setup valid child and provider
+    from tests.supabase_mocks import setup_child_provider_relationship
+
+    setup_child_provider_relationship(app)
+
+    response = client.post(
+        "/lump-sums",
+        json={
+            "allocation_id": allocation.id,
+            "provider_id": "providerABC",
+            "amount_cents": 50000,
+            "days": 1,
+            "half_days": -1,
+        },
+    )
+    assert response.status_code == 400
+    assert "Half days must be a non-negative integer" in response.json["error"]
+
+
+def test_create_lump_sum_days_exceed_31(client, seed_lump_sum_db, app):
+    allocation = seed_lump_sum_db
+
+    # Setup valid child and provider
+    from tests.supabase_mocks import setup_child_provider_relationship
+
+    setup_child_provider_relationship(app)
+
+    response = client.post(
+        "/lump-sums",
+        json={
+            "allocation_id": allocation.id,
+            "provider_id": "providerABC",
+            "amount_cents": 50000,
+            "days": 32,
+            "half_days": 0,
+        },
+    )
+    assert response.status_code == 400
+    assert "Cannot have more than 31 days or half days in a month" in response.json["error"]

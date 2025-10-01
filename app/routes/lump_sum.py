@@ -35,8 +35,8 @@ def create_lump_sum():
     allocation_id = request_data.allocation_id
     provider_id = request_data.provider_id
     amount_cents = request_data.amount_cents
-    days = request_data.days
-    half_days = request_data.half_days
+    days = request_data.days if request_data.days is not None else 0
+    half_days = request_data.half_days if request_data.half_days is not None else 0
 
     allocation = db.session.get(MonthAllocation, allocation_id)
     if not allocation:
