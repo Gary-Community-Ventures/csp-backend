@@ -64,6 +64,9 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
         if days == 0 and half_days == 0:
             raise ValueError("At least one of days or half_days must be greater than zero")
 
+        if days > 31 or half_days > 31:
+            raise ValueError("Cannot have more than 31 days or half days in a month")
+
         # Check if lump sum exceeds maximum payment amount
         if amount_cents > MAX_PAYMENT_AMOUNT_CENTS:
             raise ValueError(
