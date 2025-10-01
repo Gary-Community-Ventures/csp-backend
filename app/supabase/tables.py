@@ -131,6 +131,19 @@ class Provider(Table):
         "home_safety_and_injury_prevention_training_completed_at", datetime_column
     )
     LINK_ID = Column("link_id")
+    PDIS_FIRST_AID_CPR_COMPLETED_AT = Column("pdis_first_aid_cpr_completed_at", datetime_column)
+    PDIS_STANDARD_PRECAUTIONS_COMPLETED_AT = Column("pdis_standard_precautions_completed_at", datetime_column)
+    PDIS_PREVENTING_CHILD_ABUSE_COMPLETED_AT = Column("pdis_preventing_child_abuse_completed_at", datetime_column)
+    PDIS_INFANT_SAFE_SLEEP_COMPLETED_AT = Column("pdis_infant_safe_sleep_completed_at", datetime_column)
+    PDIS_EMERGENCY_PREPAREDNESS_COMPLETED_AT = Column("pdis_emergency_preparedness_completed_at", datetime_column)
+    PDIS_INJURY_PREVENTION_COMPLETED_AT = Column("pdis_injury_prevention_completed_at", datetime_column)
+    PDIS_PREVENTING_SHAKEN_BABY_COMPLETED_AT = Column("pdis_preventing_shaken_baby_completed_at", datetime_column)
+    PDIS_RECOGNIZING_IMPACT_OF_BIAS_COMPLETED_AT = Column(
+        "pdis_recognizing_impact_of_bias_completed_at", datetime_column
+    )
+    PDIS_MEDICATION_ADMINISTRATION_PART_ONE_COMPLETED_AT = Column(
+        "pdis_medication_administration_part_one_completed_at", datetime_column
+    )
 
 
 class ProviderChildMapping(Table):
