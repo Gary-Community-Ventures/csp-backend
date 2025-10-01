@@ -1,4 +1,5 @@
 import uuid
+
 from sqlalchemy.orm import Query
 
 from ..extensions import db
