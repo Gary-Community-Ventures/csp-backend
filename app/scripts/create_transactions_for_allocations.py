@@ -70,7 +70,6 @@ def process_single_allocation(allocation: MonthAllocation, child_name: str, dry_
     except Exception as e:
         print(f"❌ Failed")
         print(f"    Error: {str(e)}")
-        raise
         return str(e)
 
 
