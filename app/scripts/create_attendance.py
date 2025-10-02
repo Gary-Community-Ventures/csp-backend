@@ -81,7 +81,7 @@ def create_attendance():
                     Provider.STATUS,
                     Provider.EMAIL,
                     Provider.PHONE_NUMBER,
-                    Provider.LANGUAGE,
+                    Provider.PREFERRED_LANGUAGE,
                 ),
                 Family.join(
                     Family.ID,
@@ -125,7 +125,7 @@ def create_attendance():
     bulk_emails: list[BulkEmailData] = []
     bulk_sms: list[BulkSmsData] = []
     for provider in providers.values():
-        message_data = provider_message(Provider.NAME(provider), provider_link, Provider.LANGUAGE(provider))
+        message_data = provider_message(Provider.NAME(provider), provider_link, Provider.PREFERRED_LANGUAGE(provider))
 
         bulk_emails.append(
             BulkEmailData(
@@ -135,7 +135,7 @@ def create_attendance():
                 context_data={
                     "provider_id": Provider.ID(provider),
                     "provider_name": Provider.NAME(provider),
-                    "provider_language": Provider.LANGUAGE(provider),
+                    "provider_language": Provider.PREFERRED_LANGUAGE(provider),
                     "recipient_type": "provider",
                     "reminder_date": last_week_date.isoformat(),
                 },

@@ -8,6 +8,7 @@ from flask import current_app
 
 from app.enums.email_type import EmailType
 from app.models import AllocatedCareDay
+from app.supabase.columns import Language
 from app.supabase.helpers import format_name
 from app.supabase.tables import Child
 from app.utils.email.config import (
@@ -15,6 +16,7 @@ from app.utils.email.config import (
     get_internal_email_config,
 )
 from app.utils.email.core import send_email
+from app.utils.email.templates import PaymentNotificationTemplate
 
 
 @dataclass
@@ -332,6 +334,7 @@ def send_payment_notification(
     child_id: str,
     amount_cents: int,
     payment_method: str,
+    provider_language: Language = Language.ENGLISH,
 ) -> bool:
     """
     Sends a payment notification email to the provider when payment is completed.
@@ -344,95 +347,29 @@ def send_payment_notification(
         child_id: Child's external ID
         amount_cents: Payment amount in cents
         payment_method: Method used for payment (CARD or ACH)
+        provider_language: Provider's preferred language (defaults to English)
     """
-    from app.enums.payment_method import PaymentMethod
-
     from_email = get_from_email_external()
 
     current_app.logger.info(
         f"Sending payment notification to {provider_email} for provider ID: {provider_id}, "
-        f"child ID: {child_id}, amount: ${amount_cents/100:.2f}"
+        f"child ID: {child_id}, amount: ${amount_cents/100:.2f}, language: {provider_language}"
     )
 
     if not provider_email:
         current_app.logger.warning(f"Provider {provider_id} has no email address. Skipping notification.")
         return False
 
+    # Use the template to build the email content in the provider's preferred language
     amount_dollars = amount_cents / 100
-    subject = f"New Payment - ${amount_dollars:.2f}"
-
-    # Format payment method for display
-    payment_method_display = "Virtual Card" if payment_method == PaymentMethod.CARD else "Direct Deposit (ACH)"
-
-    # Build the HTML content for the email
-    html_content = f"""
-    <html>
-        <body style="font-family: sans-serif; line-height: 1.6; color: #333;">
-            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h2 style="color: #b53363; border-bottom: 2px solid #364f3f; padding-bottom: 10px;">
-                    New Payment Processed
-                </h2>
-                
-                <p>Hello {provider_name},</p>
-                
-                <p>We're pleased to inform you that a payment has been successfully processed for you.</p>
-                
-                <div style="background-color: #f8f9fa; border-left: 4px solid #364f3f; padding: 15px; margin: 20px 0;">
-                    <h3 style="margin-top: 0; color: #2c3e50;">Payment Details:</h3>
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <tr>
-                            <td style="padding: 8px 0;"><strong>Child:</strong></td>
-                            <td style="padding: 8px 0;">{child_name}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 8px 0;"><strong>Amount:</strong></td>
-                            <td style="padding: 8px 0; color: #364f3f; font-size: 18px;"><strong>${amount_dollars:.2f}</strong></td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 8px 0;"><strong>Payment Method:</strong></td>
-                            <td style="padding: 8px 0;">{payment_method_display}</td>
-                        </tr>
-    """
-
-    html_content += f"""
-                    </table>
-                </div>
-                
-                <div style="background-color: #C9D1CC; padding: 15px; margin: 20px 0; border-radius: 5px; color: #000000;">
-                    <p style="margin: 0;"><strong>What's Next?</strong></p>
-                    <ul style="margin: 10px 0 0 0; padding-left: 20px;">
-    """
-
-    if payment_method == PaymentMethod.CARD:
-        html_content += """
-                        <li>Funds have been loaded onto your virtual card</li>
-                        <li>You can use your card immediately for purchases</li>
-                        <li>Check your card balance in your Chek account</li>
-        """
-    else:  # ACH
-        html_content += """
-                        <li>Funds are being transferred to your bank account</li>
-                        <li>Direct deposits typically arrive within 1-2 business days</li>
-                        <li>You'll receive a confirmation once the transfer is complete</li>
-        """
-
-    html_content += """
-                    </ul>
-                </div>
-                
-                <p>If you have any questions about this payment, please reach out to our support team.</p>
-                
-                <p>Best regards,<br>
-                The CAP Team</p>
-                
-                <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
-                <p style="font-size: 12px; color: #666; text-align: center;">
-                    This is an automated notification from the CAP portal system.<br>
-                </p>
-            </div>
-        </body>
-    </html>
-    """
+    subject = PaymentNotificationTemplate.get_subject(amount_dollars, provider_language)
+    html_content = PaymentNotificationTemplate.build_html_content(
+        provider_name=provider_name,
+        child_name=child_name,
+        amount_cents=amount_cents,
+        payment_method=payment_method,
+        language=provider_language,
+    )
 
     return send_email(
         from_email=from_email,
@@ -445,6 +382,7 @@ def send_payment_notification(
             "child_id": child_id,
             "amount_cents": amount_cents,
             "payment_method": payment_method,
+            "language": provider_language.value,
         },
         is_internal=False,
     )
