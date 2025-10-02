@@ -130,7 +130,8 @@ def send_lump_sum_payment_email(
     child_last_name: str,
     child_id: str,
     amount_in_cents: int,
-    hours: float,
+    days: int,
+    half_days: int,
     month: str,
 ) -> bool:
     """Send email notification for lump sum payment processing."""
@@ -159,8 +160,12 @@ def send_lump_sum_payment_email(
             value=f"${amount_dollars:.2f}",
         ),
         SystemMessageRow(
-            title="Hours",
-            value=f"{hours:.2f}",
+            title="Days",
+            value=f"{days}",
+        ),
+        SystemMessageRow(
+            title="Half Days",
+            value=f"{half_days}",
         ),
         SystemMessageRow(
             title="Month",
@@ -180,7 +185,8 @@ def send_lump_sum_payment_email(
             "provider_id": provider_id,
             "child_id": child_id,
             "amount_cents": amount_in_cents,
-            "hours": hours,
+            "days": days,
+            "half_days": half_days,
             "month": month,
         },
         is_internal=True,
