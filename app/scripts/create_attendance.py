@@ -92,6 +92,7 @@ def create_attendance(dry_run=False):
     db.session.commit()
     app.logger.info("create_attendance: Finished attendance creation.")
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create attendance records for a given child provider pairs.")
     parser.add_argument(
