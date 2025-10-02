@@ -14,6 +14,8 @@ from app.supabase.tables import Child
 from ..extensions import db
 from ..models.month_allocation import MonthAllocation
 
+import sentry_sdk
+
 
 class AllocationResult:
     """Container for allocation processing results."""
@@ -202,12 +204,14 @@ class AllocationService:
         except ValueError as e:
             # Handle specific validation errors
             error_msg = f"{child_name} ({child_id}): {str(e)}"
+            sentry_sdk.capture_exception(e)
             self.app.logger.error(f"Validation error creating allocation: {error_msg}")
             return ("error", None, error_msg)
 
         except Exception as e:
             # Handle unexpected errors
             error_msg = f"{child_name} ({child_id}): {str(e)}"
+            sentry_sdk.capture_exception(e)
             self.app.logger.error(f"Unexpected error creating allocation: {error_msg}")
             return ("error", None, error_msg)
 
