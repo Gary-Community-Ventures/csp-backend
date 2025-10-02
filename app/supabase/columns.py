@@ -5,37 +5,24 @@ from typing import Any, Callable, Generic, Type, TypeVar
 T = TypeVar("T")
 
 
-class Column(Generic[T]):
-    def __init__(self, name: str, converter: Callable[[Any], T] = str):
-        self.name = name
-        self._converter = converter
-
-    def __str__(self):
-        return self.name
+class Column(str, Generic[T]):
+    def __new__(cls, name: str, converter: Callable[[Any], T] = str):
+        instance = super().__new__(cls, name)
+        instance._converter = converter
+        return instance
 
     def __repr__(self):
-        return f"Column({self.name}<{self._converter.__name__}>)"
+        return f"Column({self}<{self._converter.__name__}>)"
 
     def __call__(self, data: dict) -> T:
         """
         Convert the value to the correct data type.
         """
-        value = data[self.name]
+        value = data[self]
 
         if value is None:
             return None
         return self._converter(value)
-
-    def __hash__(self) -> int:
-        return hash(self.name)
-
-    def __eq__(self, other):
-        if isinstance(other, str):  # Allow it to be used as a key in a dict
-            return self.name == other
-        if isinstance(other, Column):
-            return self.name == other.name
-
-        return False
 
 
 def datetime_column(value):

@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.orm import Query
 
 from ..extensions import db
@@ -28,6 +30,11 @@ class FamilyInvitation(db.Model, TimestampMixin):
 
     @classmethod
     def invitation_by_id(cls, id: str) -> Query:
+        try:
+            uuid.UUID(id)
+        except (ValueError, AttributeError):
+            return cls.query.filter(False)
+
         return cls.query.filter_by(public_id=id)
 
     def record_email_sent(self):

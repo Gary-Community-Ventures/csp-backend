@@ -21,6 +21,7 @@ from app.models import AllocatedCareDay, MonthAllocation
 from app.models.attendance import Attendance
 from app.models.family_invitation import FamilyInvitation
 from app.models.payment_rate import PaymentRate
+from app.models.provider_invitation import ProviderInvitation
 from app.models.provider_payment_settings import ProviderPaymentSettings
 from app.schemas.payment import PaymentInitializationResponse
 from app.schemas.provider_payment import (
@@ -30,7 +31,7 @@ from app.schemas.provider_payment import (
     PaymentSettingsResponse,
 )
 from app.supabase.helpers import UnwrapError, cols, format_name, unwrap_or_abort
-from app.supabase.tables import Child, Family, Guardian, Provider
+from app.supabase.tables import Child, Family, Guardian, Provider, ProviderChildMapping
 from app.utils.email.config import get_from_email_internal
 from app.utils.email.core import send_email
 from app.utils.email.senders import (
@@ -57,6 +58,11 @@ def new_provider():
 
     provider_id = data["provider_id"]
 
+    provider_result = Provider.select_by_id(cols(Provider.LINK_ID, Child.join(Child.ID)), int(provider_id)).execute()
+    provider = unwrap_or_abort(provider_result)
+    if provider is None:
+        abort(404, description=f"Provider with ID {provider_id} not found.")
+
     # Create Chek user and ProviderPaymentSettings
     payment_service = current_app.payment_service
     provider_settings = payment_service.onboard_provider(provider_id)
@@ -79,6 +85,39 @@ def new_provider():
             public_metadata=meta_data,
         )
     )
+
+    link_id = Provider.LINK_ID(provider)
+    if link_id is None:
+        return jsonify(data)
+
+    invites: list[ProviderInvitation] = ProviderInvitation.invitations_by_id(link_id).all()
+    if len(invites) == 0:
+        current_app.logger.warning(f"Provider invitation with ID {link_id} not found.")
+        return jsonify(data)
+
+    for invite in invites[:MAX_CHILDREN_PER_PROVIDER]:
+        child_result = Child.select_by_id(
+            cols(Child.ID, Provider.join(Provider.ID)), int(invite.child_supabase_id)
+        ).execute()
+        child = unwrap_or_abort(child_result)
+
+        if child is None:
+            current_app.logger.warning(f"Child with ID {invite.child_supabase_id} not found.")
+            continue
+
+        if len(Provider.unwrap(child)) > 0:
+            continue
+
+        ProviderChildMapping.query().insert(
+            {
+                ProviderChildMapping.CHILD_ID: invite.child_supabase_id,
+                ProviderChildMapping.PROVIDER_ID: provider_id,
+            }
+        ).execute()
+        invite.record_accepted()
+        db.session.add(invite)
+
+    db.session.commit()
 
     return jsonify(data)
 
