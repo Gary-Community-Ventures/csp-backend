@@ -20,7 +20,7 @@ class AllocatedLumpSum(db.Model, TimestampMixin):
     )
 
     amount_cents = db.Column(db.Integer, nullable=False)
-    hours = db.Column(db.Float, nullable=True)
+    hours = db.Column(db.Float, nullable=True)  # DEPRECATED: use days and half_days instead
     days = db.Column(db.Integer, nullable=True)
     half_days = db.Column(db.Integer, nullable=True)
 
