@@ -52,19 +52,19 @@ def create_monthly_allocations(from_info: str = "scheduler", **kwargs) -> dict[s
 
 def schedule_monthly_allocation_job():
     """
-    Schedule the monthly allocation job to run on the 1st of every month at 8:00 AM MST.
+    Schedule the monthly allocation job to run on the 1st of every month at 8:00 AM MST / 9:00 AM MDT.
     Cron format: minute hour day month day_of_week
 
-    Note: The cron schedule runs in UTC. To run at 8:00 AM MST (UTC-7) / 8:00 AM MDT (UTC-6),
-    we schedule for 3:00 PM UTC during standard time or 2:00 PM UTC during daylight time.
-    Using 3:00 PM UTC as the base time.
+    Note: The cron schedule runs in UTC at 3:00 PM (15:00). Due to daylight saving time,
+    this translates to 8:00 AM during Mountain Standard Time (winter) and 9:00 AM during
+    Mountain Daylight Time (summer).
     """
     # Run at 3:00 PM UTC on the 1st of every month (8:00 AM MST / 9:00 AM MDT)
     cron_schedule = current_app.config.get("MONTHLY_ALLOCATION_CRON", "0 15 1 * *")
     from_info = "monthly_scheduler"
 
     current_app.logger.info(
-        f"Scheduling monthly allocation job with cron '{cron_schedule}' in UTC (8:00 AM Mountain Time)"
+        f"Scheduling monthly allocation job with cron '{cron_schedule}' in UTC (8 AM MST / 9 AM MDT)"
     )
 
     return create_monthly_allocations.schedule_cron(cron_schedule, from_info=from_info)
