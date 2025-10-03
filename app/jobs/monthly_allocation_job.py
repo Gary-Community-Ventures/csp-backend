@@ -1,10 +1,8 @@
-import zoneinfo
 from datetime import datetime
 from typing import Any
 
 from flask import current_app
 
-from ..constants import BUSINESS_TIMEZONE
 from ..services.allocation_service import AllocationService
 from ..utils.date_utils import get_next_month_start
 from . import job_manager
@@ -54,22 +52,22 @@ def create_monthly_allocations(from_info: str = "scheduler", **kwargs) -> dict[s
 
 def schedule_monthly_allocation_job():
     """
-    Schedule the monthly allocation job to run on the 1st of every month at 1:00 AM MST.
+    Schedule the monthly allocation job to run on the 1st of every month at 8:00 AM MST / 9:00 AM MDT.
     Cron format: minute hour day month day_of_week
+
+    Note: The cron schedule runs in UTC at 3:00 PM (15:00). Due to daylight saving time,
+    this translates to 8:00 AM during Mountain Standard Time (winter) and 9:00 AM during
+    Mountain Daylight Time (summer).
     """
-    # Run at 1:00 AM MST on the 1st of every month
-    cron_schedule = current_app.config.get("MONTHLY_ALLOCATION_CRON", "0 1 1 * *")
+    # Run at 3:00 PM UTC on the 1st of every month (8:00 AM MST / 9:00 AM MDT)
+    cron_schedule = current_app.config.get("MONTHLY_ALLOCATION_CRON", "0 15 1 * *")
     from_info = "monthly_scheduler"
 
-    # Use Mountain Time (MST/MDT) for scheduling
-    business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
-
     current_app.logger.info(
-        f"Scheduling monthly allocation job with cron '{cron_schedule}' in timezone '{BUSINESS_TIMEZONE}'"
+        f"Scheduling monthly allocation job with cron '{cron_schedule}' in UTC (8 AM MST / 9 AM MDT)"
     )
 
-    # Schedule with timezone-aware cron
-    return create_monthly_allocations.schedule_cron(cron_schedule, from_info=from_info, timezone=business_tz)
+    return create_monthly_allocations.schedule_cron(cron_schedule, from_info=from_info)
 
 
 def create_allocations_for_next_month():
