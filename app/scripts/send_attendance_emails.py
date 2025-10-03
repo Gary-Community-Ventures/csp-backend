@@ -2,6 +2,8 @@ import argparse
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
+from flask import current_app
+
 from app import create_app
 from app.enums.email_type import EmailType
 from app.models.attendance import Attendance
@@ -15,8 +17,6 @@ from app.utils.email.core import (
 )
 from app.utils.email.senders import html_link
 from app.utils.sms_service import BulkSmsData, bulk_send_sms
-
-from flask import current_app
 
 
 @dataclass
@@ -58,7 +58,6 @@ class AttendanceMessages:
 
         emails_to_send = list(emails.values())
         text_messages_to_send = list(text_messages.values())
-
 
         return emails_to_send, text_messages_to_send
 
