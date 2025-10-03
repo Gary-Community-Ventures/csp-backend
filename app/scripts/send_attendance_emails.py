@@ -127,8 +127,8 @@ class FamilyAttendanceMessages(AttendanceMessages):
         if lang == "es":
             return MessageCopy(
                 subject="Acción necesaria - Asistencia CAP",
-                email=f"<html><body>¡Hola, {family_name}!<br><br>Confirme los días de cuidado de la última semana y programe el cuidado para la semana siguiente (si aún no lo ha hecho) antes del final del día para que su proveedor pueda cobrar. Haga clic {html_link(link , 'aquí')} para acceder a su portal.</body></html>",
-                sms=f"Confirme los días de cuidado de la última semana para que su proveedor pueda cobrar. {link}",
+                email=f"<html><body>¡Hola, {family_name}!<br><br>Confirme los días de cuidado de la semana pasada y programe el cuidado para la semana siguiente (si aún no lo ha hecho) antes del final del día para que su proveedor pueda recibir su pago. Haga clic {html_link(link , 'aquí')} para acceder a su portal.</body></html>",
+                sms=f"Confirme los días de cuidado de la semana pasada para que su proveedor pueda recibir su pago. {link}",
             )
 
         return MessageCopy(
@@ -201,8 +201,8 @@ class ProviderAttendanceMessages(AttendanceMessages):
         if lang == "es":
             return MessageCopy(
                 subject="Acción necesaria - Asistencia CAP",
-                email=f"<html><body>¡Hola, {provider_name}!<br><br>Confirme la asistencia de todos los niños a su cargo que reciben el subsidio CAP antes del final del día para que pueda cobrar a tiempo. Haga clic {html_link(link, 'aquí')} para acceder a su portal.</body></html>",
-                sms=f"Confirme la asistencia de todos los niños a su cargo que reciben el subsidio CAP para que pueda cobrar a tiempo. {link}",
+                email=f"<html><body>¡Hola, {provider_name}!<br><br>Confirme la asistencia de todos los niños bajo su cuidado que reciben el subsidio CAP antes del final del día para que pueda recibir su pago a tiempo. Haga clic {html_link(link, 'aquí')} para acceder a su portal.</body></html>",
+                sms=f"Confirme la asistencia de todos los niños bajo su cuidado que reciben el subsidio CAP, para que pueda recibir su pago a tiempo. {link}",
             )
 
         return MessageCopy(
