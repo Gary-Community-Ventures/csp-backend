@@ -9,6 +9,7 @@ from app.enums.payment_method import PaymentMethod
 from app.exceptions import (
     AllocationExceededException,
     DataNotFoundException,
+    FamilyNotFoundException,
     InvalidPaymentStateException,
     PaymentLimitExceededException,
     PaymentMethodNotConfiguredException,
@@ -934,3 +935,52 @@ class PaymentService:
         return self.chek_service.transfer_balance(
             user_id=int(family_payment_settings.chek_user_id), request=transfer_request
         )
+
+    def reclaim_funds(self, chek_user_id: int, amount: int) -> TransferBalanceResponse:
+        """
+        Reclaims funds from a family's Chek account back into the program wallet.
+        """
+        from app.integrations.chek.schemas import FlowDirection, TransferBalanceRequest
+
+        # Transfer funds from family's wallet to program
+        transfer_request = TransferBalanceRequest(
+            flow_direction=FlowDirection.WALLET_TO_PROGRAM.value,
+            program_id=self.chek_service.program_id,  # Documentation says program_id but API uses counterparty_id
+            counterparty_id=self.chek_service.program_id,  # Set both for safety
+            amount=amount,
+            description=f"Reclaim funds back to program from chek_user_id {chek_user_id} for amount {amount}",
+            metadata={
+                "chek_user_id": chek_user_id,
+                "reclaim_amount": amount,
+            },
+        )
+
+        return self.chek_service.transfer_balance(user_id=chek_user_id, request=transfer_request)
+
+    def reclaim_funds_by_family(self, family_id: str, amount: int) -> TransferBalanceResponse:
+        """
+        Reclaims funds back into the program wallet from a family's Chek account using family ID.
+        """
+        family_payment_settings = FamilyPaymentSettings.query.filter_by(family_supabase_id=family_id).first()
+        if not family_payment_settings or not family_payment_settings.chek_user_id:
+            raise FamilyNotFoundException(f"Family {family_id} not found or has no Chek account")
+        return self.reclaim_funds(int(family_payment_settings.chek_user_id), amount)
+
+    def reclaim_funds_by_child(self, child_id: str, amount: int) -> TransferBalanceResponse:
+        """
+        Reclaims funds back into the program wallet from a family's Chek account using child ID.
+        """
+        family_payment_settings = self._get_family_settings_from_child_id(child_id)
+        if not family_payment_settings or not family_payment_settings.chek_user_id:
+            raise FamilyNotFoundException(f"Family for child {child_id} not found or has no Chek account")
+        return self.reclaim_funds(int(family_payment_settings.chek_user_id), amount)
+
+    def reclaim_funds_by_provider(self, provider_id: str, amount: int) -> TransferBalanceResponse:
+        """
+        Reclaims funds back into the program wallet from a family's Chek account using provider ID.
+        """
+        provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_supabase_id=provider_id).first()
+        if not provider_payment_settings or not provider_payment_settings.chek_user_id:
+            raise ProviderNotFoundException(f"Provider {provider_id} not found or has no Chek account")
+
+        return self.reclaim_funds(int(provider_payment_settings.chek_user_id), amount)
