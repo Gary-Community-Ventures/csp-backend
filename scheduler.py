@@ -12,9 +12,6 @@ if __name__ == "__main__":
     app = create_app()
     with app.app_context():
         try:
-            # Schedule system level jobs here
-            schedule_monthly_allocation_job()
-
             redis_url = os.getenv("REDIS_URL")
             if not redis_url:
                 raise ValueError("REDIS_URL environment variable must be set")
@@ -24,6 +21,19 @@ if __name__ == "__main__":
             # Create Redis connection with SSL support using shared utility
             redis_conn = create_redis_connection(redis_url)
             scheduler = Scheduler(connection=redis_conn)
+
+            # Clear all existing scheduled jobs to prevent orphaned jobs
+            current_app.logger.info("Clearing all existing scheduled jobs...")
+            for job in scheduler.get_jobs():
+                try:
+                    current_app.logger.info(f"Removing scheduled job: {job.id}")
+                    scheduler.cancel(job)
+                except Exception as e:
+                    current_app.logger.error(f"Failed to cancel job {job.id}: {e}")
+                    sentry_sdk.capture_exception(e)
+
+            # Schedule system level jobs here
+            schedule_monthly_allocation_job()
 
             current_app.logger.info("RQ Scheduler started successfully")
 
