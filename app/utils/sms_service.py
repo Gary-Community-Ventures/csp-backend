@@ -33,7 +33,6 @@ def send_sms(phone_number: str, message: str, lang: str):
             body=message,
             to=phone_number,
         )
-        current_app.logger.info(f"SMS sent to {phone_number}")
         return True
     except Exception as e:
         current_app.logger.error(f"Error sending SMS: {e}")

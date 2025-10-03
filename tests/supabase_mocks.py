@@ -66,6 +66,11 @@ class MockSupabaseQuery:
         self._single = True
         return self
 
+    def maybe_single(self):
+        """Mock single result method."""
+        self._single = True
+        return self
+
     def execute(self):
         """Mock execute method that returns filtered data."""
         result = self.data
