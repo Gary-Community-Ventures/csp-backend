@@ -16,13 +16,10 @@ def create_attendance_job(**kwargs):
 
 
 def schedule_attendance_job():
-    cron_schedule = "0 0 * * 1"
-
-    # Use Mountain Time (MST/MDT) for scheduling
-    business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
+    cron_schedule = "0 8 * * 1"
 
     current_app.logger.info(
-        f"Scheduling monthly allocation job with cron '{cron_schedule}' in timezone '{BUSINESS_TIMEZONE}'"
+        f"Scheduling monthly allocation job with cron '{cron_schedule}'"
     )
 
-    return create_attendance_job.schedule_cron(cron_schedule, timezone=business_tz)
+    return create_attendance_job.schedule_cron(cron_schedule)
