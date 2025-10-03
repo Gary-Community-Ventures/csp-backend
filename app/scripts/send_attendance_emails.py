@@ -250,10 +250,6 @@ def send_attendance_emails(send_to_families=False, send_to_providers=False, dry_
         bulk_text_messages.extend(text_messages)
 
     if dry_run:
-        for email in bulk_emails:
-            current_app.logger.info(f"Would send email to {email.email}")
-        for text_message in bulk_text_messages:
-            current_app.logger.info(f"Would send SMS to {text_message.phone_number}")
         current_app.logger.info(f"Would send {len(bulk_emails)} emails and {len(bulk_text_messages)} text messages")
         return
 
