@@ -942,7 +942,7 @@ class PaymentService:
         """
         from app.integrations.chek.schemas import FlowDirection, TransferBalanceRequest
 
-        # Transfer funds from family's wallet to program
+        # Transfer funds from chek user's wallet to program
         transfer_request = TransferBalanceRequest(
             flow_direction=FlowDirection.WALLET_TO_PROGRAM.value,
             program_id=self.chek_service.program_id,  # Documentation says program_id but API uses counterparty_id
