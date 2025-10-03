@@ -25,8 +25,12 @@ if __name__ == "__main__":
             # Clear all existing scheduled jobs to prevent orphaned jobs
             current_app.logger.info("Clearing all existing scheduled jobs...")
             for job in scheduler.get_jobs():
-                current_app.logger.info(f"Removing scheduled job: {job.id}")
-                scheduler.cancel(job)
+                try:
+                    current_app.logger.info(f"Removing scheduled job: {job.id}")
+                    scheduler.cancel(job)
+                except Exception as e:
+                    current_app.logger.error(f"Failed to cancel job {job.id}: {e}")
+                    sentry_sdk.capture_exception(e)
 
             # Schedule system level jobs here
             schedule_monthly_allocation_job()
