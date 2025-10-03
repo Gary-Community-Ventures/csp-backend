@@ -1,8 +1,5 @@
-import zoneinfo
-
 from flask import current_app
 
-from app.constants import BUSINESS_TIMEZONE
 from app.scripts.create_attendance import create_attendance
 from app.scripts.send_attendance_emails import send_attendance_emails
 
@@ -16,13 +13,8 @@ def create_attendance_job(**kwargs):
 
 
 def schedule_attendance_job():
-    cron_schedule = "0 0 * * 1"
+    cron_schedule = "0 8 * * 1"
 
-    # Use Mountain Time (MST/MDT) for scheduling
-    business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
+    current_app.logger.info(f"Scheduling monthly allocation job with cron '{cron_schedule}'")
 
-    current_app.logger.info(
-        f"Scheduling monthly allocation job with cron '{cron_schedule}' in timezone '{BUSINESS_TIMEZONE}'"
-    )
-
-    return create_attendance_job.schedule_cron(cron_schedule, timezone=business_tz)
+    return create_attendance_job.schedule_cron(cron_schedule)
