@@ -45,7 +45,7 @@ def get_trainings():
 
     provider_data = unwrap_or_abort(provider_result)
 
-    response_data = {field.name: field(provider_data) for field in ALL_TRAINING_COLUMNS}
+    response_data = {field: field(provider_data) for field in ALL_TRAINING_COLUMNS}
 
     # Add CPR fields with appropriate transformation
     cpr_certified = None

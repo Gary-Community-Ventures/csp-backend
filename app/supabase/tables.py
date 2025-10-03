@@ -51,6 +51,7 @@ class Family(Table):
     YEARLY_INCOME = Column("yearly_income", float)
     ZIP = Column("zip")
     LANGUAGE = Column("language", enum_column(Language))
+    LINK_ID = Column("link_id")
 
 
 class Guardian(Table):
@@ -129,6 +130,7 @@ class Provider(Table):
     HOME_SAFETY_AND_INJURY_PREVENTION_TRAINING_COMPLETED_AT = Column(
         "home_safety_and_injury_prevention_training_completed_at", datetime_column
     )
+    LINK_ID = Column("link_id")
     PDIS_FIRST_AID_CPR_COMPLETED_AT = Column("pdis_first_aid_cpr_completed_at", datetime_column)
     PDIS_STANDARD_PRECAUTIONS_COMPLETED_AT = Column("pdis_standard_precautions_completed_at", datetime_column)
     PDIS_PREVENTING_CHILD_ABUSE_COMPLETED_AT = Column("pdis_preventing_child_abuse_completed_at", datetime_column)
