@@ -1,6 +1,8 @@
 import argparse
 from datetime import date
 
+from flask import current_app
+
 from app import create_app
 from app.extensions import db
 from app.models import Attendance
@@ -9,10 +11,6 @@ from app.supabase.columns import ProviderType, Status
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child, Family, Provider
 from app.utils.date_utils import get_week_range
-
-# Create Flask app context
-app = create_app()
-app.app_context().push()
 
 
 def create_child_provider_attendance(
@@ -46,7 +44,7 @@ def create_child_provider_attendance(
 
 
 def create_attendance(dry_run=False):
-    app.logger.info("create_attendance: Starting attendance creation...")
+    current_app.logger.info("create_attendance: Starting attendance creation...")
 
     children_result = (
         Child.query()
@@ -79,21 +77,25 @@ def create_attendance(dry_run=False):
             attendance_obj = create_child_provider_attendance(child, provider, last_week_date, last_week_range)
 
             if dry_run and attendance_obj is not None:
-                app.logger.info(f"Created: {attendance_obj}")
+                current_app.logger.info(f"Created: {attendance_obj}")
 
             if attendance_obj is not None:
                 attendances.append(attendance_obj)
 
     if dry_run:
-        app.logger.info(f"Would create {len(attendances)} attendance records")
+        current_app.logger.info(f"Would create {len(attendances)} attendance records")
         return
 
     db.session.add_all(attendances)
     db.session.commit()
-    app.logger.info("create_attendance: Finished attendance creation.")
+    current_app.logger.info("create_attendance: Finished attendance creation.")
 
 
 if __name__ == "__main__":
+    # Create Flask app context
+    app = create_app()
+    app.app_context().push()
+
     parser = argparse.ArgumentParser(description="Create attendance records for a given child provider pairs.")
     parser.add_argument(
         "-d", "--dry-run", action="store_true", help="Show what would be created without actually creating"

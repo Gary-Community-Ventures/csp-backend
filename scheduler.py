@@ -6,7 +6,13 @@ from rq_scheduler import Scheduler
 
 from app import create_app
 from app.jobs.monthly_allocation_job import schedule_monthly_allocation_job
+from app.jobs.attendance import schedule_attendance_job
 from app.utils.redis import create_redis_connection
+
+JOBS = [
+    schedule_monthly_allocation_job,
+    schedule_attendance_job,
+]
 
 if __name__ == "__main__":
     app = create_app()
@@ -33,7 +39,8 @@ if __name__ == "__main__":
                     sentry_sdk.capture_exception(e)
 
             # Schedule system level jobs here
-            schedule_monthly_allocation_job()
+            for job in JOBS:
+                job()
 
             current_app.logger.info("RQ Scheduler started successfully")
 
