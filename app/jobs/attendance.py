@@ -18,8 +18,6 @@ def create_attendance_job(**kwargs):
 def schedule_attendance_job():
     cron_schedule = "0 8 * * 1"
 
-    current_app.logger.info(
-        f"Scheduling monthly allocation job with cron '{cron_schedule}'"
-    )
+    current_app.logger.info(f"Scheduling monthly allocation job with cron '{cron_schedule}'")
 
     return create_attendance_job.schedule_cron(cron_schedule)
