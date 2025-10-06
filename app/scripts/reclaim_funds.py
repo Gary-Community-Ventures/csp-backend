@@ -10,6 +10,7 @@ Usage:
 """
 
 import argparse
+import logging
 import os
 import sys
 
@@ -20,61 +21,54 @@ from flask import current_app
 
 from app import create_app
 
+logger = logging.getLogger(__name__)
+
 # Create Flask app context
 app = create_app()
 app.app_context().push()
 
+# Configure logging to output to console (also captured by Sentry if enabled)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
 
-def reclaim_funds(amount, chek_user_id=None, family_id=None, child_id=None, provider_id=None, dry_run=False):
+
+def reclaim_funds(amount, chek_user_id=None, family_id=None, child_id=None, provider_id=None):
     """Reclaim funds from a Chek account back to the program wallet."""
-
-    if dry_run:
-        print(f"\n[DRY RUN] Would reclaim ${amount / 100:.2f}")
-        if chek_user_id:
-            print(f"  From Chek User ID: {chek_user_id}")
-        elif family_id:
-            print(f"  From Family ID: {family_id}")
-        elif child_id:
-            print(f"  From Child ID: {child_id}")
-        elif provider_id:
-            print(f"  From Provider ID: {provider_id}")
-        return True
-
     try:
-        print(f"\nReclaiming ${amount / 100:.2f} from Chek account...")
+        logger.info(f"Reclaiming ${amount / 100:.2f} from Chek account...")
 
         if chek_user_id:
-            print(f"  Using chek_user_id: {chek_user_id}")
+            logger.info(f"Using chek_user_id: {chek_user_id}")
             response = current_app.payment_service.reclaim_funds(chek_user_id=int(chek_user_id), amount=amount)
         elif family_id:
-            print(f"  Using family_id: {family_id}")
+            logger.info(f"Using family_id: {family_id}")
             response = current_app.payment_service.reclaim_funds_by_family(family_id=family_id, amount=amount)
         elif child_id:
-            print(f"  Using child_id: {child_id}")
+            logger.info(f"Using child_id: {child_id}")
             response = current_app.payment_service.reclaim_funds_by_child(child_id=child_id, amount=amount)
         elif provider_id:
-            print(f"  Using provider_id: {provider_id}")
+            logger.info(f"Using provider_id: {provider_id}")
             response = current_app.payment_service.reclaim_funds_by_provider(provider_id=provider_id, amount=amount)
         else:
-            print("❌ Error: No ID provided")
+            logger.error("No ID provided")
             return False
 
-        print("✅ Funds reclaimed successfully!")
-        print(
-            f"  Transfer Source: {response.source.type} (ID: {response.source.id}), Balance After: ${response.source.balance / 100:.2f}"
+        logger.info("Funds reclaimed successfully!")
+        logger.info(
+            f"Transfer Source: {response.source.type} (ID: {response.source.id}), Balance After: ${response.source.balance / 100:.2f}"
         )
-        print(
-            f"  Transfer Destination: {response.destination.type} (ID: {response.destination.id}), Balance After: ${response.destination.balance / 100:.2f}"
+        logger.info(
+            f"Transfer Destination: {response.destination.type} (ID: {response.destination.id}), Balance After: ${response.destination.balance / 100:.2f}"
         )
-        print(f"  Transaction ID: {response.transfer.id}")
-        print(f"  Amount: ${response.transfer.amount / 100:.2f}")
+        logger.info(f"Transaction ID: {response.transfer.id}")
+        logger.info(f"Amount: ${response.transfer.amount / 100:.2f}")
         return True
 
     except Exception as e:
-        print(f"❌ Failed to reclaim funds: {e}")
-        import traceback
-
-        traceback.print_exc()
+        logger.error(f"Failed to reclaim funds: {e}", exc_info=True)
         return False
 
 
@@ -136,19 +130,14 @@ Examples:
 
         if args.dry_run:
             print("\n[DRY RUN MODE - No changes will be made]")
-            success = reclaim_funds(
-                amount=args.amount,
-                chek_user_id=args.chek_user_id,
-                family_id=args.family_id,
-                child_id=args.child_id,
-                provider_id=args.provider_id,
-                dry_run=True,
-            )
+            logger.info("Dry run mode - no changes made")
+            sys.exit(0)
         else:
             # Confirm action
             confirm = input("\nAre you sure you want to reclaim these funds? (yes/no): ")
             if confirm.lower() != "yes":
                 print("Aborted.")
+                logger.info("User aborted reclaim operation")
                 sys.exit(0)
 
             # Execute reclaim
@@ -160,16 +149,15 @@ Examples:
                 provider_id=args.provider_id,
             )
 
-        sys.exit(0 if success else 1)
+            sys.exit(0 if success else 1)
 
     except KeyboardInterrupt:
         print("\n⚠️  Operation cancelled by user")
+        logger.warning("Operation cancelled by user")
         sys.exit(130)
     except Exception as e:
         print(f"❌ Unexpected error: {e}")
-        import traceback
-
-        traceback.print_exc()
+        logger.error(f"Unexpected error: {e}", exc_info=True)
         sys.exit(1)
 
 
