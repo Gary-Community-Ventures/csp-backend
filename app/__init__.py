@@ -1,3 +1,4 @@
+import logging
 import os
 
 import sentry_sdk
@@ -49,6 +50,9 @@ def create_app(config_class=None):
             config_class = DevelopmentConfig
 
     app.config.from_object(config_class)
+
+    # --- Configure Logging ---
+    app.logger.setLevel(logging.INFO)
 
     # --- Sentry Initialization ---
     sentry_dsn = app.config.get("SENTRY_DSN")
