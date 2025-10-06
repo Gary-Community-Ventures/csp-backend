@@ -60,8 +60,14 @@ def reclaim_funds(amount, chek_user_id=None, family_id=None, child_id=None, prov
             return False
 
         print("✅ Funds reclaimed successfully!")
-        print(f"  Transaction ID: {response.transaction_id}")
-        print(f"  Amount: ${amount / 100:.2f}")
+        print(
+            f"  Transfer Source: {response.source.type} (ID: {response.source.id}), Balance After: ${response.source.balance / 100:.2f}"
+        )
+        print(
+            f"  Transfer Destination: {response.destination.type} (ID: {response.destination.id}), Balance After: ${response.destination.balance / 100:.2f}"
+        )
+        print(f"  Transaction ID: {response.transfer.id}")
+        print(f"  Amount: ${response.transfer.amount / 100:.2f}")
         return True
 
     except Exception as e:
