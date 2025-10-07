@@ -104,3 +104,9 @@ class DataNotFoundException(CapBackendException):
     """Raised when required data is not found."""
 
     pass
+
+
+class FamilyNotFoundException(PaymentException):
+    """Raised when a family cannot be found."""
+
+    pass
