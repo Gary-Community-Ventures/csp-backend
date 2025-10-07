@@ -32,10 +32,10 @@ from app.schemas.provider_payment import (
 )
 from app.supabase.helpers import UnwrapError, cols, format_name, unwrap_or_abort
 from app.supabase.tables import Child, Family, Guardian, Provider, ProviderChildMapping
+from app.utils.email.base_template import BaseEmailTemplate
 from app.utils.email.config import get_from_email_internal
 from app.utils.email.core import send_email
 from app.utils.email.senders import (
-    html_link,
     send_family_invite_accept_email,
     send_family_invited_email,
 )
@@ -450,15 +450,59 @@ class InviteProviderMessage:
 
 def get_invite_family_message(lang: str, provider_name: str, link: str):
     if lang == "es":
+        greeting = f"¡Hola!"
+        main_content = f"""
+        <p><strong>{provider_name}</strong> lo ha invitado a unirse al <strong>Programa Piloto Childcare Affordability Pilot (CAP)</strong> como familia participante.</p>
+
+        {BaseEmailTemplate.create_info_box(
+            '<p style="margin: 0; font-size: 18px; color: #000;"><strong>¡Acceda hasta $1,400 por mes para pagar el cuidado infantil!</strong></p>'
+        )}
+
+        <p>Si presenta su solicitud y su solicitud es aprobada, CAP le proporcionará fondos que puede usar para pagar a <strong>{provider_name}</strong> o otros cuidadores que participen en el programa piloto.</p>
+
+        {BaseEmailTemplate.create_button(link, "Aceptar Invitación y Aplicar")}
+
+        <p style="margin-top: 30px;"><strong>¿Tienes preguntas?</strong></p>
+        <p>Escríbenos a <a href="mailto:support@capcolorado.org" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">support@capcolorado.org</a></p>
+        """
+
+        email_html = BaseEmailTemplate.build(
+            greeting=greeting,
+            main_content=main_content,
+            signature="Saludos cordiales,<br>El Equipo CAP",
+            footer_text="Esta es una invitación del programa piloto de accesibilidad al cuidado infantil (CAP).",
+        )
+
         return InviteProviderMessage(
             subject=f"Invitación de {provider_name} - ¡Reciba ayuda con los costos de cuidado infantil!",
-            email=f'<html><body>{provider_name} lo ha invitado a unirse al Programa Piloto Childcare Affordability Pilot (CAP) como familia participante: ¡puede acceder hasta $1,400 por mes para pagar el cuidado infantil!<br><br>Si presenta su solicitud y su solicitud es aprobada, CAP le proporcionará fondos que puede usar para pagar a {provider_name} o otros cuidadores que participen en el programa piloto.<br><br>¡Haga clic {html_link(link, "aquí")} para aceptar la invitación y aplique!<br><br>¿Tienes preguntas? Escríbenos a support@capcolorado.org.</body></html>',
+            email=email_html,
             sms=f"{provider_name} te invitó a unirte al Programa Piloto Childcare Affordability Pilot (CAP). ¡Accede hasta $1,400 mensuales para pagar el cuidado infantil si es aprobado! Haz clic aquí para obtener más información y aplique. {link} ¿Tienes preguntas? Escríbenos a support@capcolorado.org.",
         )
 
+    greeting = f"Hello!"
+    main_content = f"""
+    <p><strong>{provider_name}</strong> has invited you to join the <strong>Childcare Affordability Pilot (CAP)</strong> as a participating family.</p>
+
+    {BaseEmailTemplate.create_info_box(
+        '<p style="margin: 0; font-size: 18px; color: #000;"><strong>Access up to $1,400 per month to pay for childcare!</strong></p>'
+    )}
+
+    <p>If you apply and are approved, CAP provides funds you can use to pay <strong>{provider_name}</strong> or other caregivers that participate in the pilot.</p>
+
+    {BaseEmailTemplate.create_button(link, "Accept Invitation & Apply")}
+
+    <p style="margin-top: 30px;"><strong>Questions?</strong></p>
+    <p>Email us at <a href="mailto:support@capcolorado.org" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">support@capcolorado.org</a></p>
+    """
+
+    email_html = BaseEmailTemplate.build(
+        greeting=greeting,
+        main_content=main_content,
+    )
+
     return InviteProviderMessage(
         subject=f"Invitation from {provider_name} - Receive help with childcare costs!",
-        email=f'<html><body>{provider_name} has invited you to join the Childcare Affordability Pilot (CAP) as a participating family — you can access up to $1,400 per month to pay for childcare!<br><br>If you apply and are approved, CAP provides funds you can use to pay {provider_name} or other caregivers that participate in the pilot.<br><br>Click {html_link(link, "here")} to accept the invitation and apply! Questions? Email us at support@capcolorado.org.</body></html>',
+        email=email_html,
         sms=f"{provider_name} invited you to join the Childcare Affordability Pilot (CAP) - access up to $1,400 monthly to pay for childcare if approved!  Click here to learn more & apply! {link} Questions? support@capcolorado.org.",
     )
 

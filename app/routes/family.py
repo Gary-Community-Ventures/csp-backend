@@ -23,10 +23,10 @@ from app.services.allocation_service import AllocationService
 from app.supabase.helpers import cols, format_name, unwrap_or_abort
 from app.supabase.tables import Child, Family, Guardian, Provider, ProviderChildMapping
 from app.utils.date_utils import get_current_month_start, get_next_month_start
+from app.utils.email.base_template import BaseEmailTemplate
 from app.utils.email.config import get_from_email_internal
 from app.utils.email.core import send_email
 from app.utils.email.senders import (
-    html_link,
     send_provider_invite_accept_email,
     send_provider_invited_email,
 )
@@ -279,15 +279,51 @@ class InviteProviderMessage:
 
 def get_invite_provider_message(lang: str, family_name: str, child_name: str, link: str):
     if lang == "es":
+        greeting = f"¡Hola!"
+        main_content = f"""
+        <p><strong>{family_name}</strong> lo ha invitado a unirse al programa piloto de accesibilidad al cuidado infantil <strong>Childcare Affordability Pilot (CAP)</strong> como proveedor de <strong>{child_name}</strong>, y nos encantaría tenerte a bordo!</p>
+
+        <p>CAP es un programa que ayuda a las familias a pagar el cuidado infantil y a proveedores como usted a recibir su pago. Recibirá pagos a través de CAP, mantendrá sus rutinas de cuidado habituales y apoyará a las familias con las que ya trabaja, o a nuevas familias.</p>
+
+        {BaseEmailTemplate.create_button(link, "Aceptar Invitación")}
+
+        <p style="margin-top: 30px;"><strong>¿Tienes preguntas?</strong></p>
+        <p>Escríbenos a <a href="mailto:support@capcolorado.org" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">support@capcolorado.org</a> o visita nuestro sitio web <a href="https://www.capcolorado.org/es/providers" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">capcolorado.org</a>.</p>
+        """
+
+        email_html = BaseEmailTemplate.build(
+            greeting=greeting,
+            main_content=main_content,
+            signature="Saludos cordiales,<br>El Equipo CAP",
+            footer_text="Esta es una invitación del programa piloto de accesibilidad al cuidado infantil (CAP).",
+        )
+
         return InviteProviderMessage(
             subject=f"¡{family_name} se complace en invitarte al programa CAP para cuidar a {child_name}!",
-            email=f'<html><body>¡{family_name} lo ha invitado a unirse al programa piloto de accesibilidad al cuidado infantil Childcare Affordability Pilot (CAP) como proveedor de {child_name}, y nos encantaría tenerte a bordo!<br><br>CAP es un programa que ayuda a las familias a pagar el cuidado infantil y a proveedores como usted a recibir su pago. Recibirá pagos a través de CAP, mantendrá sus rutinas de cuidado habituales y apoyará a las familias con las que ya trabaja, o a nuevas familias.<br><br>¡Haga clic {html_link(link, "aquí")} para aceptar la invitación y comenzar!<br><br>¿Tienes preguntas? Escríbenos a <a href="mailto:support@capcolorado.org" style="color: #0066cc; text-decoration: underline;">support@capcolorado.org</a> o visita nuestro sitio web <a href="https://www.capcolorado.org/es/providers" style="color: #0066cc; text-decoration: underline;">capcolorado.org</a>.</body></html>',
+            email=email_html,
             sms=f"¡{family_name} te invitó a unirte al programa piloto de accesibilidad al cuidado infantil (CAP) para cuidar a {child_name}! CAP ayuda a las familias a pagar a proveedores como tú. ¡Toca para obtener más información y postularte! {link} ¿Preguntas? support@capcolorado.org.",
         )
 
+    greeting = f"Hello!"
+    main_content = f"""
+    <p><strong>{family_name}</strong> has invited you to join the <strong>Childcare Affordability Pilot (CAP)</strong> as a provider for <strong>{child_name}</strong>—and we'd love to have you on board!</p>
+
+    <p>CAP is a program that helps families pay for childcare and helps providers like you get paid. You'll receive payments through CAP, keep your usual care routines, and support families you already work with—or new ones.</p>
+
+    {BaseEmailTemplate.create_button(link, "Accept Invitation")}
+
+    <p style="margin-top: 30px;"><strong>Questions?</strong></p>
+    <p>Email us at <a href="mailto:support@capcolorado.org" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">support@capcolorado.org</a> or visit our website <a href="https://www.capcolorado.org/en/providers" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">capcolorado.org</a>.</p>
+    """
+
+    email_html = BaseEmailTemplate.build(
+        greeting=greeting,
+        main_content=main_content,
+    )
+
     return InviteProviderMessage(
         subject=f"{family_name} is excited to invite you to the CAP program to care for {child_name}!",
-        email=f'<html><body>{family_name} has invited you to join the Childcare Affordability Pilot (CAP) as a provider for {child_name}—and we’d love to have you on board!<br><br>CAP is a program that helps families pay for childcare and helps providers like you get paid. You’ll receive payments through CAP, keep your usual care routines, and support families you already work with—or new ones.<br><br>Click {html_link(link, "here")} to accept the invitation and get started!<br><br>Questions? Email us at <a href="mailto:support@capcolorado.org" style="color: #0066cc; text-decoration: underline;">support@capcolorado.org</a> or visit our website <a href="https://www.capcolorado.org/en/providers" style="color: #0066cc; text-decoration: underline;">capcolorado.org</a>.</body></html>',
+        email=email_html,
         sms=f"{family_name} invited you to join the Childcare Affordability Pilot (CAP) to provide care for {child_name}! CAP can help families pay providers like you. Tap to learn more and apply! {link} Questions? support@capcolorado.org.",
     )
 
