@@ -122,12 +122,10 @@ class PaymentNotificationTemplate:
             Language.ENGLISH: [
                 "Funds are being transferred to your bank account",
                 "Direct deposits typically arrive within 1-2 business days",
-                "You'll receive a confirmation once the transfer is complete",
             ],
             Language.SPANISH: [
                 "Los fondos están siendo transferidos a su cuenta bancaria",
                 "Los depósitos directos generalmente llegan dentro de 1-2 días hábiles",
-                "Recibirá una confirmación una vez que se complete la transferencia",
             ],
         }
         return instructions.get(language, instructions[Language.ENGLISH])
