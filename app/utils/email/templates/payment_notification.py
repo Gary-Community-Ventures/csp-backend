@@ -1,5 +1,5 @@
 """
-Email templates with multi-language support.
+Payment notification email template.
 """
 
 from typing import Dict

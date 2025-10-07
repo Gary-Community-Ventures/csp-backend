@@ -10,12 +10,12 @@ from app.models.attendance import Attendance
 from app.supabase.columns import ProviderType
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child, Family, Guardian, Provider
-from app.utils.email.base_template import BaseEmailTemplate
 from app.utils.email.config import get_from_email_external
 from app.utils.email.core import (
     BulkEmailData,
     bulk_send_emails,
 )
+from app.utils.email.templates import AttendanceReminderTemplate
 from app.utils.sms_service import BulkSmsData, bulk_send_sms
 
 
@@ -124,38 +124,17 @@ class FamilyAttendanceMessages(AttendanceMessages):
 
     def _family_message(self, family_name: str, lang: str):
         link = f"{self.domain}/family/attendance"
+        from app.supabase.columns import Language
+
+        language = Language.SPANISH if lang == "es" else Language.ENGLISH
+        email_html = AttendanceReminderTemplate.get_family_content(family_name, link, language)
+
         if lang == "es":
-            greeting = f"¡Hola, {family_name}!"
-            main_content = f"""
-            <p>Confirme los días de cuidado de la semana pasada y programe el cuidado para la semana siguiente (si aún no lo ha hecho) antes del final del día para que su proveedor pueda recibir su pago.</p>
-            {BaseEmailTemplate.create_button(link, "Acceder a Su Portal")}
-            """
-            signature = "Saludos cordiales,<br>El Equipo CAP"
-            footer = "Esta es una notificación automática del sistema del portal CAP."
-
-            email_html = BaseEmailTemplate.build(
-                greeting=greeting,
-                main_content=main_content,
-                signature=signature,
-                footer_text=footer,
-            )
-
             return MessageCopy(
                 subject="Acción necesaria - Asistencia CAP",
                 email=email_html,
                 sms=f"Confirme los días de cuidado de la semana pasada para que su proveedor pueda recibir su pago. {link}",
             )
-
-        greeting = f"Hi {family_name}!"
-        main_content = f"""
-        <p>Please confirm the days of care for the past week and schedule care for the following week (if you haven't done so already) by the end of the day, so your provider can get paid.</p>
-        {BaseEmailTemplate.create_button(link, "Access Your Portal")}
-        """
-
-        email_html = BaseEmailTemplate.build(
-            greeting=greeting,
-            main_content=main_content,
-        )
 
         return MessageCopy(
             subject="Action Needed - CAP Attendance",
@@ -223,39 +202,17 @@ class ProviderAttendanceMessages(AttendanceMessages):
 
     def _provider_message(self, provider_name: str, lang: str):
         link = f"{self.domain}/provider/attendance"
+        from app.supabase.columns import Language
+
+        language = Language.SPANISH if lang == "es" else Language.ENGLISH
+        email_html = AttendanceReminderTemplate.get_provider_content(provider_name, link, language)
 
         if lang == "es":
-            greeting = f"¡Hola, {provider_name}!"
-            main_content = f"""
-            <p>Confirme la asistencia de todos los niños bajo su cuidado que reciben el subsidio CAP antes del final del día para que pueda recibir su pago a tiempo.</p>
-            {BaseEmailTemplate.create_button(link, "Acceder a Su Portal")}
-            """
-            signature = "Saludos cordiales,<br>El Equipo CAP"
-            footer = "Esta es una notificación automática del sistema del portal CAP."
-
-            email_html = BaseEmailTemplate.build(
-                greeting=greeting,
-                main_content=main_content,
-                signature=signature,
-                footer_text=footer,
-            )
-
             return MessageCopy(
                 subject="Acción necesaria - Asistencia CAP",
                 email=email_html,
                 sms=f"Confirme la asistencia de todos los niños bajo su cuidado que reciben el subsidio CAP, para que pueda recibir su pago a tiempo. {link}",
             )
-
-        greeting = f"Hi {provider_name}!"
-        main_content = f"""
-        <p>Please confirm attendance for all children in your care who receive the CAP subsidy by the end of the day, so you can get paid on time.</p>
-        {BaseEmailTemplate.create_button(link, "Access Your Portal")}
-        """
-
-        email_html = BaseEmailTemplate.build(
-            greeting=greeting,
-            main_content=main_content,
-        )
 
         return MessageCopy(
             subject="Action Needed - CAP Attendance",
@@ -265,44 +222,17 @@ class ProviderAttendanceMessages(AttendanceMessages):
 
     def _center_message(self, provider_name: str, lang: str):
         link = f"{self.domain}/provider/attendance"
+        from app.supabase.columns import Language
+
+        language = Language.SPANISH if lang == "es" else Language.ENGLISH
+        email_html = AttendanceReminderTemplate.get_center_content(provider_name, link, language)
+
         if lang == "es":
-            greeting = f"¡Hola, {provider_name}!"
-            main_content = f"""
-            <p>Por favor, complete la lista de asistencia de todos los niños a su cargo que recibieron subsidio CAP durante el último mes antes del final de esta semana.</p>
-            {BaseEmailTemplate.create_button(link, "Acceder a Su Portal")}
-            <p style="text-align: center; margin-top: 15px;">
-                <small>O envíenos la verificación por correo electrónico: <a href="mailto:support@capcolorado.org" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">support@capcolorado.org</a></small>
-            </p>
-            """
-            signature = "Saludos cordiales,<br>El Equipo CAP"
-            footer = "Esta es una notificación automática del sistema del portal CAP."
-
-            email_html = BaseEmailTemplate.build(
-                greeting=greeting,
-                main_content=main_content,
-                signature=signature,
-                footer_text=footer,
-            )
-
             return MessageCopy(
                 subject="Acción necesaria - Asistencia CAP",
                 email=email_html,
                 sms=f"Por favor, complete la lista de asistencia de todos los niños a su cargo que recibieron subsidio CAP durante el último mes antes del final de esta semana. {link}",
             )
-
-        greeting = f"Hi {provider_name}!"
-        main_content = f"""
-        <p>Please fill out attendance for all children in your care who receive CAP subsidy for the past month by the end of the week.</p>
-        {BaseEmailTemplate.create_button(link, "Access Your Portal")}
-        <p style="text-align: center; margin-top: 15px;">
-            <small>Or send us the verification via email: <a href="mailto:support@capcolorado.org" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">support@capcolorado.org</a></small>
-        </p>
-        """
-
-        email_html = BaseEmailTemplate.build(
-            greeting=greeting,
-            main_content=main_content,
-        )
 
         return MessageCopy(
             subject="Action Needed - CAP Attendance",
