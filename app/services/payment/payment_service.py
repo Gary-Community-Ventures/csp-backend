@@ -8,6 +8,7 @@ from app.constants import MAX_PAYMENT_AMOUNT_CENTS
 from app.enums.payment_method import PaymentMethod
 from app.exceptions import (
     AllocationExceededException,
+    AttendanceNotSubmittedException,
     DataNotFoundException,
     InvalidPaymentStateException,
     PaymentLimitExceededException,
@@ -34,9 +35,11 @@ from app.models import (
     PaymentAttempt,
     ProviderPaymentSettings,
 )
+from app.models.attendance import Attendance
 from app.services.payment.family_onboarding import FamilyOnboarding
 from app.services.payment.provider_onboarding import ProviderOnboarding
 from app.services.payment.schema import PaymentResult
+from app.supabase.columns import ProviderType
 from app.supabase.helpers import cols, format_name, unwrap_or_abort, unwrap_or_error
 from app.supabase.tables import Child, Provider
 
@@ -375,6 +378,7 @@ class PaymentService:
         self,
         provider_id: str,
         child_id: str,
+        provider_type: ProviderType,
         month_allocation: MonthAllocation,
         allocated_care_days: Optional[list[AllocatedCareDay]] = None,
         allocated_lump_sums: Optional[list[AllocatedLumpSum]] = None,
@@ -388,14 +392,21 @@ class PaymentService:
             In future versions, will return PaymentResult for more details
         """
         try:
-            # 0. Look up family payment settings
+            # 1. Check if attendance is not submitted
+            attendance_overdue = (
+                Attendance.filter_by_overdue_attendance(provider_id, child_id, provider_type).count() > 0
+            )
+            if attendance_overdue:
+                raise AttendanceNotSubmittedException(f"Family or provider has not submitted attendance")
+
+            # 2. Look up family payment settings
             family_payment_settings = self._get_family_settings_from_child_id(child_id)
             if not family_payment_settings or not family_payment_settings.chek_user_id:
                 raise ProviderNotPayableException(f"Family for child {child_id} does not have chek account")
             if not family_payment_settings.can_make_payments:
                 raise ProviderNotPayableException(f"Family for child {child_id} cannot make payments")
 
-            # 1. Look up provider payment settings
+            # 3. Look up provider payment settings
             provider_payment_settings = ProviderPaymentSettings.query.filter_by(
                 provider_supabase_id=provider_id
             ).first()
@@ -404,7 +415,7 @@ class PaymentService:
                 current_app.logger.error(f"Payment failed: {error_msg}")
                 raise ProviderNotFoundException(error_msg)
 
-            # 2. Calculate amount from allocations
+            # 4. Calculate amount from allocations
             amount_cents = 0
             if allocated_care_days:
                 amount_cents += sum(day.amount_cents for day in allocated_care_days)
@@ -413,7 +424,7 @@ class PaymentService:
             if amount_cents <= 0:
                 raise InvalidPaymentStateException("No allocations provided for payment")
 
-            # 3. Validate payment doesn't exceed $1400 limit
+            # 5. Validate payment doesn't exceed $1400 limit
             if amount_cents > MAX_PAYMENT_AMOUNT_CENTS:
                 error_msg = (
                     f"Payment amount ${amount_cents / 100:.2f} exceeds maximum allowed payment "
@@ -422,7 +433,7 @@ class PaymentService:
                 current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
                 raise PaymentLimitExceededException(error_msg)
 
-            # 4. Validate payment doesn't exceed remaining allocation
+            # 6. Validate payment doesn't exceed remaining allocation
             if amount_cents > month_allocation.remaining_unpaid_cents:
                 error_msg = (
                     f"Payment amount {amount_cents} cents exceeds remaining allocation "
@@ -438,17 +449,17 @@ class PaymentService:
                 current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
                 raise AllocationExceededException(error_msg)
 
-            # 5. Ensure provider has a payment method configured
+            # 7. Ensure provider has a payment method configured
             if not provider_payment_settings.payment_method:
                 error_msg = f"Provider {provider_id} has no payment method configured"
                 current_app.logger.error(f"Payment failed for Provider {provider_payment_settings.id}: {error_msg}")
                 raise PaymentMethodNotConfiguredException(error_msg)
 
-            # 6. Refresh provider Chek status to ensure freshness
+            # 8. Refresh provider Chek status to ensure freshness
             self.refresh_provider_settings(provider_payment_settings)
             db.session.flush()  # Ensure provider object is updated in session
 
-            # 7. Create PaymentIntent to capture what we're trying to pay for
+            # 9. Create PaymentIntent to capture what we're trying to pay for
             intent = self._create_payment_intent(
                 provider_payment_settings=provider_payment_settings,
                 family_payment_settings=family_payment_settings,
@@ -460,7 +471,7 @@ class PaymentService:
                 allocated_lump_sums=allocated_lump_sums,
             )
 
-            # 8. Create PaymentAttempt for this intent
+            # 10. Create PaymentAttempt for this intent
             attempt = self._create_payment_attempt(
                 intent=intent,
                 payment_method=provider_payment_settings.payment_method,
@@ -468,7 +479,7 @@ class PaymentService:
                 family_payment_settings=family_payment_settings,
             )
 
-            # 9. Validate payment method status with detailed error messages
+            # 11. Validate payment method status with detailed error messages
             is_valid, validation_error = provider_payment_settings.validate_payment_method_status()
             if not is_valid:
                 current_app.logger.warning(
@@ -478,7 +489,7 @@ class PaymentService:
                 db.session.commit()
                 return False
 
-            # 10. Execute the payment flow
+            # 12. Execute the payment flow
             try:
                 success = self._execute_payment_flow(
                     attempt=attempt,
