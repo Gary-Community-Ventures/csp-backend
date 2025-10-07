@@ -72,7 +72,7 @@ class BaseEmailTemplate:
                                 <!-- Main content -->
                                 <tr>
                                     <td style="padding: 40px 30px;">
-                                        <p style="margin: 0 0 20px 0;">{greeting}</p>
+                                        {"<p style='margin: 0 0 20px 0;'>" + greeting + "</p>" if greeting else ""}
 
                                         {main_content}
 
@@ -115,7 +115,7 @@ class BaseEmailTemplate:
             color = cls.PRIMARY_COLOR
 
         return f"""
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
             <tr>
                 <td align="center">
                     <a href="{url}" style="display: inline-block; background-color: {color}; color: white; text-decoration: none; padding: 14px 30px; border-radius: 5px; font-weight: bold; font-size: 16px;">

@@ -212,20 +212,21 @@ class PaymentNotificationTemplate:
         </div>
         """
 
-        # Build main content
+        # Build main content with greeting integrated
         main_content = f"""
         <h2 style="color: #b53363; border-bottom: 2px solid #364f3f; padding-bottom: 10px; margin-top: 0;">
             {cls.get_email_header(language)}
         </h2>
+        <p>{cls.get_greeting(provider_name, language)}</p>
         <p>{cls.get_intro_text(language)}</p>
         {payment_details}
         {whats_next}
         <p>{cls.get_support_text(language)}</p>
         """
 
-        # Use base template
+        # Use base template without separate greeting
         return BaseEmailTemplate.build(
-            greeting=cls.get_greeting(provider_name, language),
+            greeting="",
             main_content=main_content,
             signature=cls.get_signature(language),
             footer_text=cls.get_footer(language),
