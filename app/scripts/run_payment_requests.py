@@ -52,8 +52,6 @@ def run_payment_requests():
     providers_result = Provider.query().select(cols(Provider.ID, Provider.TYPE)).execute()
     children = unwrap_or_error(children_result)
     providers = unwrap_or_error(providers_result)
-    child_ids = set([c.id for c in children])
-    provider_ids = set([p.id for p in providers])
 
     for (provider_id, child_id), days in grouped_care_days.items():
         provider = Provider.find_by_id(providers, provider_id)

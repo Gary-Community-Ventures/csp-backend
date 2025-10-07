@@ -29,6 +29,10 @@ def schedule_reminder_job():
     cron_schedule_first = "0 8 * * 5"
     cron_schedule_second = "0 8 * * 0"
 
-    current_app.logger.info(f"Scheduling attendance reminder job with cron '{cron_schedule_first}' and '{cron_schedule_second}'")
+    current_app.logger.info(
+        f"Scheduling attendance reminder job with cron '{cron_schedule_first}' and '{cron_schedule_second}'"
+    )
 
-    return create_reminder_job.schedule_cron(cron_schedule_first), create_reminder_job.schedule_cron(cron_schedule_second)
+    return create_reminder_job.schedule_cron(cron_schedule_first), create_reminder_job.schedule_cron(
+        cron_schedule_second
+    )
