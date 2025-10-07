@@ -2,6 +2,8 @@
 Base email template for external-facing emails with professional styling and branding.
 """
 
+from flask import current_app
+
 
 class BaseEmailTemplate:
     """Base template for all external-facing emails with CAP branding."""
@@ -14,8 +16,11 @@ class BaseEmailTemplate:
     TEXT_COLOR = "#333"
     LIGHT_TEXT_COLOR = "#666"
 
-    # Logo placeholder - replace with actual hosted URL
-    LOGO_URL = "https://via.placeholder.com/150x150?text=CAP"  # Placeholder for square PNG logo
+    @classmethod
+    def get_logo_url(cls) -> str:
+        """Get the logo URL from the backend domain."""
+        backend_domain = current_app.config.get("BACKEND_DOMAIN", "http://localhost:5000")
+        return f"{backend_domain}/static/images/cap-logo.png"
 
     @classmethod
     def build(
@@ -43,6 +48,8 @@ class BaseEmailTemplate:
         if footer_text is None:
             footer_text = "This is an automated notification from the CAP portal system."
 
+        logo_url = cls.get_logo_url()
+
         html = f"""
         <!DOCTYPE html>
         <html>
@@ -58,7 +65,7 @@ class BaseEmailTemplate:
                                 <!-- Header with logo -->
                                 <tr>
                                     <td style="background-color: white; padding: 30px 20px; text-align: center; border-bottom: 3px solid {cls.SECONDARY_COLOR};">
-                                        <img src="{cls.LOGO_URL}" alt="CAP Logo" style="width: 120px; height: 120px;">
+                                        <img src="{logo_url}" alt="CAP Logo" style="width: 120px; height: 120px;">
                                     </td>
                                 </tr>
 
