@@ -70,10 +70,24 @@ class AttendanceReminderTemplate:
             greeting = f"¡Hola, {provider_name}!"
             main_content = f"""
             <p>Por favor, complete la lista de asistencia de todos los niños a su cargo que recibieron subsidio CAP durante el último mes antes del final de esta semana.</p>
-            {BaseEmailTemplate.create_button(link, "Acceder a Su Portal")}
-            <p style="text-align: center; margin-top: 15px;">
-                <small>O envíenos la verificación por correo electrónico: <a href="mailto:support@capcolorado.org" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">support@capcolorado.org</a></small>
-            </p>
+
+            <div style="background-color: {BaseEmailTemplate.ACCENT_COLOR}; padding: 20px; margin: 25px 0; border-radius: 5px; border-left: 4px solid {BaseEmailTemplate.SECONDARY_COLOR};">
+                <p style="margin: 0 0 15px 0; font-weight: bold; color: #000;">Puede enviarnos la asistencia de dos maneras:</p>
+                <table width="100%" cellpadding="10" cellspacing="0">
+                    <tr>
+                        <td width="50%" style="vertical-align: top;">
+                            <p style="margin: 0 0 8px 0; font-weight: bold; color: #000;">📧 Por correo electrónico</p>
+                            <p style="margin: 0; color: #000;">Envíe la verificación a:<br>
+                            <a href="mailto:support@capcolorado.org" style="color: {BaseEmailTemplate.PRIMARY_COLOR}; font-weight: bold;">support@capcolorado.org</a></p>
+                        </td>
+                        <td width="50%" style="vertical-align: top;">
+                            <p style="margin: 0 0 8px 0; font-weight: bold; color: #000;">💻 A través del portal</p>
+                            <p style="margin: 0; color: #000;">Acceda a su cuenta:<br>
+                            <a href="{link}" style="color: {BaseEmailTemplate.PRIMARY_COLOR}; font-weight: bold;">Portal CAP</a></p>
+                        </td>
+                    </tr>
+                </table>
+            </div>
             """
             signature = "Saludos cordiales,<br>El Equipo CAP"
             footer = "Esta es una notificación automática del sistema del portal CAP."
@@ -81,10 +95,24 @@ class AttendanceReminderTemplate:
             greeting = f"Hi {provider_name}!"
             main_content = f"""
             <p>Please fill out attendance for all children in your care who receive CAP subsidy for the past month by the end of the week.</p>
-            {BaseEmailTemplate.create_button(link, "Access Your Portal")}
-            <p style="text-align: center; margin-top: 15px;">
-                <small>Or send us the verification via email: <a href="mailto:support@capcolorado.org" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">support@capcolorado.org</a></small>
-            </p>
+
+            <div style="background-color: {BaseEmailTemplate.ACCENT_COLOR}; padding: 20px; margin: 25px 0; border-radius: 5px; border-left: 4px solid {BaseEmailTemplate.SECONDARY_COLOR};">
+                <p style="margin: 0 0 15px 0; font-weight: bold; color: #000;">You can submit attendance in two ways:</p>
+                <table width="100%" cellpadding="10" cellspacing="0">
+                    <tr>
+                        <td width="50%" style="vertical-align: top;">
+                            <p style="margin: 0 0 8px 0; font-weight: bold; color: #000;">📧 Via Email</p>
+                            <p style="margin: 0; color: #000;">Send verification to:<br>
+                            <a href="mailto:support@capcolorado.org" style="color: {BaseEmailTemplate.PRIMARY_COLOR}; font-weight: bold;">support@capcolorado.org</a></p>
+                        </td>
+                        <td width="50%" style="vertical-align: top;">
+                            <p style="margin: 0 0 8px 0; font-weight: bold; color: #000;">💻 Through Portal</p>
+                            <p style="margin: 0; color: #000;">Access your account:<br>
+                            <a href="{link}" style="color: {BaseEmailTemplate.PRIMARY_COLOR}; font-weight: bold;">CAP Portal</a></p>
+                        </td>
+                    </tr>
+                </table>
+            </div>
             """
             signature = None
             footer = None
