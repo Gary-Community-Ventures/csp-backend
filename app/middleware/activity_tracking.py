@@ -15,6 +15,9 @@ from app.auth.helpers import get_current_user
 from app.extensions import db
 from app.models import UserActivity
 
+# Cache activity records for 2 hours (in seconds)
+ACTIVITY_CACHE_TTL = 7200
+
 
 def _get_redis_cache_key(user_type: str, user_id: str, hour_timestamp: datetime) -> str:
     """Generate Redis cache key for activity tracking."""
@@ -28,8 +31,8 @@ def _is_activity_cached(redis_conn, cache_key: str) -> bool:
 
 
 def _cache_activity(redis_conn, cache_key: str):
-    """Cache that activity was recorded for this hour (expires in 2 hours)."""
-    redis_conn.setex(cache_key, 7200, "1")  # 2 hour TTL
+    """Cache that activity was recorded for this hour."""
+    redis_conn.setex(cache_key, ACTIVITY_CACHE_TTL, "1")  # 2 hour TTL
 
 
 def track_user_activity():
@@ -68,18 +71,24 @@ def track_user_activity():
             return
 
         # Check Redis cache and record activity if needed
+        records_to_cache = []
+
         if user.user_data.provider_id:
             cache_key = _get_redis_cache_key("provider", user.user_data.provider_id, hour)
             if not _is_activity_cached(redis_conn, cache_key):
                 UserActivity.record_provider_activity(user.user_data.provider_id, now)
-                db.session.commit()
-                _cache_activity(redis_conn, cache_key)
+                records_to_cache.append(cache_key)
 
         if user.user_data.family_id:
             cache_key = _get_redis_cache_key("family", user.user_data.family_id, hour)
             if not _is_activity_cached(redis_conn, cache_key):
                 UserActivity.record_family_activity(user.user_data.family_id, now)
-                db.session.commit()
+                records_to_cache.append(cache_key)
+
+        # Single commit for all records
+        if records_to_cache:
+            db.session.commit()
+            for cache_key in records_to_cache:
                 _cache_activity(redis_conn, cache_key)
 
         # Mark as tracked for this request
