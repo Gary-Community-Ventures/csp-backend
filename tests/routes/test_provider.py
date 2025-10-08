@@ -63,7 +63,7 @@ def seed_db(app):
 def mock_authentication(mocker):
     mock_request_state = mocker.Mock()
     mock_request_state.is_signed_in = True
-    mock_request_state.payload = {"data": {"types": ["provider"], "provider_id": 1}}
+    mock_request_state.payload = {"data": {"types": ["provider"], "provider_id": "1"}}
     mocker.patch("app.auth.decorators._authenticate_request", return_value=mock_request_state)
 
 
