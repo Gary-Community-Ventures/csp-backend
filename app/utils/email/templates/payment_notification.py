@@ -222,9 +222,9 @@ class PaymentNotificationTemplate:
         <p>{cls.get_support_text(language)}</p>
         """
 
-        # Use base template without separate greeting
+        # Use base template without separate greeting (greeting is included in main_content)
         return BaseEmailTemplate.build(
-            greeting="",
+            greeting=None,
             main_content=main_content,
             signature=cls.get_signature(language),
             footer_text=cls.get_footer(language),

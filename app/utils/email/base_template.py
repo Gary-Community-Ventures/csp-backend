@@ -25,8 +25,8 @@ class BaseEmailTemplate:
     @classmethod
     def build(
         cls,
-        greeting: str,
-        main_content: str,
+        greeting: str = None,
+        main_content: str = "",
         signature: str = None,
         footer_text: str = None,
     ) -> str:
@@ -34,7 +34,7 @@ class BaseEmailTemplate:
         Build a complete HTML email using the base template.
 
         Args:
-            greeting: Opening greeting (e.g., "Hi John,")
+            greeting: Opening greeting (e.g., "Hi John,"). If None, no greeting is added.
             main_content: Main body content (HTML allowed)
             signature: Optional custom signature (defaults to "Best regards,<br>The CAP Team")
             footer_text: Optional custom footer (defaults to standard disclaimer)
