@@ -20,6 +20,7 @@ from app.models.family_payment_settings import FamilyPaymentSettings
 from app.models.provider_invitation import ProviderInvitation
 from app.models.provider_payment_settings import ProviderPaymentSettings
 from app.services.allocation_service import AllocationService
+from app.supabase.columns import Language
 from app.supabase.helpers import cols, format_name, unwrap_or_abort
 from app.supabase.tables import Child, Family, Guardian, Provider, ProviderChildMapping
 from app.utils.date_utils import get_current_month_start, get_next_month_start
@@ -278,8 +279,6 @@ class InviteProviderMessage:
 
 
 def get_invite_provider_message(lang: str, family_name: str, child_name: str, link: str):
-    from app.supabase.columns import Language
-
     language = Language.SPANISH if lang == "es" else Language.ENGLISH
     email_html = InvitationTemplate.get_provider_invitation_content(family_name, child_name, link, language)
 

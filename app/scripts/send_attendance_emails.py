@@ -7,7 +7,7 @@ from flask import current_app
 from app import create_app
 from app.enums.email_type import EmailType
 from app.models.attendance import Attendance
-from app.supabase.columns import ProviderType
+from app.supabase.columns import Language, ProviderType
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child, Family, Guardian, Provider
 from app.utils.email.config import get_from_email_external
@@ -124,8 +124,6 @@ class FamilyAttendanceMessages(AttendanceMessages):
 
     def _family_message(self, family_name: str, lang: str):
         link = f"{self.domain}/family/attendance"
-        from app.supabase.columns import Language
-
         language = Language.SPANISH if lang == "es" else Language.ENGLISH
         email_html = AttendanceReminderTemplate.get_family_content(family_name, link, language)
 
@@ -202,8 +200,6 @@ class ProviderAttendanceMessages(AttendanceMessages):
 
     def _provider_message(self, provider_name: str, lang: str):
         link = f"{self.domain}/provider/attendance"
-        from app.supabase.columns import Language
-
         language = Language.SPANISH if lang == "es" else Language.ENGLISH
         email_html = AttendanceReminderTemplate.get_provider_content(provider_name, link, language)
 
@@ -222,8 +218,6 @@ class ProviderAttendanceMessages(AttendanceMessages):
 
     def _center_message(self, provider_name: str, lang: str):
         link = f"{self.domain}/provider/attendance"
-        from app.supabase.columns import Language
-
         language = Language.SPANISH if lang == "es" else Language.ENGLISH
         email_html = AttendanceReminderTemplate.get_center_content(provider_name, link, language)
 

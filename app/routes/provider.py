@@ -30,6 +30,7 @@ from app.schemas.provider_payment import (
     PaymentMethodUpdateResponse,
     PaymentSettingsResponse,
 )
+from app.supabase.columns import Language
 from app.supabase.helpers import UnwrapError, cols, format_name, unwrap_or_abort
 from app.supabase.tables import Child, Family, Guardian, Provider, ProviderChildMapping
 from app.utils.email.config import get_from_email_internal
@@ -449,8 +450,6 @@ class InviteProviderMessage:
 
 
 def get_invite_family_message(lang: str, provider_name: str, link: str):
-    from app.supabase.columns import Language
-
     language = Language.SPANISH if lang == "es" else Language.ENGLISH
     email_html = InvitationTemplate.get_family_invitation_content(provider_name, link, language)
 
