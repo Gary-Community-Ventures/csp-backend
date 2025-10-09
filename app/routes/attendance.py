@@ -150,10 +150,12 @@ def provider_attendance():
     if len(attendance_data) == 0:
         return jsonify({"attendance": [], "children": []})
 
-    children_result = Child.select_by_family_id(
-        cols(Child.ID, Child.FIRST_NAME, Child.LAST_NAME), int(user.user_data.family_id)
+    provider_result = Provider.select_by_id(
+        cols(Child.join(Child.ID, Child.FIRST_NAME, Child.LAST_NAME)), int(user.user_data.provider_id)
     ).execute()
-    child_data = unwrap_or_abort(children_result)
+    provider = unwrap_or_abort(provider_result)
+
+    child_data = Child.unwrap(provider)
 
     attendance: list[dict] = []
     children: dict = {}

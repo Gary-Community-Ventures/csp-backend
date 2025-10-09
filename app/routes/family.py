@@ -20,16 +20,17 @@ from app.models.family_payment_settings import FamilyPaymentSettings
 from app.models.provider_invitation import ProviderInvitation
 from app.models.provider_payment_settings import ProviderPaymentSettings
 from app.services.allocation_service import AllocationService
+from app.supabase.columns import Language
 from app.supabase.helpers import cols, format_name, unwrap_or_abort
 from app.supabase.tables import Child, Family, Guardian, Provider, ProviderChildMapping
 from app.utils.date_utils import get_current_month_start, get_next_month_start
 from app.utils.email.config import get_from_email_internal
 from app.utils.email.core import send_email
 from app.utils.email.senders import (
-    html_link,
     send_provider_invite_accept_email,
     send_provider_invited_email,
 )
+from app.utils.email.templates import InvitationTemplate
 from app.utils.sms_service import send_sms
 
 bp = Blueprint("family", __name__)
@@ -217,6 +218,11 @@ def family_data(child_id: Optional[str] = None):
     providers = []
     for p in provider_data:
         provider_id = Provider.ID(p)
+
+        attendance_is_overdue = (
+            Attendance.filter_by_overdue_attendance(provider_id, child_id, Provider.TYPE(p)).count() > 0
+        )
+
         # Look up the ProviderPaymentSettings to get is_payable status
         provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_supabase_id=provider_id).first()
         current_app.logger.error(f"Provider {provider_id} payment settings: {provider_payment_settings}")
@@ -232,6 +238,7 @@ def family_data(child_id: Optional[str] = None):
                 "type": provider_type.lower() if provider_type else "unlicensed",
                 "is_payable": provider_payment_settings.is_payable if provider_payment_settings else False,
                 "is_payment_enabled": Provider.PAYMENT_ENABLED(p),
+                "attendance_is_overdue": attendance_is_overdue,
             }
         )
 
@@ -252,8 +259,8 @@ def family_data(child_id: Optional[str] = None):
         notifications.append({"type": "application_denied"})
 
     child_ids = [Child.ID(c) for c in family_children]
-    needs_attendance = Attendance.filter_by_child_ids(child_ids).count() > 0
-    if needs_attendance:
+    attendance_due = Attendance.filter_by_child_ids(child_ids).count() > 0
+    if attendance_due:
         notifications.append({"type": "attendance"})
 
     family_payment_settings = FamilyPaymentSettings.query.filter_by(family_supabase_id=family_id).first()
@@ -266,6 +273,7 @@ def family_data(child_id: Optional[str] = None):
             "notifications": notifications,
             "is_also_provider": ClerkUserType.PROVIDER.value in user.user_data.types,
             "can_make_payments": family_payment_settings.can_make_payments if family_payment_settings else False,
+            "attendance_due": attendance_due,
         }
     )
 
@@ -278,16 +286,19 @@ class InviteProviderMessage:
 
 
 def get_invite_provider_message(lang: str, family_name: str, child_name: str, link: str):
+    language = Language.SPANISH if lang == "es" else Language.ENGLISH
+    email_html = InvitationTemplate.get_provider_invitation_content(family_name, child_name, link, language)
+
     if lang == "es":
         return InviteProviderMessage(
             subject=f"¡{family_name} se complace en invitarte al programa CAP para cuidar a {child_name}!",
-            email=f'<html><body>¡{family_name} lo ha invitado a unirse al programa piloto de accesibilidad al cuidado infantil Childcare Affordability Pilot (CAP) como proveedor de {child_name}, y nos encantaría tenerte a bordo!<br><br>CAP es un programa que ayuda a las familias a pagar el cuidado infantil y a proveedores como usted a recibir su pago. Recibirá pagos a través de CAP, mantendrá sus rutinas de cuidado habituales y apoyará a las familias con las que ya trabaja, o a nuevas familias.<br><br>¡Haga clic {html_link(link, "aquí")} para aceptar la invitación y comenzar!<br><br>¿Tienes preguntas? Escríbenos a <a href="mailto:support@capcolorado.org" style="color: #0066cc; text-decoration: underline;">support@capcolorado.org</a> o visita nuestro sitio web <a href="https://www.capcolorado.org/es/providers" style="color: #0066cc; text-decoration: underline;">capcolorado.org</a>.</body></html>',
+            email=email_html,
             sms=f"¡{family_name} te invitó a unirte al programa piloto de accesibilidad al cuidado infantil (CAP) para cuidar a {child_name}! CAP ayuda a las familias a pagar a proveedores como tú. ¡Toca para obtener más información y postularte! {link} ¿Preguntas? support@capcolorado.org.",
         )
 
     return InviteProviderMessage(
         subject=f"{family_name} is excited to invite you to the CAP program to care for {child_name}!",
-        email=f'<html><body>{family_name} has invited you to join the Childcare Affordability Pilot (CAP) as a provider for {child_name}—and we’d love to have you on board!<br><br>CAP is a program that helps families pay for childcare and helps providers like you get paid. You’ll receive payments through CAP, keep your usual care routines, and support families you already work with—or new ones.<br><br>Click {html_link(link, "here")} to accept the invitation and get started!<br><br>Questions? Email us at <a href="mailto:support@capcolorado.org" style="color: #0066cc; text-decoration: underline;">support@capcolorado.org</a> or visit our website <a href="https://www.capcolorado.org/en/providers" style="color: #0066cc; text-decoration: underline;">capcolorado.org</a>.</body></html>',
+        email=email_html,
         sms=f"{family_name} invited you to join the Childcare Affordability Pilot (CAP) to provide care for {child_name}! CAP can help families pay providers like you. Tap to learn more and apply! {link} Questions? support@capcolorado.org.",
     )
 

@@ -191,7 +191,7 @@ def create_mock_provider_data(
     email: str = "provider@test.com",
     phone: str = "555-0100",
     status: str = "active",
-    type: str = "individual",
+    type: str = "ffn",
     payment_enabled: bool = True,
     **kwargs,
 ) -> Dict:

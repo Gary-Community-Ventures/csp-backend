@@ -22,6 +22,12 @@ class ProviderNotFoundException(PaymentException):
     pass
 
 
+class AttendanceNotSubmittedException(PaymentException):
+    """Raised when an attendance is not being submitted is blocking payment."""
+
+    pass
+
+
 class ProviderNotPayableException(PaymentException):
     """Raised when a provider is not eligible for payment."""
 

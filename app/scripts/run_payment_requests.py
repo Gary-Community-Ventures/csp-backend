@@ -8,7 +8,7 @@ from app.models import (
     ProviderPaymentSettings,
 )
 from app.services.payment.payment_service import PaymentService
-from app.supabase.helpers import cols
+from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child, Provider
 
 # Create Flask app context
@@ -48,18 +48,20 @@ def run_payment_requests():
             )
         ].append(day)
 
-    children = Child.query().select(cols(Child.ID)).execute()
-    providers = Provider.query().select(cols(Provider.ID)).execute()
-    child_ids = set([c.id for c in children])
-    provider_ids = set([p.id for p in providers])
+    children_result = Child.query().select(cols(Child.ID)).execute()
+    providers_result = Provider.query().select(cols(Provider.ID, Provider.TYPE)).execute()
+    children = unwrap_or_error(children_result)
+    providers = unwrap_or_error(providers_result)
 
     for (provider_id, child_id), days in grouped_care_days.items():
-        if provider_id not in provider_ids:
+        provider = Provider.find_by_id(providers, provider_id)
+        child = Child.find_by_id(children, child_id)
+        if provider is None:
             app.logger.warning(
                 f"run_payment_requests: Skipping payment for provider ID {provider_id}: Provider not found"
             )
             continue
-        if child_id not in child_ids:
+        if child is None:
             app.logger.warning(f"run_payment_requests: Skipping payment for child ID {child_id}: Child not found")
             continue
 
@@ -74,8 +76,9 @@ def run_payment_requests():
         # Process payment using the PaymentService
         month_allocation = days[0].care_month_allocation  # All care days belong to same month allocation
         payment_successful = payment_service.process_payment(
-            external_provider_id=provider_id,
-            external_child_id=child_id,
+            provider_id=provider_id,
+            child_id=child_id,
+            provider_type=Provider.TYPE(provider),
             month_allocation=month_allocation,
             allocated_care_days=days,
         )

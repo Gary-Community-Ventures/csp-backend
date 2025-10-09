@@ -52,7 +52,7 @@ def create_lump_sum():
             Child.PAYMENT_ENABLED,
             Child.FIRST_NAME,
             Child.LAST_NAME,
-            Provider.join(Provider.ID, Provider.PAYMENT_ENABLED, Provider.NAME),
+            Provider.join(Provider.ID, Provider.PAYMENT_ENABLED, Provider.NAME, Provider.TYPE),
         ),
         int(family_id),
     ).execute()
@@ -101,6 +101,7 @@ def create_lump_sum():
         payment_successful = current_app.payment_service.process_payment(
             provider_id=provider_id,
             child_id=allocation_child_id,
+            provider_type=Provider.TYPE(provider_data),
             month_allocation=allocation,
             allocated_lump_sums=[lump_sum],
         )
