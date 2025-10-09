@@ -1,11 +1,12 @@
 """
-Email templates with multi-language support.
+Payment notification email template.
 """
 
 from typing import Dict
 
 from app.enums.payment_method import PaymentMethod
 from app.supabase.columns import Language
+from app.utils.email.base_template import BaseEmailTemplate
 
 
 class PaymentNotificationTemplate:
@@ -121,12 +122,10 @@ class PaymentNotificationTemplate:
             Language.ENGLISH: [
                 "Funds are being transferred to your bank account",
                 "Direct deposits typically arrive within 1-2 business days",
-                "You'll receive a confirmation once the transfer is complete",
             ],
             Language.SPANISH: [
                 "Los fondos están siendo transferidos a su cuenta bancaria",
                 "Los depósitos directos generalmente llegan dentro de 1-2 días hábiles",
-                "Recibirá una confirmación una vez que se complete la transferencia",
             ],
         }
         return instructions.get(language, instructions[Language.ENGLISH])
@@ -172,66 +171,61 @@ class PaymentNotificationTemplate:
         labels = cls.get_field_labels(language)
         payment_method_display = cls.get_payment_method_display(payment_method, language)
 
-        html_content = f"""
-        <html>
-            <body style="font-family: sans-serif; line-height: 1.6; color: #333;">
-                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <h2 style="color: #b53363; border-bottom: 2px solid #364f3f; padding-bottom: 10px;">
-                        {cls.get_email_header(language)}
-                    </h2>
-
-                    <p>{cls.get_greeting(provider_name, language)}</p>
-
-                    <p>{cls.get_intro_text(language)}</p>
-
-                    <div style="background-color: #f8f9fa; border-left: 4px solid #364f3f; padding: 15px; margin: 20px 0;">
-                        <h3 style="margin-top: 0; color: #2c3e50;">{cls.get_payment_details_header(language)}</h3>
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <tr>
-                                <td style="padding: 8px 0;"><strong>{labels['child']}</strong></td>
-                                <td style="padding: 8px 0;">{child_name}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 8px 0;"><strong>{labels['amount']}</strong></td>
-                                <td style="padding: 8px 0; color: #364f3f; font-size: 18px;"><strong>${amount_dollars:.2f}</strong></td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 8px 0;"><strong>{labels['payment_method']}</strong></td>
-                                <td style="padding: 8px 0;">{payment_method_display}</td>
-                            </tr>
+        # Build payment details table
+        payment_details = f"""
+        <div style="background-color: #f8f9fa; border-left: 4px solid #364f3f; padding: 15px; margin: 20px 0; border-radius: 5px;">
+            <h3 style="margin-top: 0; color: #2c3e50;">{cls.get_payment_details_header(language)}</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 8px 0;"><strong>{labels['child']}</strong></td>
+                    <td style="padding: 8px 0;">{child_name}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0;"><strong>{labels['amount']}</strong></td>
+                    <td style="padding: 8px 0; color: #364f3f; font-size: 18px;"><strong>${amount_dollars:.2f}</strong></td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0;"><strong>{labels['payment_method']}</strong></td>
+                    <td style="padding: 8px 0;">{payment_method_display}</td>
+                </tr>
+            </table>
+        </div>
         """
 
-        html_content += f"""
-                        </table>
-                    </div>
-
-                    <div style="background-color: #C9D1CC; padding: 15px; margin: 20px 0; border-radius: 5px; color: #000000;">
-                        <p style="margin: 0;"><strong>{cls.get_whats_next_header(language)}</strong></p>
-                        <ul style="margin: 10px 0 0 0; padding-left: 20px;">
-        """
-
+        # Build instructions list
+        instructions_html = ""
         if payment_method == PaymentMethod.CARD:
             for instruction in cls.get_card_instructions(language):
-                html_content += f"                        <li>{instruction}</li>\n"
+                instructions_html += f"<li>{instruction}</li>"
         else:  # ACH
             for instruction in cls.get_ach_instructions(language):
-                html_content += f"                        <li>{instruction}</li>\n"
+                instructions_html += f"<li>{instruction}</li>"
 
-        html_content += f"""
-                        </ul>
-                    </div>
-
-                    <p>{cls.get_support_text(language)}</p>
-
-                    <p>{cls.get_signature(language)}</p>
-
-                    <hr style="margin-top: 30px; border: none; border-top: 1px solid #ddd;">
-                    <p style="font-size: 12px; color: #666; text-align: center;">
-                        {cls.get_footer(language)}<br>
-                    </p>
-                </div>
-            </body>
-        </html>
+        whats_next = f"""
+        <div style="background-color: #C9D1CC; padding: 15px; margin: 20px 0; border-radius: 5px; color: #000000;">
+            <p style="margin: 0 0 10px 0;"><strong>{cls.get_whats_next_header(language)}</strong></p>
+            <ul style="margin: 0; padding-left: 20px;">
+                {instructions_html}
+            </ul>
+        </div>
         """
 
-        return html_content
+        # Build main content with greeting integrated
+        main_content = f"""
+        <h2 style="color: #b53363; border-bottom: 2px solid #364f3f; padding-bottom: 10px; margin-top: 0;">
+            {cls.get_email_header(language)}
+        </h2>
+        <p>{cls.get_greeting(provider_name, language)}</p>
+        <p>{cls.get_intro_text(language)}</p>
+        {payment_details}
+        {whats_next}
+        <p>{cls.get_support_text(language)}</p>
+        """
+
+        # Use base template without separate greeting (greeting is included in main_content)
+        return BaseEmailTemplate.build(
+            greeting=None,
+            main_content=main_content,
+            signature=cls.get_signature(language),
+            footer_text=cls.get_footer(language),
+        )
