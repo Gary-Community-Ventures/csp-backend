@@ -16,7 +16,7 @@ from app.extensions import db
 from app.models import UserActivity
 
 # Cache activity records for 2 hours (in seconds)
-ACTIVITY_CACHE_TTL = 7200
+ACTIVITY_CACHE_TTL = 2 * 60 * 60
 
 
 def _get_redis_cache_key(user_type: str, user_id: str, hour_timestamp: datetime) -> str:
