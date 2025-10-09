@@ -15,6 +15,24 @@ def create_attendance_job(**kwargs):
 def schedule_attendance_job():
     cron_schedule = "0 8 * * 1"
 
-    current_app.logger.info(f"Scheduling monthly allocation job with cron '{cron_schedule}'")
+    current_app.logger.info(f"Scheduling attendance job with cron '{cron_schedule}'")
 
     return create_attendance_job.schedule_cron(cron_schedule)
+
+
+@job_manager.job
+def create_reminder_job(**kwargs):
+    send_attendance_emails(True, True)
+
+
+def schedule_reminder_job():
+    cron_schedule_first = "0 8 * * 5"
+    cron_schedule_second = "0 8 * * 0"
+
+    current_app.logger.info(
+        f"Scheduling attendance reminder job with cron '{cron_schedule_first}' and '{cron_schedule_second}'"
+    )
+
+    return create_reminder_job.schedule_cron(cron_schedule_first), create_reminder_job.schedule_cron(
+        cron_schedule_second
+    )

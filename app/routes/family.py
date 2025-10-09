@@ -218,6 +218,11 @@ def family_data(child_id: Optional[str] = None):
     providers = []
     for p in provider_data:
         provider_id = Provider.ID(p)
+
+        attendance_is_overdue = (
+            Attendance.filter_by_overdue_attendance(provider_id, child_id, Provider.TYPE(p)).count() > 0
+        )
+
         # Look up the ProviderPaymentSettings to get is_payable status
         provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_supabase_id=provider_id).first()
         current_app.logger.error(f"Provider {provider_id} payment settings: {provider_payment_settings}")
@@ -233,6 +238,7 @@ def family_data(child_id: Optional[str] = None):
                 "type": provider_type.lower() if provider_type else "unlicensed",
                 "is_payable": provider_payment_settings.is_payable if provider_payment_settings else False,
                 "is_payment_enabled": Provider.PAYMENT_ENABLED(p),
+                "attendance_is_overdue": attendance_is_overdue,
             }
         )
 
@@ -253,8 +259,8 @@ def family_data(child_id: Optional[str] = None):
         notifications.append({"type": "application_denied"})
 
     child_ids = [Child.ID(c) for c in family_children]
-    needs_attendance = Attendance.filter_by_child_ids(child_ids).count() > 0
-    if needs_attendance:
+    attendance_due = Attendance.filter_by_child_ids(child_ids).count() > 0
+    if attendance_due:
         notifications.append({"type": "attendance"})
 
     family_payment_settings = FamilyPaymentSettings.query.filter_by(family_supabase_id=family_id).first()
@@ -267,6 +273,7 @@ def family_data(child_id: Optional[str] = None):
             "notifications": notifications,
             "is_also_provider": ClerkUserType.PROVIDER.value in user.user_data.types,
             "can_make_payments": family_payment_settings.can_make_payments if family_payment_settings else False,
+            "attendance_due": attendance_due,
         }
     )
 

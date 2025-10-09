@@ -1,6 +1,8 @@
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
+from app.supabase.columns import ProviderType
+
 from ..extensions import db
 from .mixins import TimestampMixin
 
@@ -38,10 +40,10 @@ class Attendance(db.Model, TimestampMixin):
         return f"<Attendance {self.id} - Child: {self.child_supabase_id} - Provider: {self.provider_supabase_id}>"
 
     @staticmethod
-    def last_week_date():
+    def prev_week_date(weeks_ago: int = 1):
         today = datetime.now(timezone.utc).date()
 
-        days_to_subtract = today.weekday() + 7
+        days_to_subtract = today.weekday() + 7 * weeks_ago
 
         return today - timedelta(days=days_to_subtract)
 
@@ -100,6 +102,33 @@ class Attendance(db.Model, TimestampMixin):
     @classmethod
     def filter_by_provider_id(cls, provider_id: str):
         return cls.filter_by_due_provider_attendance().filter(cls.provider_supabase_id == provider_id)
+
+    @classmethod
+    def filter_by_overdue_attendance(cls, provider_id: str, child_id: str, provider_type: ProviderType):
+        family_attendance_is_due = (  # NOTE: check if any attendance is due for the family
+            cls.family_entered_full_days.is_(None)
+            & cls.family_entered_half_days.is_(None)
+            & cls.family_entered_hours.is_(None)  # NOTE: so old attendance doesn't show up
+        )
+
+        before_date = cls.prev_week_date()
+
+        provider_attendance_is_due = (
+            cls.provider_entered_full_days.is_(None)
+            & cls.provider_entered_half_days.is_(None)
+            & cls.provider_entered_hours.is_(None)  # NOTE: so old attendance doesn't show up
+            & (cls.week < before_date)
+        )
+
+        base_query = cls.query.filter(
+            cls.provider_supabase_id == provider_id,
+            cls.child_supabase_id == child_id,
+        )
+
+        if provider_type == ProviderType.CENTER:
+            return base_query.filter(family_attendance_is_due)
+
+        return base_query.filter(family_attendance_is_due | provider_attendance_is_due)
 
     @classmethod
     def filter_by_due_family_attendance(cls):

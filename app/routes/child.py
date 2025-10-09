@@ -77,7 +77,7 @@ def submit_care_days(child_id, provider_id, month, year):
             Child.PAYMENT_ENABLED,
             Child.FIRST_NAME,
             Child.LAST_NAME,
-            Provider.join(Provider.ID, Provider.PAYMENT_ENABLED, Provider.NAME),
+            Provider.join(Provider.ID, Provider.PAYMENT_ENABLED, Provider.NAME, Provider.TYPE),
         ),
         int(child_id),
     ).execute()
@@ -129,6 +129,7 @@ def submit_care_days(child_id, provider_id, month, year):
         payment_successful = current_app.payment_service.process_payment(
             provider_id=provider_id,
             child_id=child_id,
+            provider_type=Provider.TYPE(provider),
             month_allocation=allocation,
             allocated_care_days=care_days_to_submit,
         )
