@@ -192,4 +192,13 @@ def create_app(config_class=None):
     app.register_blueprint(supabase_bp)
     csrf.exempt(supabase_bp)
 
+    # --- Register Middleware ---
+    from .middleware.activity_tracking import track_user_activity
+
+    @app.after_request
+    def after_request_handler(response):
+        """Track user activity after each request"""
+        track_user_activity()
+        return response
+
     return app

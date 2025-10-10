@@ -13,6 +13,7 @@ from .payment_rate import PaymentRate
 from .payment_request import PaymentRequest
 from .provider_invitation import ProviderInvitation
 from .provider_payment_settings import ProviderPaymentSettings
+from .user_activity import UserActivity
 
 __all__ = [
     "PaymentRequest",
@@ -30,4 +31,5 @@ __all__ = [
     "ProviderPaymentSettings",
     "PaymentIntent",
     "FamilyPaymentSettings",
+    "UserActivity",
 ]
