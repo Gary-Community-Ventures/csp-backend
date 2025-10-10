@@ -16,8 +16,8 @@ from app.auth.helpers import get_current_user
 from app.extensions import db
 from app.models import UserActivity
 
-# Cache activity records for 2 hours (in seconds)
-ACTIVITY_CACHE_TTL = 2 * 60 * 60
+# Cache activity records for 1 hour (in seconds)
+ACTIVITY_CACHE_TTL = 60 * 60
 
 
 def _get_redis_cache_key(user_type: str, user_id: str, hour_timestamp: datetime) -> str:
@@ -33,7 +33,7 @@ def _is_activity_cached(redis_conn, cache_key: str) -> bool:
 
 def _cache_activity(redis_conn, cache_key: str):
     """Cache that activity was recorded for this hour."""
-    redis_conn.setex(cache_key, ACTIVITY_CACHE_TTL, "1")  # 2 hour TTL
+    redis_conn.setex(cache_key, ACTIVITY_CACHE_TTL, "1")
 
 
 def track_user_activity():
