@@ -33,34 +33,42 @@ class UserActivity(db.Model, TimestampMixin):
 
     @classmethod
     def record_provider_activity(cls, provider_supabase_id: str, dt: datetime = None):
-        """Record activity for a provider. Returns existing record if already exists for this hour."""
+        """
+        Record activity for a provider. Returns new activity object if created, None if already exists.
+
+        Note: Caller is responsible for adding the returned activity to the session and committing.
+        """
         if dt is None:
             dt = datetime.now(timezone.utc)
 
         hour = cls.truncate_to_hour(dt)
 
-        # Use get_or_create pattern
+        # Check if activity already exists for this hour
         activity = cls.query.filter_by(provider_supabase_id=provider_supabase_id, hour=hour).first()
 
-        if activity is None:
-            activity = cls(provider_supabase_id=provider_supabase_id, hour=hour)
-            db.session.add(activity)
+        if activity is not None:
+            return None  # Already exists, nothing to do
 
-        return activity
+        # Create new activity record
+        return cls(provider_supabase_id=provider_supabase_id, hour=hour)
 
     @classmethod
     def record_family_activity(cls, family_supabase_id: str, dt: datetime = None):
-        """Record activity for a family. Returns existing record if already exists for this hour."""
+        """
+        Record activity for a family. Returns new activity object if created, None if already exists.
+
+        Note: Caller is responsible for adding the returned activity to the session and committing.
+        """
         if dt is None:
             dt = datetime.now(timezone.utc)
 
         hour = cls.truncate_to_hour(dt)
 
-        # Use get_or_create pattern
+        # Check if activity already exists for this hour
         activity = cls.query.filter_by(family_supabase_id=family_supabase_id, hour=hour).first()
 
-        if activity is None:
-            activity = cls(family_supabase_id=family_supabase_id, hour=hour)
-            db.session.add(activity)
+        if activity is not None:
+            return None  # Already exists, nothing to do
 
-        return activity
+        # Create new activity record
+        return cls(family_supabase_id=family_supabase_id, hour=hour)

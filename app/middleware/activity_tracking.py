@@ -9,6 +9,7 @@ Uses Redis caching to avoid hitting the database on every request.
 
 from datetime import datetime, timezone
 
+import sentry_sdk
 from flask import current_app, g
 
 from app.auth.helpers import get_current_user
@@ -76,13 +77,17 @@ def track_user_activity():
         if user.user_data.provider_id:
             cache_key = _get_redis_cache_key("provider", user.user_data.provider_id, hour)
             if not _is_activity_cached(redis_conn, cache_key):
-                UserActivity.record_provider_activity(user.user_data.provider_id, now)
+                activity = UserActivity.record_provider_activity(user.user_data.provider_id, now)
+                if activity is not None:
+                    db.session.add(activity)
                 records_to_cache.append(cache_key)
 
         if user.user_data.family_id:
             cache_key = _get_redis_cache_key("family", user.user_data.family_id, hour)
             if not _is_activity_cached(redis_conn, cache_key):
-                UserActivity.record_family_activity(user.user_data.family_id, now)
+                activity = UserActivity.record_family_activity(user.user_data.family_id, now)
+                if activity is not None:
+                    db.session.add(activity)
                 records_to_cache.append(cache_key)
 
         # Single commit for all records
@@ -97,6 +102,8 @@ def track_user_activity():
     except Exception as e:
         # Log error but don't break the request
         current_app.logger.error(f"Error tracking user activity: {e}")
+        # Send to Sentry
+        sentry_sdk.capture_exception(e)
         # Rollback any partial changes
         db.session.rollback()
 
@@ -104,9 +111,13 @@ def track_user_activity():
 def _track_without_cache(user, now: datetime):
     """Fallback to track activity without Redis cache."""
     if user.user_data.provider_id:
-        UserActivity.record_provider_activity(user.user_data.provider_id, now)
+        activity = UserActivity.record_provider_activity(user.user_data.provider_id, now)
+        if activity is not None:
+            db.session.add(activity)
 
     if user.user_data.family_id:
-        UserActivity.record_family_activity(user.user_data.family_id, now)
+        activity = UserActivity.record_family_activity(user.user_data.family_id, now)
+        if activity is not None:
+            db.session.add(activity)
 
     db.session.commit()
