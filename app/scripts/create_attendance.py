@@ -68,7 +68,7 @@ def create_attendance(dry_run=False):
     )
     children = unwrap_or_error(children_result)
 
-    last_week_date = Attendance.last_week_date()
+    last_week_date = Attendance.prev_week_date()
     last_week_range = get_week_range(last_week_date)
 
     attendances: list[Attendance] = []

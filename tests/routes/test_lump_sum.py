@@ -26,12 +26,12 @@ def seed_lump_sum_db(app):
 def mock_authentication(mocker):
     mock_request_state = mocker.Mock()
     mock_request_state.is_signed_in = True
-    mock_request_state.payload = {"sub": "1234", "data": {"types": ["family"], "family_id": 123}}
+    mock_request_state.payload = {"sub": "1234", "data": {"types": ["family"], "family_id": "123"}}
     mocker.patch("app.auth.decorators._authenticate_request", return_value=mock_request_state)
 
     # Mock get_family_user
     mock_user = mocker.Mock()
-    mock_user.user_data.family_id = 123
+    mock_user.user_data.family_id = "123"
     mocker.patch("app.routes.lump_sum.get_family_user", return_value=mock_user)
 
 

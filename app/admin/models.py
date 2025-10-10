@@ -13,6 +13,7 @@ from app.models import (
     PaymentRequest,
     ProviderInvitation,
     ProviderPaymentSettings,
+    UserActivity,
 )
 
 
@@ -39,4 +40,5 @@ ADMIN_MODELS = [
     ModelAdminConfig(PaymentIntent, "Payment Intents", "Financial", "PaymentIntentAdminView"),
     ModelAdminConfig(EmailRecord, "Email Records", "System"),
     ModelAdminConfig(BulkEmailBatch, "Bulk Email Batches", "System"),
+    ModelAdminConfig(UserActivity, "User Activity", "System"),
 ]
