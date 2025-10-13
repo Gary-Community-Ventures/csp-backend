@@ -23,7 +23,7 @@ class EmailRecord(db.Model, TimestampMixin):
     to_emails = db.Column(db.ARRAY(db.String(255)), nullable=False)  # Array of recipient email addresses
     subject = db.Column(db.String(500), nullable=False)  # Increased for prefixed subjects
     html_content = db.Column(db.Text, nullable=False)
-    from_name = db.Column(db.String(100), nullable=False, default="CAP Support")
+    from_name = db.Column(db.String(100), nullable=False, default="")
 
     # Status & Retry Tracking
     status = db.Column(db.String(20), nullable=False, default=EmailStatus.PENDING, index=True)
@@ -31,9 +31,10 @@ class EmailRecord(db.Model, TimestampMixin):
     last_attempt_at = db.Column(db.DateTime(timezone=True), nullable=True)
     error_message = db.Column(db.Text, nullable=True)
 
-    # SendGrid Response Data
-    sendgrid_message_id = db.Column(db.String(100), nullable=True)
-    sendgrid_status_code = db.Column(db.Integer, nullable=True)
+    # Email Provider Data
+    email_provider = db.Column(db.String(50), nullable=True, index=True)  # "sendgrid", "postmark", etc.
+    provider_message_id = db.Column(db.String(100), nullable=True, index=True)  # Message ID from email provider
+    provider_status_code = db.Column(db.Integer, nullable=True)  # HTTP status code from provider
 
     # Context & Metadata
     email_type = db.Column(db.String(50), nullable=True, index=True)  # "payment_notification", "provider_invite", etc.
@@ -106,18 +107,39 @@ class EmailRecord(db.Model, TimestampMixin):
         """
         return cls.query.filter(cls.to_emails.contains([recipient_email]))
 
-    def mark_as_sent(self, sendgrid_message_id=None, sendgrid_status_code=None):
-        """Mark email as successfully sent"""
+    def mark_as_sent(
+        self, provider_message_id=None, provider_status_code=None, sendgrid_message_id=None, sendgrid_status_code=None
+    ):
+        """Mark email as successfully sent
+
+        Args:
+            provider_message_id: Message ID from the email provider
+            provider_status_code: HTTP status code from the provider
+            sendgrid_message_id: (Deprecated) Use provider_message_id instead
+            sendgrid_status_code: (Deprecated) Use provider_status_code instead
+        """
         self.status = EmailStatus.SENT
-        self.sendgrid_message_id = sendgrid_message_id
-        self.sendgrid_status_code = sendgrid_status_code
+
+        # Support both new and legacy parameter names
+        self.provider_message_id = provider_message_id or sendgrid_message_id
+        self.provider_status_code = provider_status_code or sendgrid_status_code
+
         self.last_attempt_at = datetime.now(timezone.utc)
 
-    def mark_as_failed(self, error_message=None, sendgrid_status_code=None):
-        """Mark email as failed and increment attempt count"""
+    def mark_as_failed(self, error_message=None, provider_status_code=None, sendgrid_status_code=None):
+        """Mark email as failed and increment attempt count
+
+        Args:
+            error_message: Error message describing the failure
+            provider_status_code: HTTP status code from the provider
+            sendgrid_status_code: (Deprecated) Use provider_status_code instead
+        """
         self.status = EmailStatus.FAILED
         self.error_message = error_message
-        self.sendgrid_status_code = sendgrid_status_code
+
+        # Support both new and legacy parameter names
+        self.provider_status_code = provider_status_code or sendgrid_status_code
+
         self.last_attempt_at = datetime.now(timezone.utc)
 
     def __repr__(self):

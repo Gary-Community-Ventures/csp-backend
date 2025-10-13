@@ -24,7 +24,7 @@ from app.supabase.columns import Language
 from app.supabase.helpers import cols, format_name, unwrap_or_abort
 from app.supabase.tables import Child, Family, Guardian, Provider, ProviderChildMapping
 from app.utils.date_utils import get_current_month_start, get_next_month_start
-from app.utils.email.config import get_from_email_internal
+from app.utils.email.config import get_from_email_external, get_from_email_internal
 from app.utils.email.core import send_email
 from app.utils.email.senders import (
     send_provider_invite_accept_email,
@@ -381,7 +381,7 @@ def invite_provider():
                 link,
             )
 
-            from_email = get_from_email_internal()
+            from_email = get_from_email_external()
             email_sent = send_email(
                 from_email,
                 data["provider_email"],
@@ -394,6 +394,7 @@ def invite_provider():
                     "provider_email": data["provider_email"],
                     "invitation_ids": [str(i.public_id) for i in invitations],
                 },
+                is_internal=False,
             )
             if email_sent:
                 invitation.record_email_sent()
