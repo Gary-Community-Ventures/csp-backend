@@ -16,7 +16,7 @@ class EmailProvider(ABC):
         to_emails: Union[str, list[str]],
         subject: str,
         html_content: str,
-        from_name: str = "CAP Notifications",
+        from_name: str = "CAP Colorado",
         is_internal: bool = False,
         reply_to: str = None,
     ) -> tuple[bool, str | None, int | None]:
@@ -42,7 +42,7 @@ class EmailProvider(ABC):
         self,
         from_email: str,
         data: list,
-        from_name: str = "CAP Notifications",
+        from_name: str = "CAP Colorado",
         is_internal: bool = False,
         reply_to: str = None,
     ) -> tuple[bool, str | None, int | None]:

@@ -45,7 +45,7 @@ def send_email(
     :param subject: Subject of the email.
     :param html_content: HTML content of the email.
     :param email_type: Type of email for categorization (required).
-    :param from_name: Sender's display name. Defaults to "CAP Internal" for internal emails, "CAP Notifications" for external.
+    :param from_name: Sender's display name. Defaults to "CAP Internal" for internal emails, "CAP Colorado" for external.
     :param context_data: Additional context for logging.
     :param is_internal: Whether this is an internal email.
     :return: True if the email was sent successfully, False otherwise.
@@ -55,7 +55,7 @@ def send_email(
 
     # Set default from_name based on is_internal if not provided
     if from_name is None:
-        from_name = "CAP Internal" if is_internal else "CAP Notifications"
+        from_name = "CAP Internal" if is_internal else "CAP Colorado"
 
     # Normalize to_emails to a list for consistent storage
     if isinstance(to_emails, str):
