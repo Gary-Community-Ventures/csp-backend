@@ -84,6 +84,7 @@ def new_provider():
             email_address=data["email"],
             redirect_url=f"{fe_domain}/auth/sign-up",
             public_metadata=meta_data,
+            notify=False,  # Disable Clerk's default email - we'll send our own via webhook
         )
     )
 

@@ -37,6 +37,7 @@ class Config:
 
     # Clerk Configuration
     CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
+    CLERK_WEBHOOK_SECRET = os.getenv("CLERK_WEBHOOK_SECRET")
 
     # Supabase Configuration
     SUPABASE_URL = os.getenv("SUPABASE_URL")
