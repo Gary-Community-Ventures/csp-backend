@@ -23,6 +23,7 @@ class PostmarkEmailProvider(EmailProvider):
         html_content: str,
         from_name: str = "CAP Notifications",
         is_internal: bool = False,
+        reply_to: str = None,
     ) -> tuple[bool, str | None, int | None]:
         """Send an email using Postmark."""
         try:
@@ -40,13 +41,20 @@ class PostmarkEmailProvider(EmailProvider):
             else:
                 message_stream = current_app.config.get("POSTMARK_STREAM_EXTERNAL", "notifications")
 
-            response = postmark_client.emails.send(
-                From=f"{from_name} <{from_email}>",
-                To=to_emails_str,
-                Subject=add_subject_prefix(subject),
-                HtmlBody=html_content,
-                MessageStream=message_stream,
-            )
+            # Build email parameters
+            email_params = {
+                "From": f"{from_name} <{from_email}>",
+                "To": to_emails_str,
+                "Subject": add_subject_prefix(subject),
+                "HtmlBody": html_content,
+                "MessageStream": message_stream,
+            }
+
+            # Add reply-to if provided
+            if reply_to:
+                email_params["ReplyTo"] = reply_to
+
+            response = postmark_client.emails.send(**email_params)
 
             message_id = response.get("MessageID")
             current_app.logger.info(f"Postmark email sent successfully. Message ID: {message_id}")
@@ -63,6 +71,7 @@ class PostmarkEmailProvider(EmailProvider):
         data: list,
         from_name: str = "CAP Notifications",
         is_internal: bool = False,
+        reply_to: str = None,
     ) -> tuple[bool, str | None, int | None]:
         """Send bulk emails using Postmark."""
         try:
@@ -77,15 +86,19 @@ class PostmarkEmailProvider(EmailProvider):
             # Build batch of emails
             emails = []
             for message_data in data:
-                emails.append(
-                    {
-                        "From": f"{from_name} <{from_email}>",
-                        "To": message_data.email,
-                        "Subject": add_subject_prefix(message_data.subject),
-                        "HtmlBody": message_data.html_content,
-                        "MessageStream": message_stream,
-                    }
-                )
+                email_params = {
+                    "From": f"{from_name} <{from_email}>",
+                    "To": message_data.email,
+                    "Subject": add_subject_prefix(message_data.subject),
+                    "HtmlBody": message_data.html_content,
+                    "MessageStream": message_stream,
+                }
+
+                # Add reply-to if provided
+                if reply_to:
+                    email_params["ReplyTo"] = reply_to
+
+                emails.append(email_params)
 
             # Send batch
             response = postmark_client.emails.send_batch(*emails)

@@ -25,6 +25,7 @@ class Config:
     POSTMARK_STREAM_EXTERNAL = os.getenv("POSTMARK_STREAM_EXTERNAL", "outbound")
     FROM_EMAIL_INTERNAL = os.getenv("FROM_EMAIL_INTERNAL")
     FROM_EMAIL_EXTERNAL = os.getenv("FROM_EMAIL_EXTERNAL")
+    REPLY_TO_EMAIL = os.getenv("REPLY_TO_EMAIL", "support@capcolorado.org")
     INTERNAL_EMAIL_RECIPIENTS = os.getenv("INTERNAL_EMAIL_RECIPIENTS", "").split(",")
     TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
     TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")

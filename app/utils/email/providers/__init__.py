@@ -18,9 +18,19 @@ class EmailProvider(ABC):
         html_content: str,
         from_name: str = "CAP Notifications",
         is_internal: bool = False,
+        reply_to: str = None,
     ) -> tuple[bool, str | None, int | None]:
         """
         Send an email.
+
+        Args:
+            from_email: Sender's email address
+            to_emails: Recipient email address(es)
+            subject: Email subject
+            html_content: HTML body content
+            from_name: Sender's display name
+            is_internal: Whether this is an internal email
+            reply_to: Reply-to email address
 
         Returns:
             tuple: (success: bool, message_id: str | None, status_code: int | None)
@@ -34,9 +44,17 @@ class EmailProvider(ABC):
         data: list,
         from_name: str = "CAP Notifications",
         is_internal: bool = False,
+        reply_to: str = None,
     ) -> tuple[bool, str | None, int | None]:
         """
         Send bulk emails.
+
+        Args:
+            from_email: Sender's email address
+            data: List of email data
+            from_name: Sender's display name
+            is_internal: Whether these are internal emails
+            reply_to: Reply-to email address
 
         Returns:
             tuple: (success: bool, message_id: str | None, status_code: int | None)

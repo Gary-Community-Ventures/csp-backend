@@ -89,6 +89,9 @@ def send_email(
         # Get email provider
         email_provider = get_email_provider(email_provider_name)
 
+        # Get reply-to email from config
+        reply_to = current_app.config.get("REPLY_TO_EMAIL")
+
         # Send the email
         success, message_id, status_code = email_provider.send_email(
             from_email=from_email,
@@ -97,6 +100,7 @@ def send_email(
             html_content=html_content,
             from_name=from_name,
             is_internal=is_internal,
+            reply_to=reply_to,
         )
 
         if success:
@@ -191,10 +195,14 @@ def bulk_send_emails(from_email: str, data: list[BulkEmailData], email_type: str
         # Get email provider
         email_provider = get_email_provider(email_provider_name)
 
+        # Get reply-to email from config
+        reply_to = current_app.config.get("REPLY_TO_EMAIL")
+
         # Send bulk emails
         success, message_id, status_code = email_provider.bulk_send_emails(
             from_email=from_email,
             data=data,
+            reply_to=reply_to,
         )
 
         current_app.logger.info(f"Bulk emails sent via {email_provider_name} with status code: {status_code}")

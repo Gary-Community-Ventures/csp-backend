@@ -25,6 +25,7 @@ class SendGridEmailProvider(EmailProvider):
         html_content: str,
         from_name: str = "CAP Notifications",
         is_internal: bool = False,
+        reply_to: str = None,
     ) -> tuple[bool, str | None, int | None]:
         """Send an email using SendGrid."""
         try:
@@ -34,6 +35,10 @@ class SendGridEmailProvider(EmailProvider):
                 subject=add_subject_prefix(subject),
                 html_content=html_content,
             )
+
+            # Add reply-to if provided
+            if reply_to:
+                message.reply_to = reply_to
 
             sendgrid_client = SendGridAPIClient(current_app.config.get("SENDGRID_API_KEY"))
             response = sendgrid_client.send(message)
@@ -54,10 +59,15 @@ class SendGridEmailProvider(EmailProvider):
         data: list,
         from_name: str = "CAP Notifications",
         is_internal: bool = False,
+        reply_to: str = None,
     ) -> tuple[bool, str | None, int | None]:
         """Send bulk emails using SendGrid."""
         try:
             message = Mail(from_email=from_email, to_emails=[], subject="[PLACEHOLDER]", html_content="{body}")
+
+            # Add reply-to if provided
+            if reply_to:
+                message.reply_to = reply_to
 
             for message_data in data:
                 personalization = Personalization()
