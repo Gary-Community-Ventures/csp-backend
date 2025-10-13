@@ -4,7 +4,6 @@ Core email sending functionality with provider abstraction and logging.
 
 from dataclasses import dataclass
 from datetime import datetime
-from http import HTTPStatus
 from typing import Union
 
 from flask import current_app
