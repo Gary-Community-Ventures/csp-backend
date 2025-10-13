@@ -79,9 +79,9 @@ class PostmarkEmailProvider(EmailProvider):
 
             # Get the appropriate message stream based on is_internal
             if is_internal:
-                message_stream = current_app.config.get("POSTMARK_STREAM_INTERNAL", "internal-notifications")
+                message_stream = current_app.config.get("POSTMARK_STREAM_INTERNAL", "internal")
             else:
-                message_stream = current_app.config.get("POSTMARK_STREAM_EXTERNAL", "outbound")
+                message_stream = current_app.config.get("POSTMARK_STREAM_EXTERNAL", "notifications")
 
             # Build batch of emails
             emails = []
