@@ -1,21 +1,21 @@
 """
-Webhook endpoints for third-party integrations.
+Clerk webhook handlers.
 """
 
+import base64
 import hashlib
 import hmac
 
-from flask import Blueprint, abort, current_app, request
+from flask import abort, current_app, request
 
 from app.auth.decorators import ClerkUserType
+from app.routes.webhooks import bp
 from app.supabase.columns import Language
 from app.supabase.helpers import cols
 from app.supabase.tables import Family, Provider
 from app.utils.email.config import get_from_email_external
 from app.utils.email.core import send_email
 from app.utils.email.templates import ClerkInvitationTemplate
-
-bp = Blueprint("webhooks", __name__)
 
 
 def verify_clerk_webhook(payload: bytes, headers: dict) -> bool:
@@ -50,8 +50,6 @@ def verify_clerk_webhook(payload: bytes, headers: dict) -> bool:
     secret_bytes = webhook_secret.encode("utf-8")
     if webhook_secret.startswith("whsec_"):
         # Remove the whsec_ prefix and decode from base64
-        import base64
-
         secret_bytes = base64.b64decode(webhook_secret[6:])
 
     expected_signature = hmac.new(secret_bytes, signed_content.encode("utf-8"), hashlib.sha256).digest()
@@ -63,8 +61,6 @@ def verify_clerk_webhook(payload: bytes, headers: dict) -> bool:
         if "," in sig:
             version, signature = sig.split(",", 1)
             if version == "v1":
-                import base64
-
                 sig_bytes = base64.b64decode(signature)
                 if hmac.compare_digest(sig_bytes, expected_signature):
                     return True
