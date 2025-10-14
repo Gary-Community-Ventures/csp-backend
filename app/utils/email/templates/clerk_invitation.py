@@ -34,7 +34,7 @@ class ClerkInvitationTemplate:
             main_content = f"""
             <p>Su solicitud ha sido aprobada y ahora tiene acceso al <strong>Portal de CAP Colorado</strong>.</p>
 
-            <p>CAP es un programa que ayuda a las familias a pagar el cuidado infantil proporcionando hasta <strong>$1,400 por mes</strong> para cubrir los costos del cuidado.</p>
+            <p>CAP es un programa que ayuda a las familias a pagar el cuidado infantil proporcionando hasta $1,400 por mes para cubrir los gastos del cuidado infantil.</p>
 
             <p>Haga clic en el botón de abajo para crear su cuenta y comenzar:</p>
 
@@ -44,7 +44,7 @@ class ClerkInvitationTemplate:
             <p>Escríbenos a <a href="mailto:support@capcolorado.org" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">support@capcolorado.org</a></p>
             """
             signature = "Saludos cordiales,<br>El Equipo CAP"
-            footer = "Esta es una invitación del programa piloto de accesibilidad al cuidado infantil (CAP)."
+            footer = "Esta es una invitación del programa piloto Childcare Affordability Pilot (CAP)."
         else:
             greeting = "Hello!"
             main_content = f"""
@@ -99,7 +99,7 @@ class ClerkInvitationTemplate:
             <p>Escríbenos a <a href="mailto:support@capcolorado.org" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">support@capcolorado.org</a> o visita nuestro sitio web <a href="https://www.capcolorado.org/es/providers" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">capcolorado.org</a>.</p>
             """
             signature = "Saludos cordiales,<br>El Equipo CAP"
-            footer = "Esta es una invitación del programa piloto de accesibilidad al cuidado infantil (CAP)."
+            footer = "Esta es una invitación del programa piloto Childcare Affordability Pilot (CAP)."
         else:
             greeting = f"Hello{' ' + provider_name if provider_name else ''}!"
             main_content = f"""
