@@ -137,9 +137,9 @@ def handle_email_created(event: dict):
 
     if not invitation_url:
         current_app.logger.error("No invitation URL in email.created event")
-        current_app.logger.error(f"Full webhook payload: {event}")
-        current_app.logger.error(f"Data object: {data}")
-        current_app.logger.error(f"Data.data object: {data_obj}")
+        current_app.logger.error(
+            f"Missing invitation URL for email: {to_email}, type: {email_type}, event type: {event.get('type')}"
+        )
         return {"success": False, "error": "Missing invitation URL"}, 400
 
     # Extract user type and IDs from metadata
