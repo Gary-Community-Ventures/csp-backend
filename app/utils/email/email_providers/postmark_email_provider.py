@@ -9,7 +9,7 @@ from flask import current_app
 from postmarker.core import PostmarkClient
 
 from app.utils.email.config import add_subject_prefix
-from app.utils.email.providers import EmailProvider
+from app.utils.email.email_providers import EmailProvider
 
 
 class PostmarkEmailProvider(EmailProvider):

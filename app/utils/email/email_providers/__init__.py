@@ -82,8 +82,8 @@ def get_email_provider(email_provider_name: EmailProviderType | str) -> EmailPro
     Raises:
         ValueError: If the provider name is not recognized
     """
-    from app.utils.email.providers.postmark_provider import PostmarkEmailProvider
-    from app.utils.email.providers.sendgrid_provider import SendGridEmailProvider
+    from app.utils.email.email_providers.postmark_email_provider import PostmarkEmailProvider
+    from app.utils.email.email_providers.sendgrid_email_provider import SendGridEmailProvider
 
     email_providers = {
         EmailProviderType.SENDGRID: SendGridEmailProvider,
