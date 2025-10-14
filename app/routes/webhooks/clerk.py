@@ -111,7 +111,6 @@ def handle_email_created(event: dict):
     """
     data = event.get("data", {})
 
-    # Email webhook structure is different - it contains to_email_address, subject, body, etc.
     to_email = data.get("to_email_address")
     email_type = data.get("slug")  # e.g., "invitation"
 
@@ -189,7 +188,6 @@ def send_family_clerk_invitation_email(email: str, family_id: int, invitation_ur
 
     current_app.logger.info(f"Sending Clerk family invitation to {email} in {language.value}")
 
-    # Build email content using template
     subject = ClerkInvitationTemplate.get_subject(language)
     html_content = ClerkInvitationTemplate.get_family_invitation_content(invitation_url, language)
 
@@ -239,7 +237,6 @@ def send_provider_clerk_invitation_email(email: str, provider_id: int, invitatio
 
     current_app.logger.info(f"Sending Clerk provider invitation to {email} in {language.value}")
 
-    # Build email content using template
     subject = ClerkInvitationTemplate.get_subject(language)
     html_content = ClerkInvitationTemplate.get_provider_invitation_content(invitation_url, language, provider_name)
 

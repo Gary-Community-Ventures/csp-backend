@@ -13,9 +13,9 @@ class ClerkInvitationTemplate:
     def get_subject(language: Language = Language.ENGLISH) -> str:
         """Get subject line for Clerk invitation."""
         if language == Language.SPANISH:
-            return "¡Ha sido aprobado para el Portal de CAP Colorado!"
+            return "¡Has sido aprobado para el Portal CAP Colorado!"
         else:
-            return "You've Been Approved for CAP Colorado Portal"
+            return "You've Been Approved for the CAP Colorado Portal"
 
     @staticmethod
     def get_family_invitation_content(invitation_url: str, language: Language = Language.ENGLISH) -> str:
