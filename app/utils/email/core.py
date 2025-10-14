@@ -1,24 +1,20 @@
 """
-Core email sending functionality with SendGrid integration and logging.
+Core email sending functionality with provider abstraction and logging.
 """
 
 from dataclasses import dataclass
 from datetime import datetime
-from http import HTTPStatus
 from typing import Union
 
 from flask import current_app
-from sendgrid import Personalization, SendGridAPIClient, Substitution, To
-from sendgrid.helpers.mail import Mail
 
 from app.extensions import db
 from app.models.email_record import EmailRecord, EmailStatus
-from app.utils.email.config import add_subject_prefix
 from app.utils.email.helpers import (
-    extract_sendgrid_message_id,
     log_email_error,
     serialize_context_data,
 )
+from app.utils.email.email_providers import get_email_provider
 
 
 @dataclass
@@ -37,25 +33,29 @@ def send_email(
     subject: str,
     html_content: str,
     email_type: str,
-    from_name: str = "CAP Support",
+    from_name: str = None,
     context_data: dict = None,
     is_internal: bool = False,
 ) -> bool:
     """
-    Send an email using SendGrid with comprehensive logging.
+    Send an email using configured email provider with comprehensive logging.
 
     :param from_email: Sender's email address.
     :param to_emails: Recipient email address(es).
     :param subject: Subject of the email.
     :param html_content: HTML content of the email.
     :param email_type: Type of email for categorization (required).
-    :param from_name: Sender's display name.
+    :param from_name: Sender's display name. Defaults to "CAP Internal" for internal emails, "CAP Colorado" for external.
     :param context_data: Additional context for logging.
     :param is_internal: Whether this is an internal email.
     :return: True if the email was sent successfully, False otherwise.
     """
     # Default values for optional parameters
     context_data = context_data or {}
+
+    # Set default from_name based on is_internal if not provided
+    if from_name is None:
+        from_name = "CAP Internal" if is_internal else "CAP Colorado"
 
     # Normalize to_emails to a list for consistent storage
     if isinstance(to_emails, str):
@@ -65,6 +65,9 @@ def send_email(
 
     # Serialize context data for JSON storage
     serializable_context = serialize_context_data(context_data)
+
+    # Get email provider name
+    email_provider_name = current_app.config.get("EMAIL_PROVIDER", "sendgrid")
 
     # Create EmailRecord
     email_record = EmailRecord(
@@ -76,37 +79,50 @@ def send_email(
         email_type=email_type,
         context_data=serializable_context,
         is_internal=is_internal,
+        email_provider=email_provider_name,
     )
 
     try:
         db.session.add(email_record)
         db.session.commit()
 
+        # Get email provider
+        email_provider = get_email_provider(email_provider_name)
+
+        # Get reply-to email from config
+        reply_to = current_app.config.get("REPLY_TO_EMAIL")
+
         # Send the email
-        message = Mail(
-            from_email=(from_email, from_name),
+        success, message_id, status_code = email_provider.send_email(
+            from_email=from_email,
             to_emails=to_emails,
-            subject=add_subject_prefix(subject),
+            subject=subject,
             html_content=html_content,
+            from_name=from_name,
+            is_internal=is_internal,
+            reply_to=reply_to,
         )
 
-        sendgrid_client = SendGridAPIClient(current_app.config.get("SENDGRID_API_KEY"))
-        response = sendgrid_client.send(message)
+        if success:
+            # Mark as successful
+            email_record.mark_as_sent(provider_message_id=message_id, provider_status_code=status_code)
+            db.session.add(email_record)
+            db.session.commit()
 
-        # Extract message ID from response
-        sendgrid_message_id = extract_sendgrid_message_id(response)
-
-        # Mark as successful
-        email_record.mark_as_sent(sendgrid_message_id=sendgrid_message_id, sendgrid_status_code=response.status_code)
-        db.session.add(email_record)
-        db.session.commit()
-
-        current_app.logger.info(f"SendGrid email sent with status code: {response.status_code}")
-        return True
+            current_app.logger.info(
+                f"Email sent successfully via {email_provider_name} with status code: {status_code}"
+            )
+            return True
+        else:
+            # Mark as failed
+            email_record.mark_as_failed(error_message="Email send failed", provider_status_code=status_code)
+            db.session.add(email_record)
+            db.session.commit()
+            return False
 
     except Exception as e:
         # Log error and get details
-        error_message, sendgrid_status_code = log_email_error(
+        error_message, provider_status_code = log_email_error(
             e,
             from_email=from_email,
             to_emails=to_emails,
@@ -116,7 +132,7 @@ def send_email(
         )
 
         # Mark as failed
-        email_record.mark_as_failed(error_message=error_message, sendgrid_status_code=sendgrid_status_code)
+        email_record.mark_as_failed(error_message=error_message, provider_status_code=provider_status_code)
         db.session.add(email_record)
         db.session.commit()
 
@@ -150,6 +166,9 @@ def bulk_send_emails(from_email: str, data: list[BulkEmailData], email_type: str
 
     batch.mark_started()
 
+    # Get email provider name
+    email_provider_name = current_app.config.get("EMAIL_PROVIDER", "sendgrid")
+
     # Create EmailRecord for each email
     email_records = []
     for item in data:
@@ -165,6 +184,7 @@ def bulk_send_emails(from_email: str, data: list[BulkEmailData], email_type: str
             bulk_batch_id=batch.id,
             email_type=email_type,
             context_data=serializable_context,
+            email_provider=email_provider_name,
         )
         email_records.append(record)
         db.session.add(record)
@@ -172,36 +192,39 @@ def bulk_send_emails(from_email: str, data: list[BulkEmailData], email_type: str
     db.session.flush()
 
     try:
-        # Build SendGrid message with personalizations
-        message = Mail(from_email=from_email, to_emails=[], subject="[PLACEHOLDER]", html_content="{body}")
+        # Get email provider
+        email_provider = get_email_provider(email_provider_name)
 
-        for message_data in data:
-            personalization = Personalization()
-            personalization.add_to(To(message_data.email))
-            personalization.subject = add_subject_prefix(message_data.subject)
-            personalization.add_substitution(Substitution("{body}", message_data.html_content))
-            message.add_personalization(personalization)
+        # Get reply-to email from config
+        reply_to = current_app.config.get("REPLY_TO_EMAIL")
 
-        # Send via SendGrid
-        sendgrid_client = SendGridAPIClient(current_app.config.get("SENDGRID_API_KEY"))
-        response = sendgrid_client.send(message)
+        # Send bulk emails
+        success, message_id, status_code = email_provider.bulk_send_emails(
+            from_email=from_email,
+            data=data,
+            reply_to=reply_to,
+        )
 
-        current_app.logger.info(f"SendGrid emails sent with status code: {response.status_code}")
+        current_app.logger.info(f"Bulk emails sent via {email_provider_name} with status code: {status_code}")
 
         # Update tracking on success
-        if response.status_code in [HTTPStatus.OK, HTTPStatus.ACCEPTED]:
-            # Extract message ID from response for bulk emails too
-            sendgrid_message_id = extract_sendgrid_message_id(response)
-
+        if success:
             for record in email_records:
                 record.status = EmailStatus.SENT
-                record.sendgrid_status_code = response.status_code
-                record.sendgrid_message_id = sendgrid_message_id
+                record.provider_status_code = status_code
+                record.provider_message_id = message_id
             batch.mark_all_sent()
+        else:
+            # Update tracking on failure
+            for record in email_records:
+                record.status = EmailStatus.FAILED
+                record.error_message = "Bulk send failed"
+
+            batch.mark_all_failed()
 
         batch.mark_completed()
         db.session.commit()
-        return True
+        return success
 
     except Exception as e:
         # Log the error

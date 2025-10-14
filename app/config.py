@@ -18,9 +18,14 @@ class Config:
     ]
     GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     GOOGLE_SPREADSHEET_ID = os.getenv("GOOGLE_SPREADSHEET_ID")
+    EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "sendgrid")
     SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+    POSTMARK_API_KEY = os.getenv("POSTMARK_API_KEY")
+    POSTMARK_STREAM_INTERNAL = os.getenv("POSTMARK_STREAM_INTERNAL", "internal")
+    POSTMARK_STREAM_EXTERNAL = os.getenv("POSTMARK_STREAM_EXTERNAL", "notifications")
     FROM_EMAIL_INTERNAL = os.getenv("FROM_EMAIL_INTERNAL")
     FROM_EMAIL_EXTERNAL = os.getenv("FROM_EMAIL_EXTERNAL")
+    REPLY_TO_EMAIL = os.getenv("REPLY_TO_EMAIL", "support@capcolorado.org")
     INTERNAL_EMAIL_RECIPIENTS = os.getenv("INTERNAL_EMAIL_RECIPIENTS", "").split(",")
     TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
     TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
@@ -32,6 +37,7 @@ class Config:
 
     # Clerk Configuration
     CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
+    CLERK_WEBHOOK_SECRET = os.getenv("CLERK_WEBHOOK_SECRET")
 
     # Supabase Configuration
     SUPABASE_URL = os.getenv("SUPABASE_URL")

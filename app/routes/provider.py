@@ -33,7 +33,7 @@ from app.schemas.provider_payment import (
 from app.supabase.columns import Language
 from app.supabase.helpers import UnwrapError, cols, format_name, unwrap_or_abort
 from app.supabase.tables import Child, Family, Guardian, Provider, ProviderChildMapping
-from app.utils.email.config import get_from_email_internal
+from app.utils.email.config import get_from_email_external
 from app.utils.email.core import send_email
 from app.utils.email.senders import (
     send_family_invite_accept_email,
@@ -507,7 +507,7 @@ def invite_family():
             link,
         )
 
-        from_email = get_from_email_internal()
+        from_email = get_from_email_external()
         email_sent = send_email(
             from_email,
             data["family_email"],
@@ -520,6 +520,7 @@ def invite_family():
                 "family_email": data["family_email"],
                 "invitation_id": str(invitation.public_id),
             },
+            is_internal=False,
         )
         if email_sent:
             invitation.record_email_sent()

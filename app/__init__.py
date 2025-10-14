@@ -166,6 +166,7 @@ def create_app(config_class=None):
     from .routes.provider import bp as provider_bp
     from .routes.provider_trainings import bp as provider_trainings_bp
     from .routes.supabase import bp as supabase_bp
+    from .routes.webhooks import bp as webhooks_bp
 
     app.register_blueprint(main_bp)
     csrf.exempt(main_bp)
@@ -191,6 +192,8 @@ def create_app(config_class=None):
     csrf.exempt(payments_bp)
     app.register_blueprint(supabase_bp)
     csrf.exempt(supabase_bp)
+    app.register_blueprint(webhooks_bp)
+    csrf.exempt(webhooks_bp)
 
     # --- Register Middleware ---
     from .middleware.activity_tracking import track_user_activity
