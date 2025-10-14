@@ -64,8 +64,8 @@ class BaseEmailTemplate:
                             <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                                 <!-- Header with logo -->
                                 <tr>
-                                    <td style="background-color: white; padding: 30px 20px; text-align: center; border-bottom: 3px solid {cls.SECONDARY_COLOR};">
-                                        <img src="{logo_url}" alt="CAP Logo" style="width: 120px; height: 120px;">
+                                    <td style="background-color: white; padding: 10px 10px; text-align: center; border-bottom: 3px solid {cls.SECONDARY_COLOR};">
+                                        <img src="{logo_url}" alt="CAP Logo" style="vertical-align: middle; width: 40px; height: 40px;">
                                     </td>
                                 </tr>
 

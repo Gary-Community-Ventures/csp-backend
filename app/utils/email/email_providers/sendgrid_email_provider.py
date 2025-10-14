@@ -11,7 +11,7 @@ from sendgrid.helpers.mail import Mail
 
 from app.utils.email.config import add_subject_prefix
 from app.utils.email.helpers import extract_sendgrid_message_id
-from app.utils.email.providers import EmailProvider
+from app.utils.email.email_providers import EmailProvider
 
 
 class SendGridEmailProvider(EmailProvider):

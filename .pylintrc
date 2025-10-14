@@ -1,7 +1,7 @@
 [MAIN]
-ignore=venv,.vscode,dist,build,eggs,parts,bin,var,sdist,develop-eggs,lib,lib64,.git
+ignore=venv,.vscode,dist,build,eggs,parts,bin,var,sdist,develop-eggs,lib,lib64
 ignore-patterns=.*\.py[cod]$,.*\.so$,.*\.egg$,.*\.egg-info$,.*\.installed\.cfg$,.*\.env$,.*\.env\.local$,.*pip-log\.txt$,__pycache__
-ignore-paths=migrations/versions/
+ignore-paths=migrations/versions/,.git/
 
 [MESSAGES CONTROL]
 disable=all

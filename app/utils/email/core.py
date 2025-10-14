@@ -14,7 +14,7 @@ from app.utils.email.helpers import (
     log_email_error,
     serialize_context_data,
 )
-from app.utils.email.providers import get_email_provider
+from app.utils.email.email_providers import get_email_provider
 
 
 @dataclass
