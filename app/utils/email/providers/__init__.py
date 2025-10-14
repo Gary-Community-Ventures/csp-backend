@@ -3,7 +3,15 @@ Email provider factory and interface.
 """
 
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import Union
+
+
+class EmailProviderType(str, Enum):
+    """Enum for supported email provider types."""
+
+    SENDGRID = "sendgrid"
+    POSTMARK = "postmark"
 
 
 class EmailProvider(ABC):
@@ -62,20 +70,37 @@ class EmailProvider(ABC):
         pass
 
 
-def get_email_provider(email_provider_name: str) -> EmailProvider:
-    """Factory function to get the appropriate email provider."""
+def get_email_provider(email_provider_name: EmailProviderType | str) -> EmailProvider:
+    """Factory function to get the appropriate email provider.
+
+    Args:
+        email_provider_name: Email provider type (EmailProviderType enum or string)
+
+    Returns:
+        EmailProvider: Instance of the requested email provider
+
+    Raises:
+        ValueError: If the provider name is not recognized
+    """
     from app.utils.email.providers.postmark_provider import PostmarkEmailProvider
     from app.utils.email.providers.sendgrid_provider import SendGridEmailProvider
 
     email_providers = {
-        "sendgrid": SendGridEmailProvider,
-        "postmark": PostmarkEmailProvider,
+        EmailProviderType.SENDGRID: SendGridEmailProvider,
+        EmailProviderType.POSTMARK: PostmarkEmailProvider,
     }
 
-    email_provider_class = email_providers.get(email_provider_name.lower())
+    # Convert string to enum if needed
+    if isinstance(email_provider_name, str):
+        try:
+            email_provider_name = EmailProviderType(email_provider_name.lower())
+        except ValueError:
+            available = ", ".join([p.value for p in EmailProviderType])
+            raise ValueError(f"Unknown email provider: {email_provider_name}. Available providers: {available}")
+
+    email_provider_class = email_providers.get(email_provider_name)
     if not email_provider_class:
-        raise ValueError(
-            f"Unknown email provider: {email_provider_name}. Available providers: {', '.join(email_providers.keys())}"
-        )
+        available = ", ".join([p.value for p in EmailProviderType])
+        raise ValueError(f"Unknown email provider: {email_provider_name}. Available providers: {available}")
 
     return email_provider_class()
