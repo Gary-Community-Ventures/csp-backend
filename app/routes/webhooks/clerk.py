@@ -136,9 +136,8 @@ def handle_email_created(event: dict):
         return {"success": False, "error": "Missing email address"}, 400
 
     if not invitation_url:
-        current_app.logger.error("No invitation URL in email.created event")
         current_app.logger.error(
-            f"Missing invitation URL for email: {to_email}, type: {email_type}, event type: {event.get('type')}"
+            f"Missing invitation URL in email.created event - type: {email_type}, event type: {event.get('type')}"
         )
         return {"success": False, "error": "Missing invitation URL"}, 400
 
@@ -148,8 +147,8 @@ def handle_email_created(event: dict):
     provider_id = public_metadata.get("provider_id")
 
     current_app.logger.info(
-        f"Processing Clerk invitation email for {to_email} - Types: {user_types}, "
-        f"Family ID: {family_id}, Provider ID: {provider_id}, URL: {invitation_url}"
+        f"Processing Clerk invitation email - Types: {user_types}, "
+        f"Family ID: {family_id}, Provider ID: {provider_id}"
     )
 
     # Determine if this is a family or provider invitation
@@ -186,7 +185,7 @@ def send_family_clerk_invitation_email(email: str, family_id: int, invitation_ur
         family_data = family_result.data
         language = Family.LANGUAGE(family_data) or Language.ENGLISH
 
-    current_app.logger.info(f"Sending Clerk family invitation to {email} in {language.value}")
+    current_app.logger.info(f"Sending Clerk family invitation for family {family_id} in {language.value}")
 
     subject = ClerkInvitationTemplate.get_subject(language)
     html_content = ClerkInvitationTemplate.get_family_invitation_content(invitation_url, language)
@@ -235,7 +234,7 @@ def send_provider_clerk_invitation_email(email: str, provider_id: int, invitatio
         language = Provider.PREFERRED_LANGUAGE(provider_data) or Language.ENGLISH
         provider_name = Provider.FIRST_NAME(provider_data)
 
-    current_app.logger.info(f"Sending Clerk provider invitation to {email} in {language.value}")
+    current_app.logger.info(f"Sending Clerk provider invitation for provider {provider_id} in {language.value}")
 
     subject = ClerkInvitationTemplate.get_subject(language)
     html_content = ClerkInvitationTemplate.get_provider_invitation_content(invitation_url, language, provider_name)
