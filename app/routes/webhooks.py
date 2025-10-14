@@ -98,33 +98,53 @@ def clerk_webhook():
     event_type = event.get("type")
     current_app.logger.info(f"Received Clerk webhook: {event_type}")
 
-    # Handle invitation.created event
-    if event_type == "invitation.created":
-        return handle_invitation_created(event)
+    # Handle email.created event (for custom email delivery)
+    if event_type == "email.created":
+        return handle_email_created(event)
 
     # Return success for unhandled events
     return {"success": True, "message": f"Event {event_type} received but not handled"}, 200
 
 
-def handle_invitation_created(event: dict):
+def handle_email_created(event: dict):
     """
-    Handle invitation.created webhook from Clerk.
+    Handle email.created webhook from Clerk.
 
-    This is triggered when a Clerk invitation is created. We intercept this
-    to send our own branded invitation email instead of Clerk's default.
+    This is triggered when Clerk would have sent an email, but "Delivered by Clerk"
+    is toggled OFF. We intercept this to send our own branded emails instead.
     """
     data = event.get("data", {})
 
-    email = data.get("email_address")
-    invitation_url = data.get("url")
-    public_metadata = data.get("public_metadata", {})
+    # Email webhook structure is different - it contains to_email_address, subject, body, etc.
+    to_email = data.get("to_email_address")
+    email_type = data.get("slug")  # e.g., "invitation"
 
-    if not email:
-        current_app.logger.error("No email address in invitation.created event")
+    # For invitations, Clerk includes data about the invitation
+    # We need to check if this is an invitation email
+    if email_type != "invitation":
+        current_app.logger.info(f"Received email.created for type: {email_type}, skipping")
+        return {"success": True, "message": f"Email type {email_type} not handled"}, 200
+
+    # Extract invitation data from the email data
+    # Clerk's email.created webhook structure: data.data contains the email template variables
+    data_obj = data.get("data", {}) or {}
+
+    # The invitation URL is in data.data.action_url
+    invitation_url = data_obj.get("action_url")
+
+    # Extract user metadata - Clerk includes this in data.data.invitation.public_metadata
+    invitation_obj = data_obj.get("invitation", {})
+    public_metadata = invitation_obj.get("public_metadata", {})
+
+    if not to_email:
+        current_app.logger.error("No email address in email.created event")
         return {"success": False, "error": "Missing email address"}, 400
 
     if not invitation_url:
-        current_app.logger.error("No invitation URL in invitation.created event")
+        current_app.logger.error("No invitation URL in email.created event")
+        current_app.logger.error(f"Full webhook payload: {event}")
+        current_app.logger.error(f"Data object: {data}")
+        current_app.logger.error(f"Data.data object: {data_obj}")
         return {"success": False, "error": "Missing invitation URL"}, 400
 
     # Extract user type and IDs from metadata
@@ -133,18 +153,18 @@ def handle_invitation_created(event: dict):
     provider_id = public_metadata.get("provider_id")
 
     current_app.logger.info(
-        f"Processing Clerk invitation for {email} - Types: {user_types}, "
+        f"Processing Clerk invitation email for {to_email} - Types: {user_types}, "
         f"Family ID: {family_id}, Provider ID: {provider_id}, URL: {invitation_url}"
     )
 
     # Determine if this is a family or provider invitation
-    is_family = ClerkUserType.FAMILY in user_types
-    is_provider = ClerkUserType.PROVIDER in user_types
+    is_family = ClerkUserType.FAMILY.value in user_types
+    is_provider = ClerkUserType.PROVIDER.value in user_types
 
     if is_family:
-        return send_family_clerk_invitation_email(email, family_id, invitation_url)
+        return send_family_clerk_invitation_email(to_email, family_id, invitation_url)
     elif is_provider:
-        return send_provider_clerk_invitation_email(email, provider_id, invitation_url)
+        return send_provider_clerk_invitation_email(to_email, provider_id, invitation_url)
     else:
         current_app.logger.warning(f"Unknown user type in invitation: {user_types}")
         return {"success": True, "message": "Unknown user type, skipping email"}, 200

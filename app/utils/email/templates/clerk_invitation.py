@@ -13,9 +13,9 @@ class ClerkInvitationTemplate:
     def get_subject(language: Language = Language.ENGLISH) -> str:
         """Get subject line for Clerk invitation."""
         if language == Language.SPANISH:
-            return "¡Bienvenido al Portal de CAP Colorado!"
+            return "¡Ha sido aprobado para el Portal de CAP Colorado!"
         else:
-            return "Welcome to CAP Colorado Portal"
+            return "You've Been Approved for CAP Colorado Portal"
 
     @staticmethod
     def get_family_invitation_content(invitation_url: str, language: Language = Language.ENGLISH) -> str:
@@ -32,9 +32,11 @@ class ClerkInvitationTemplate:
         if language == Language.SPANISH:
             greeting = "¡Hola!"
             main_content = f"""
-            <p>Ha sido invitado a unirse al <strong>Portal de CAP Colorado</strong>.</p>
+            <p>Su solicitud ha sido aprobada y ahora tiene acceso al <strong>Portal de CAP Colorado</strong>.</p>
 
             <p>CAP es un programa que ayuda a las familias a pagar el cuidado infantil proporcionando hasta <strong>$1,400 por mes</strong> para cubrir los costos del cuidado.</p>
+
+            <p>Haga clic en el botón de abajo para crear su cuenta y comenzar:</p>
 
             {BaseEmailTemplate.create_button(invitation_url, "Crear su Cuenta")}
 
@@ -46,9 +48,11 @@ class ClerkInvitationTemplate:
         else:
             greeting = "Hello!"
             main_content = f"""
-            <p>You've been invited to join the <strong>CAP Colorado Portal</strong>.</p>
+            <p>Your application has been approved and you now have access to the <strong>CAP Colorado Portal</strong>.</p>
 
             <p>CAP is a program that helps families pay for childcare by providing up to <strong>$1,400 per month</strong> to cover care costs.</p>
+
+            <p>Click the button below to create your account and get started:</p>
 
             {BaseEmailTemplate.create_button(invitation_url, "Create Your Account")}
 
@@ -83,9 +87,11 @@ class ClerkInvitationTemplate:
         if language == Language.SPANISH:
             greeting = f"¡Hola{' ' + provider_name if provider_name else ''}!"
             main_content = f"""
-            <p>Ha sido invitado a unirse al <strong>Portal de CAP Colorado</strong> como proveedor de cuidado infantil.</p>
+            <p>Su solicitud ha sido aprobada y ahora tiene acceso al <strong>Portal de CAP Colorado</strong> como proveedor de cuidado infantil.</p>
 
-            <p>CAP es un programa que ayuda a las familias a pagar el cuidado infantil y a proveedores como usted a recibir su pago de manera fácil y confiable.</p>
+            <p>CAP es un programa que ayuda a las familias a pagar el cuidado infantil y a proveedores como usted a recibir pagos de manera fácil y confiable.</p>
+
+            <p>Haga clic en el botón de abajo para crear su cuenta y comenzar:</p>
 
             {BaseEmailTemplate.create_button(invitation_url, "Crear su Cuenta")}
 
@@ -97,9 +103,11 @@ class ClerkInvitationTemplate:
         else:
             greeting = f"Hello{' ' + provider_name if provider_name else ''}!"
             main_content = f"""
-            <p>You've been invited to join the <strong>CAP Colorado Portal</strong> as a childcare provider.</p>
+            <p>Your application has been approved and you now have access to the <strong>CAP Colorado Portal</strong> as a childcare provider.</p>
 
-            <p>CAP is a program that helps families pay for childcare and helps providers like you get paid easily and reliably.</p>
+            <p>CAP is a program that helps families pay for childcare and helps providers like you receive payments easily and reliably.</p>
+
+            <p>Click the button below to create your account and get started:</p>
 
             {BaseEmailTemplate.create_button(invitation_url, "Create Your Account")}
 
