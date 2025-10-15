@@ -34,45 +34,33 @@ class UserActivity(db.Model, TimestampMixin):
     @classmethod
     def record_provider_activity(cls, provider_supabase_id: str, dt: datetime = None):
         """
-        Record activity for a provider. Returns new activity object if created, None if already exists.
+        Record activity for a provider. Returns new activity object.
 
         Note: Caller is responsible for adding the returned activity to the session and committing.
+        Duplicate records are prevented by unique constraints at the database level.
         """
         if dt is None:
             dt = datetime.now(timezone.utc)
 
         hour = cls.truncate_to_hour(dt)
 
-        # Check if activity already exists for this hour
-        # Use no_autoflush to prevent premature flushing of pending objects
-        with db.session.no_autoflush:
-            activity = cls.query.filter_by(provider_supabase_id=provider_supabase_id, hour=hour).first()
-
-        if activity is not None:
-            return None  # Already exists, nothing to do
-
         # Create new activity record
+        # Redis cache + unique constraints handle deduplication
         return cls(provider_supabase_id=provider_supabase_id, hour=hour)
 
     @classmethod
     def record_family_activity(cls, family_supabase_id: str, dt: datetime = None):
         """
-        Record activity for a family. Returns new activity object if created, None if already exists.
+        Record activity for a family. Returns new activity object.
 
         Note: Caller is responsible for adding the returned activity to the session and committing.
+        Duplicate records are prevented by unique constraints at the database level.
         """
         if dt is None:
             dt = datetime.now(timezone.utc)
 
         hour = cls.truncate_to_hour(dt)
 
-        # Check if activity already exists for this hour
-        # Use no_autoflush to prevent premature flushing of pending objects
-        with db.session.no_autoflush:
-            activity = cls.query.filter_by(family_supabase_id=family_supabase_id, hour=hour).first()
-
-        if activity is not None:
-            return None  # Already exists, nothing to do
-
         # Create new activity record
+        # Redis cache + unique constraints handle deduplication
         return cls(family_supabase_id=family_supabase_id, hour=hour)

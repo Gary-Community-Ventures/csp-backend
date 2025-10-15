@@ -17,8 +17,9 @@ from app.auth.helpers import get_current_user
 from app.extensions import db
 from app.models import UserActivity
 
-# Cache activity records for 1 hour (in seconds)
-ACTIVITY_CACHE_TTL = 60 * 60
+# Cache activity records for 90 minutes (in seconds)
+# Slightly longer than 1 hour to ensure cache overlap at hour boundaries
+ACTIVITY_CACHE_TTL = 90 * 60
 
 
 def _get_redis_cache_key(user_type: str, user_id: str, hour_timestamp: datetime) -> str:
@@ -64,7 +65,11 @@ def track_user_activity():
         # Get Redis connection from job manager
         from app.jobs import job_manager
 
-        redis_conn = job_manager.get_redis()
+        try:
+            redis_conn = job_manager.get_redis()
+        except Exception as e:
+            current_app.logger.warning(f"Failed to get Redis connection: {e}")
+            redis_conn = None
 
         if not redis_conn:
             current_app.logger.warning("Redis not available, skipping activity cache check")
@@ -79,16 +84,14 @@ def track_user_activity():
             cache_key = _get_redis_cache_key("provider", user.user_data.provider_id, hour)
             if not _is_activity_cached(redis_conn, cache_key):
                 activity = UserActivity.record_provider_activity(user.user_data.provider_id, now)
-                if activity is not None:
-                    db.session.add(activity)
+                db.session.add(activity)
                 records_to_cache.append(cache_key)
 
         if user.user_data.family_id:
             cache_key = _get_redis_cache_key("family", user.user_data.family_id, hour)
             if not _is_activity_cached(redis_conn, cache_key):
                 activity = UserActivity.record_family_activity(user.user_data.family_id, now)
-                if activity is not None:
-                    db.session.add(activity)
+                db.session.add(activity)
                 records_to_cache.append(cache_key)
 
         # Single commit for all records
@@ -103,6 +106,9 @@ def track_user_activity():
                 # This is expected behavior with concurrent requests, not an error
                 db.session.rollback()
                 current_app.logger.debug("Activity record already exists (concurrent request race condition)")
+                # Cache the activity since the record exists (prevents repeated DB hits)
+                for cache_key in records_to_cache:
+                    _cache_activity(redis_conn, cache_key)
 
         # Mark as tracked for this request
         g._activity_tracked = True
@@ -125,13 +131,11 @@ def _track_without_cache(user, now: datetime):
     try:
         if user.user_data.provider_id:
             activity = UserActivity.record_provider_activity(user.user_data.provider_id, now)
-            if activity is not None:
-                db.session.add(activity)
+            db.session.add(activity)
 
         if user.user_data.family_id:
             activity = UserActivity.record_family_activity(user.user_data.family_id, now)
-            if activity is not None:
-                db.session.add(activity)
+            db.session.add(activity)
 
         db.session.commit()
     except IntegrityError:
