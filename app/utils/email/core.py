@@ -10,11 +10,11 @@ from flask import current_app
 
 from app.extensions import db
 from app.models.email_record import EmailRecord, EmailStatus
+from app.utils.email.email_providers import get_email_provider
 from app.utils.email.helpers import (
     log_email_error,
     serialize_context_data,
 )
-from app.utils.email.email_providers import get_email_provider
 
 
 @dataclass
