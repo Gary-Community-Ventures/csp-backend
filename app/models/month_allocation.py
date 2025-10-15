@@ -166,8 +166,7 @@ class MonthAllocation(db.Model, TimestampMixin):
             db.session.add(allocation)
             db.session.commit()
 
-            # Create the payment transfer for this allocation
-            # This is called here to ensure we never forget to create the transfer
+            # Create the payment transfer once the allocation is created
             allocation.transfer_funds_for_allocation()
             db.session.commit()
 
@@ -197,7 +196,7 @@ class MonthAllocation(db.Model, TimestampMixin):
             return True
 
         if self.chek_transfer_id:
-            current_app.logger.debug(
+            current_app.logger.info(
                 f"Payment transaction already exists for allocation {self.id} "
                 f"(child {self.child_supabase_id}, transfer {self.chek_transfer_id})"
             )

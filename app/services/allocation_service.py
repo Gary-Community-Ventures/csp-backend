@@ -102,6 +102,11 @@ class AllocationService:
                 self.app.logger.error(f"Failed to commit allocations: {e}")
                 raise
 
+        self.app.logger.info(
+            f"Finished processing all children for {target_month}: "
+            f"{result.created_count} created, {result.skipped_count} skipped, {result.error_count} errors"
+        )
+
         return result
 
     def create_allocations_for_specific_children(
@@ -130,6 +135,8 @@ class AllocationService:
             self.app.logger.warning(f"No matching children found for IDs: {child_ids}")
             return result
 
+        self.app.logger.info(f"Creating allocations for {len(children)} specific children for {target_month}")
+
         # Process each child
         for child in children:
             child_result = self._process_single_child(child, target_month, dry_run=False)
@@ -154,6 +161,11 @@ class AllocationService:
                 self.app.logger.error(f"Failed to commit allocation updates for specific children: {e}")
                 raise
 
+        self.app.logger.info(
+            f"Finished processing specific children: {result.created_count} created, "
+            f"{result.skipped_count} skipped, {result.error_count} errors"
+        )
+
         return result
 
     def _process_single_child(
@@ -171,6 +183,8 @@ class AllocationService:
         """
         child_id = Child.ID(child)
         child_name = format_name(child)
+
+        self.app.logger.debug(f"Processing allocation for {child_name} ({child_id}) for {target_month}")
 
         # Validate child ID
         if not child_id:
