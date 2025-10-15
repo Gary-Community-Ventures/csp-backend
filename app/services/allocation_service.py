@@ -152,15 +152,6 @@ class AllocationService:
                 if child_result[2]:
                     result.errors.append(child_result[2])
 
-        # Commit any pending changes (e.g., payment transaction updates)
-        if result.created_count > 0:
-            try:
-                db.session.commit()
-            except Exception as e:
-                db.session.rollback()
-                self.app.logger.error(f"Failed to commit allocation updates for specific children: {e}")
-                raise
-
         self.app.logger.info(
             f"Finished processing specific children: {result.created_count} created, "
             f"{result.skipped_count} skipped, {result.error_count} errors"
@@ -206,7 +197,7 @@ class AllocationService:
                 )
                 return ("created", None, None)
 
-            # Create new allocation (we only reach here if check at line 183 found no existing allocation)
+            # Create new allocation
             allocation = MonthAllocation.get_or_create_for_month(child_id, target_month)
 
             self.app.logger.info(
