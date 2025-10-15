@@ -175,7 +175,7 @@ class AllocationService:
         child_id = Child.ID(child)
         child_name = format_name(child)
 
-        self.app.logger.debug(f"Processing allocation for {child_name} ({child_id}) for {target_month}")
+        self.app.logger.info(f"Processing allocation for {child_name} ({child_id}) for {target_month}")
 
         # Validate child ID
         if not child_id:

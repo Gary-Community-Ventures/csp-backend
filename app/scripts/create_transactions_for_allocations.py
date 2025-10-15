@@ -23,7 +23,6 @@ from app.supabase.tables import Child
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from flask import current_app
 from sqlalchemy import and_
 
 from app import create_app
@@ -52,7 +51,6 @@ def process_single_allocation(allocation: MonthAllocation, child_name: str, dry_
     print(f"  Processing {child_name} ({child_id}) - {amount_str}...", end=" ")
 
     try:
-        # Use the allocation's built-in method to create the transfer
         success = allocation.transfer_funds_for_allocation()
 
         if not success:
