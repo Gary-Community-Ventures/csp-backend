@@ -52,19 +52,16 @@ def process_single_allocation(allocation: MonthAllocation, child_name: str, dry_
     print(f"  Processing {child_name} ({child_id}) - {amount_str}...", end=" ")
 
     try:
-        transaction = current_app.payment_service.allocate_funds_to_family(
-            child_id=child_id, amount=allocation.allocation_cents, date=allocation.date
-        )
+        # Use the allocation's built-in method to create the transfer
+        success = allocation.transfer_funds_for_allocation()
 
-        if not transaction or not transaction.transfer or not transaction.transfer.id:
-            raise RuntimeError(f"Failed to allocate funds: invalid transaction response")
+        if not success:
+            raise RuntimeError(f"Failed to create transfer for allocation")
 
-        # Update the allocation with the transfer details
-        allocation.chek_transfer_id = transaction.transfer.id
-        allocation.chek_transfer_date = transaction.transfer.created
+        # The transfer details are already set by the method
         db.session.add(allocation)
 
-        print(f"✅ Transfer: {transaction.transfer.id}")
+        print(f"✅ Transfer: {allocation.chek_transfer_id}")
         return None
 
     except Exception as e:

@@ -165,6 +165,12 @@ class MonthAllocation(db.Model, TimestampMixin):
 
             db.session.add(allocation)
             db.session.commit()
+
+            # Create the payment transfer for this allocation
+            # This is called here to ensure we never forget to create the transfer
+            allocation.transfer_funds_for_allocation()
+            db.session.commit()
+
             return allocation
 
         except IntegrityError:

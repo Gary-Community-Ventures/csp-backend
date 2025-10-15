@@ -195,9 +195,6 @@ class AllocationService:
             # Create new allocation (we only reach here if check at line 183 found no existing allocation)
             allocation = MonthAllocation.get_or_create_for_month(child_id, target_month)
 
-            # Create payment transaction for this allocation (idempotent - skips if already exists)
-            allocation.transfer_funds_for_allocation()
-
             self.app.logger.info(
                 f"Created allocation for {child_name} ({child_id}): ${allocation.allocation_cents / 100:.2f}"
             )
