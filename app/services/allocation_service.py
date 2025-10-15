@@ -12,7 +12,6 @@ from flask import current_app
 from app.supabase.helpers import cols, format_name, unwrap_or_error
 from app.supabase.tables import Child
 
-from ..extensions import db
 from ..models.month_allocation import MonthAllocation
 
 
@@ -90,17 +89,10 @@ class AllocationService:
             if progress_callback:
                 progress_callback(child_data, child_result[0])
 
-        # Commit all changes if not dry run
-        if not dry_run and result.created_count > 0:
-            try:
-                db.session.commit()
-                self.app.logger.info(
-                    f"Successfully committed {result.created_count} allocations for {target_month.strftime('%B %Y')}"
-                )
-            except Exception as e:
-                db.session.rollback()
-                self.app.logger.error(f"Failed to commit allocations: {e}")
-                raise
+        self.app.logger.info(
+            f"Finished processing all children for {target_month}: "
+            f"{result.created_count} created, {result.skipped_count} skipped, {result.error_count} errors"
+        )
 
         return result
 
@@ -130,6 +122,8 @@ class AllocationService:
             self.app.logger.warning(f"No matching children found for IDs: {child_ids}")
             return result
 
+        self.app.logger.info(f"Creating allocations for {len(children)} specific children for {target_month}")
+
         # Process each child
         for child in children:
             child_result = self._process_single_child(child, target_month, dry_run=False)
@@ -145,14 +139,10 @@ class AllocationService:
                 if child_result[2]:
                     result.errors.append(child_result[2])
 
-        # Commit changes
-        if result.created_count > 0:
-            try:
-                db.session.commit()
-            except Exception as e:
-                db.session.rollback()
-                self.app.logger.error(f"Failed to commit allocations for specific children: {e}")
-                raise
+        self.app.logger.info(
+            f"Finished processing specific children: {result.created_count} created, "
+            f"{result.skipped_count} skipped, {result.error_count} errors"
+        )
 
         return result
 
@@ -171,6 +161,8 @@ class AllocationService:
         """
         child_id = Child.ID(child)
         child_name = format_name(child)
+
+        self.app.logger.info(f"Processing allocation for {child_name} ({child_id}) for {target_month}")
 
         # Validate child ID
         if not child_id:
