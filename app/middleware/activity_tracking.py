@@ -77,38 +77,36 @@ def track_user_activity():
             _track_without_cache(user, now)
             return
 
-        # Check Redis cache and record activity if needed
-        records_to_cache = []
-
+        # Handle each user type independently to avoid one failure affecting the other
         if user.user_data.provider_id:
             cache_key = _get_redis_cache_key("provider", user.user_data.provider_id, hour)
             if not _is_activity_cached(redis_conn, cache_key):
                 activity = UserActivity.record_provider_activity(user.user_data.provider_id, now)
                 db.session.add(activity)
-                records_to_cache.append(cache_key)
+                try:
+                    db.session.commit()
+                    _cache_activity(redis_conn, cache_key)
+                except IntegrityError:
+                    # Race condition: another request already created this record
+                    db.session.rollback()
+                    current_app.logger.debug("Provider activity already exists (concurrent request race condition)")
+                    # Cache since record exists (created by another request)
+                    _cache_activity(redis_conn, cache_key)
 
         if user.user_data.family_id:
             cache_key = _get_redis_cache_key("family", user.user_data.family_id, hour)
             if not _is_activity_cached(redis_conn, cache_key):
                 activity = UserActivity.record_family_activity(user.user_data.family_id, now)
                 db.session.add(activity)
-                records_to_cache.append(cache_key)
-
-        # Single commit for all records
-        if records_to_cache:
-            try:
-                db.session.commit()
-            except IntegrityError:
-                # Race condition: another request already created this record
-                # This is expected behavior with concurrent requests, not an error
-                db.session.rollback()
-                current_app.logger.debug("Activity record already exists (concurrent request race condition)")
-
-            # Cache regardless of commit success/failure
-            # If commit succeeded: cache to prevent future DB hits
-            # If IntegrityError: record exists, so cache it anyway
-            for cache_key in records_to_cache:
-                _cache_activity(redis_conn, cache_key)
+                try:
+                    db.session.commit()
+                    _cache_activity(redis_conn, cache_key)
+                except IntegrityError:
+                    # Race condition: another request already created this record
+                    db.session.rollback()
+                    current_app.logger.debug("Family activity already exists (concurrent request race condition)")
+                    # Cache since record exists (created by another request)
+                    _cache_activity(redis_conn, cache_key)
 
         # Mark as tracked for this request
         g._activity_tracked = True
@@ -128,17 +126,23 @@ def track_user_activity():
 
 def _track_without_cache(user, now: datetime):
     """Fallback to track activity without Redis cache."""
-    try:
-        if user.user_data.provider_id:
-            activity = UserActivity.record_provider_activity(user.user_data.provider_id, now)
-            db.session.add(activity)
+    # Handle each user type independently to avoid one failure affecting the other
+    if user.user_data.provider_id:
+        activity = UserActivity.record_provider_activity(user.user_data.provider_id, now)
+        db.session.add(activity)
+        try:
+            db.session.commit()
+        except IntegrityError:
+            # Race condition: another request already created this record
+            db.session.rollback()
+            current_app.logger.debug("Provider activity already exists (concurrent request race condition)")
 
-        if user.user_data.family_id:
-            activity = UserActivity.record_family_activity(user.user_data.family_id, now)
-            db.session.add(activity)
-
-        db.session.commit()
-    except IntegrityError:
-        # Race condition: another request already created this record
-        # This is expected behavior with concurrent requests, not an error
-        db.session.rollback()
+    if user.user_data.family_id:
+        activity = UserActivity.record_family_activity(user.user_data.family_id, now)
+        db.session.add(activity)
+        try:
+            db.session.commit()
+        except IntegrityError:
+            # Race condition: another request already created this record
+            db.session.rollback()
+            current_app.logger.debug("Family activity already exists (concurrent request race condition)")
