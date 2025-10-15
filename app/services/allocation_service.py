@@ -90,18 +90,6 @@ class AllocationService:
             if progress_callback:
                 progress_callback(child_data, child_result[0])
 
-        # Commit all changes if not dry run
-        if not dry_run and result.created_count > 0:
-            try:
-                db.session.commit()
-                self.app.logger.info(
-                    f"Successfully committed {result.created_count} allocations for {target_month.strftime('%B %Y')}"
-                )
-            except Exception as e:
-                db.session.rollback()
-                self.app.logger.error(f"Failed to commit allocations: {e}")
-                raise
-
         self.app.logger.info(
             f"Finished processing all children for {target_month}: "
             f"{result.created_count} created, {result.skipped_count} skipped, {result.error_count} errors"
