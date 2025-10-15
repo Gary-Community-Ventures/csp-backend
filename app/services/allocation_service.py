@@ -12,7 +12,6 @@ from flask import current_app
 from app.supabase.helpers import cols, format_name, unwrap_or_error
 from app.supabase.tables import Child
 
-from ..extensions import db
 from ..models.month_allocation import MonthAllocation
 
 
