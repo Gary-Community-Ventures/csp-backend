@@ -156,7 +156,7 @@ class MonthAllocation(db.Model, TimestampMixin):
                     f"of ${MAX_ALLOCATION_AMOUNT_CENTS / 100:.2f} for child {child_id}"
                 )
 
-            # Create new allocation (without payment transaction - that will be handled by the caller)
+            # Create new allocation
             allocation = MonthAllocation(
                 child_supabase_id=child_id,
                 date=month_start,
@@ -179,14 +179,14 @@ class MonthAllocation(db.Model, TimestampMixin):
                     f"Race condition detected but could not retrieve allocation for child {child_id} and month {month_start}"
                 )
 
-    def create_payment_transaction(self) -> bool:
+    def transfer_funds_for_allocation(self) -> bool:
         """
-        Create payment transaction for this allocation if needed.
+        Transfer funds for this allocation if needed.
 
         Returns:
-            bool: True if transaction was created or already exists, False if creation failed
+            bool: True if transfer was created or already exists, False if creation failed
         """
-        # Skip if allocation is zero or transaction already exists
+        # Skip if allocation is zero or transfer already exists
         if self.allocation_cents <= 0:
             return True
 
@@ -197,24 +197,24 @@ class MonthAllocation(db.Model, TimestampMixin):
             )
             return True
 
-        # Create payment transaction
+        # Create transfer
         try:
-            transaction = current_app.payment_service.allocate_funds_to_family(
+            transfer = current_app.payment_service.allocate_funds_to_family(
                 child_id=self.child_supabase_id, amount=self.allocation_cents, date=self.date
             )
 
-            if not transaction or not transaction.transfer or not transaction.transfer.id:
+            if not transfer or not transfer.transfer or not transfer.transfer.id:
                 current_app.logger.error(
-                    f"Failed to create payment transaction for allocation {self.id}: Invalid transaction response"
+                    f"Failed to create payment transfer for allocation {self.id}: Invalid transfer response"
                 )
                 return False
 
-            # Update allocation with transaction details
-            self.chek_transfer_id = transaction.transfer.id
-            self.chek_transfer_date = transaction.transfer.created
+            # Update allocation with transfer details
+            self.chek_transfer_id = transfer.transfer.id
+            self.chek_transfer_date = transfer.transfer.created
 
             current_app.logger.info(
-                f"Created payment transaction {self.chek_transfer_id} for allocation {self.id} "
+                f"Created transfer {self.chek_transfer_id} for allocation {self.id} "
                 f"(child {self.child_supabase_id}, ${self.allocation_cents / 100:.2f})"
             )
             return True
@@ -222,8 +222,7 @@ class MonthAllocation(db.Model, TimestampMixin):
         except Exception as e:
             sentry_sdk.capture_exception(e)
             current_app.logger.error(
-                f"Failed to create payment transaction for allocation {self.id} "
-                f"(child {self.child_supabase_id}): {e}"
+                f"Failed to create transfer for allocation {self.id} " f"(child {self.child_supabase_id}): {e}"
             )
             return False
 
