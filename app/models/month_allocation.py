@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+import sentry_sdk
 from flask import current_app
 
 from app.constants import MAX_ALLOCATION_AMOUNT_CENTS
@@ -155,23 +156,12 @@ class MonthAllocation(db.Model, TimestampMixin):
                     f"of ${MAX_ALLOCATION_AMOUNT_CENTS / 100:.2f} for child {child_id}"
                 )
 
-            # Create new allocation
+            # Create new allocation (without payment transaction - that will be handled by the caller)
             allocation = MonthAllocation(
                 child_supabase_id=child_id,
                 date=month_start,
                 allocation_cents=allocation_cents,
             )
-
-            # Allocate funds to family wallet if allocation is greater than zero
-            if allocation_cents > 0:
-                transaction = current_app.payment_service.allocate_funds_to_family(
-                    child_id=child_id, amount=allocation_cents, date=month_start
-                )
-                if not transaction or not transaction.transfer or not transaction.transfer.id:
-                    raise RuntimeError(f"Failed to allocate funds to family for child {child_id}: {transaction}")
-
-                allocation.chek_transfer_id = transaction.transfer.id
-                allocation.chek_transfer_date = transaction.transfer.created
 
             db.session.add(allocation)
             db.session.commit()
@@ -188,6 +178,54 @@ class MonthAllocation(db.Model, TimestampMixin):
                 raise RuntimeError(
                     f"Race condition detected but could not retrieve allocation for child {child_id} and month {month_start}"
                 )
+
+    def create_payment_transaction(self) -> bool:
+        """
+        Create payment transaction for this allocation if needed.
+
+        Returns:
+            bool: True if transaction was created or already exists, False if creation failed
+        """
+        # Skip if allocation is zero or transaction already exists
+        if self.allocation_cents <= 0:
+            return True
+
+        if self.chek_transfer_id:
+            current_app.logger.debug(
+                f"Payment transaction already exists for allocation {self.id} "
+                f"(child {self.child_supabase_id}, transfer {self.chek_transfer_id})"
+            )
+            return True
+
+        # Create payment transaction
+        try:
+            transaction = current_app.payment_service.allocate_funds_to_family(
+                child_id=self.child_supabase_id, amount=self.allocation_cents, date=self.date
+            )
+
+            if not transaction or not transaction.transfer or not transaction.transfer.id:
+                current_app.logger.error(
+                    f"Failed to create payment transaction for allocation {self.id}: Invalid transaction response"
+                )
+                return False
+
+            # Update allocation with transaction details
+            self.chek_transfer_id = transaction.transfer.id
+            self.chek_transfer_date = transaction.transfer.created
+
+            current_app.logger.info(
+                f"Created payment transaction {self.chek_transfer_id} for allocation {self.id} "
+                f"(child {self.child_supabase_id}, ${self.allocation_cents / 100:.2f})"
+            )
+            return True
+
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
+            current_app.logger.error(
+                f"Failed to create payment transaction for allocation {self.id} "
+                f"(child {self.child_supabase_id}): {e}"
+            )
+            return False
 
     @staticmethod
     def get_for_month(child_id: str, month_date: date):

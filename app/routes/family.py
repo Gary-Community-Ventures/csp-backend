@@ -17,6 +17,7 @@ from app.extensions import db
 from app.models.attendance import Attendance
 from app.models.family_invitation import FamilyInvitation
 from app.models.family_payment_settings import FamilyPaymentSettings
+from app.models.month_allocation import MonthAllocation
 from app.models.provider_invitation import ProviderInvitation
 from app.models.provider_payment_settings import ProviderPaymentSettings
 from app.services.allocation_service import AllocationService
@@ -75,21 +76,17 @@ def new_family():
     ).execute()
     family = unwrap_or_abort(family_result)
 
-    # Create Chek user and FamilyPaymentSettings
+    # Create Chek user and FamilyPaymentSettings (idempotent - returns existing if already created)
     payment_service = current_app.payment_service
     family_settings = payment_service.onboard_family(family_id)
     current_app.logger.info(
-        f"Created FamilyPaymentSettings for family {family_id} with Chek user {family_settings.chek_user_id}"
+        f"FamilyPaymentSettings for family {family_id} with Chek user {family_settings.chek_user_id}"
     )
 
     children = Child.unwrap(family)
 
-    # Create allocations for current and next month
-    create_allocations(children, get_current_month_start())
-    create_allocations(children, get_next_month_start())
-    db.session.commit()
-
-    # send clerk invite
+    # Send clerk invite first - this provides idempotency since Clerk will error on duplicate invites
+    # This prevents allocations from being created multiple times if this endpoint is called multiple times
     clerk: Clerk = current_app.clerk_client
     fe_domain = current_app.config.get("FRONTEND_DOMAIN")
     meta_data = {
@@ -97,13 +94,35 @@ def new_family():
         "family_id": family_id,
     }
 
-    clerk.invitations.create(
-        request=CreateInvitationRequestBody(
-            email_address=email,
-            redirect_url=f"{fe_domain}/auth/sign-up",
-            public_metadata=meta_data,
+    try:
+        clerk.invitations.create(
+            request=CreateInvitationRequestBody(
+                email_address=email,
+                redirect_url=f"{fe_domain}/auth/sign-up",
+                public_metadata=meta_data,
+            )
         )
-    )
+    except Exception as e:
+        # If Clerk invitation fails (e.g., duplicate invitation), check if allocations already exist
+        # If they do, this is likely a duplicate call and we can return early
+        child_ids = [Child.ID(child) for child in children]
+        if child_ids:
+            existing_allocation = MonthAllocation.query.filter_by(
+                child_supabase_id=child_ids[0], date=get_current_month_start()
+            ).first()
+            if existing_allocation:
+                current_app.logger.warning(
+                    f"Clerk invitation failed for family {family_id}, but allocations already exist. "
+                    f"This is likely a duplicate call. Error: {e}"
+                )
+                return jsonify(data)
+        # If allocations don't exist, this is a real error
+        current_app.logger.error(f"Failed to create Clerk invitation for family {family_id}: {e}")
+        raise
+
+    # Create allocations for current and next month (after Clerk invite succeeds)
+    create_allocations(children, get_current_month_start())
+    create_allocations(children, get_next_month_start())
 
     link_id = Family.LINK_ID(family)
     if link_id is None:
