@@ -44,7 +44,9 @@ class UserActivity(db.Model, TimestampMixin):
         hour = cls.truncate_to_hour(dt)
 
         # Check if activity already exists for this hour
-        activity = cls.query.filter_by(provider_supabase_id=provider_supabase_id, hour=hour).first()
+        # Use no_autoflush to prevent premature flushing of pending objects
+        with db.session.no_autoflush:
+            activity = cls.query.filter_by(provider_supabase_id=provider_supabase_id, hour=hour).first()
 
         if activity is not None:
             return None  # Already exists, nothing to do
@@ -65,7 +67,9 @@ class UserActivity(db.Model, TimestampMixin):
         hour = cls.truncate_to_hour(dt)
 
         # Check if activity already exists for this hour
-        activity = cls.query.filter_by(family_supabase_id=family_supabase_id, hour=hour).first()
+        # Use no_autoflush to prevent premature flushing of pending objects
+        with db.session.no_autoflush:
+            activity = cls.query.filter_by(family_supabase_id=family_supabase_id, hour=hour).first()
 
         if activity is not None:
             return None  # Already exists, nothing to do

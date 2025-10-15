@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 import sentry_sdk
 from flask import current_app, g
+from sqlalchemy.exc import IntegrityError
 
 from app.auth.helpers import get_current_user
 from app.extensions import db
@@ -92,13 +93,24 @@ def track_user_activity():
 
         # Single commit for all records
         if records_to_cache:
-            db.session.commit()
-            for cache_key in records_to_cache:
-                _cache_activity(redis_conn, cache_key)
+            try:
+                db.session.commit()
+                # Only cache after successful commit
+                for cache_key in records_to_cache:
+                    _cache_activity(redis_conn, cache_key)
+            except IntegrityError:
+                # Race condition: another request already created this record
+                # This is expected behavior with concurrent requests, not an error
+                db.session.rollback()
+                current_app.logger.debug("Activity record already exists (concurrent request race condition)")
 
         # Mark as tracked for this request
         g._activity_tracked = True
 
+    except IntegrityError:
+        # Handle race condition at top level too (for _track_without_cache path)
+        db.session.rollback()
+        current_app.logger.debug("Activity record already exists (concurrent request race condition)")
     except Exception as e:
         # Log error but don't break the request
         current_app.logger.error(f"Error tracking user activity: {e}")
@@ -110,14 +122,19 @@ def track_user_activity():
 
 def _track_without_cache(user, now: datetime):
     """Fallback to track activity without Redis cache."""
-    if user.user_data.provider_id:
-        activity = UserActivity.record_provider_activity(user.user_data.provider_id, now)
-        if activity is not None:
-            db.session.add(activity)
+    try:
+        if user.user_data.provider_id:
+            activity = UserActivity.record_provider_activity(user.user_data.provider_id, now)
+            if activity is not None:
+                db.session.add(activity)
 
-    if user.user_data.family_id:
-        activity = UserActivity.record_family_activity(user.user_data.family_id, now)
-        if activity is not None:
-            db.session.add(activity)
+        if user.user_data.family_id:
+            activity = UserActivity.record_family_activity(user.user_data.family_id, now)
+            if activity is not None:
+                db.session.add(activity)
 
-    db.session.commit()
+        db.session.commit()
+    except IntegrityError:
+        # Race condition: another request already created this record
+        # This is expected behavior with concurrent requests, not an error
+        db.session.rollback()
