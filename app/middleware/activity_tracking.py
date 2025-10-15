@@ -98,17 +98,17 @@ def track_user_activity():
         if records_to_cache:
             try:
                 db.session.commit()
-                # Only cache after successful commit
-                for cache_key in records_to_cache:
-                    _cache_activity(redis_conn, cache_key)
             except IntegrityError:
                 # Race condition: another request already created this record
                 # This is expected behavior with concurrent requests, not an error
                 db.session.rollback()
                 current_app.logger.debug("Activity record already exists (concurrent request race condition)")
-                # Cache the activity since the record exists (prevents repeated DB hits)
-                for cache_key in records_to_cache:
-                    _cache_activity(redis_conn, cache_key)
+
+            # Cache regardless of commit success/failure
+            # If commit succeeded: cache to prevent future DB hits
+            # If IntegrityError: record exists, so cache it anyway
+            for cache_key in records_to_cache:
+                _cache_activity(redis_conn, cache_key)
 
         # Mark as tracked for this request
         g._activity_tracked = True
