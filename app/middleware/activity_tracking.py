@@ -11,13 +11,15 @@ from datetime import datetime, timezone
 
 import sentry_sdk
 from flask import current_app, g
+from sqlalchemy.exc import IntegrityError
 
 from app.auth.helpers import get_current_user
 from app.extensions import db
 from app.models import UserActivity
 
-# Cache activity records for 1 hour (in seconds)
-ACTIVITY_CACHE_TTL = 60 * 60
+# Cache activity records for 90 minutes (in seconds)
+# Slightly longer than 1 hour to ensure cache overlap at hour boundaries
+ACTIVITY_CACHE_TTL = 90 * 60
 
 
 def _get_redis_cache_key(user_type: str, user_id: str, hour_timestamp: datetime) -> str:
@@ -63,42 +65,57 @@ def track_user_activity():
         # Get Redis connection from job manager
         from app.jobs import job_manager
 
-        redis_conn = job_manager.get_redis()
+        try:
+            redis_conn = job_manager.get_redis()
+        except Exception as e:
+            current_app.logger.warning(f"Failed to get Redis connection: {e}")
+            redis_conn = None
 
         if not redis_conn:
             current_app.logger.warning("Redis not available, skipping activity cache check")
             # Fall back to non-cached behavior
             _track_without_cache(user, now)
+            g._activity_tracked = True
             return
 
-        # Check Redis cache and record activity if needed
-        records_to_cache = []
-
+        # Handle each user type independently to avoid one failure affecting the other
         if user.user_data.provider_id:
             cache_key = _get_redis_cache_key("provider", user.user_data.provider_id, hour)
             if not _is_activity_cached(redis_conn, cache_key):
                 activity = UserActivity.record_provider_activity(user.user_data.provider_id, now)
-                if activity is not None:
-                    db.session.add(activity)
-                records_to_cache.append(cache_key)
+                db.session.add(activity)
+                try:
+                    db.session.commit()
+                    _cache_activity(redis_conn, cache_key)
+                except IntegrityError:
+                    # Race condition: another request already created this record
+                    db.session.rollback()
+                    current_app.logger.debug("Provider activity already exists (concurrent request race condition)")
+                    # Cache since record exists (created by another request)
+                    _cache_activity(redis_conn, cache_key)
 
         if user.user_data.family_id:
             cache_key = _get_redis_cache_key("family", user.user_data.family_id, hour)
             if not _is_activity_cached(redis_conn, cache_key):
                 activity = UserActivity.record_family_activity(user.user_data.family_id, now)
-                if activity is not None:
-                    db.session.add(activity)
-                records_to_cache.append(cache_key)
-
-        # Single commit for all records
-        if records_to_cache:
-            db.session.commit()
-            for cache_key in records_to_cache:
-                _cache_activity(redis_conn, cache_key)
+                db.session.add(activity)
+                try:
+                    db.session.commit()
+                    _cache_activity(redis_conn, cache_key)
+                except IntegrityError:
+                    # Race condition: another request already created this record
+                    db.session.rollback()
+                    current_app.logger.debug("Family activity already exists (concurrent request race condition)")
+                    # Cache since record exists (created by another request)
+                    _cache_activity(redis_conn, cache_key)
 
         # Mark as tracked for this request
         g._activity_tracked = True
 
+    except IntegrityError:
+        # Handle race condition at top level too (for _track_without_cache path)
+        db.session.rollback()
+        current_app.logger.debug("Activity record already exists (concurrent request race condition)")
     except Exception as e:
         # Log error but don't break the request
         current_app.logger.error(f"Error tracking user activity: {e}")
@@ -110,14 +127,23 @@ def track_user_activity():
 
 def _track_without_cache(user, now: datetime):
     """Fallback to track activity without Redis cache."""
+    # Handle each user type independently to avoid one failure affecting the other
     if user.user_data.provider_id:
         activity = UserActivity.record_provider_activity(user.user_data.provider_id, now)
-        if activity is not None:
-            db.session.add(activity)
+        db.session.add(activity)
+        try:
+            db.session.commit()
+        except IntegrityError:
+            # Race condition: another request already created this record
+            db.session.rollback()
+            current_app.logger.debug("Provider activity already exists (concurrent request race condition)")
 
     if user.user_data.family_id:
         activity = UserActivity.record_family_activity(user.user_data.family_id, now)
-        if activity is not None:
-            db.session.add(activity)
-
-    db.session.commit()
+        db.session.add(activity)
+        try:
+            db.session.commit()
+        except IntegrityError:
+            # Race condition: another request already created this record
+            db.session.rollback()
+            current_app.logger.debug("Family activity already exists (concurrent request race condition)")
