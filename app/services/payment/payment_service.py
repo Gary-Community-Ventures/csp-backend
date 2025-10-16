@@ -455,6 +455,14 @@ class PaymentService:
                 for lump in allocated_lump_sums:
                     if lump.payment_id is not None:
                         raise InvalidPaymentStateException(f"Allocated lump sum {lump.id} is already paid")
+                    
+            # 4.4 Ensure care days are in the month allocation's month
+            if allocated_care_days:
+                for day in allocated_care_days:
+                    if day.date.year != month_allocation.date.year or day.date.month != month_allocation.date.month:
+                        raise InvalidPaymentStateException(
+                            f"Allocated care day {day.id} date {day.date} does not match month allocation month {month_allocation.date}"
+                        )
 
             # 5. Validate payment doesn't exceed $1400 limit
             if amount_cents > MAX_PAYMENT_AMOUNT_CENTS:
