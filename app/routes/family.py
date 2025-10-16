@@ -74,22 +74,10 @@ def new_family():
         int(family_id),
     ).execute()
     family = unwrap_or_abort(family_result)
-
-    # Create Chek user and FamilyPaymentSettings
-    payment_service = current_app.payment_service
-    family_settings = payment_service.onboard_family(family_id)
-    current_app.logger.info(
-        f"Created FamilyPaymentSettings for family {family_id} with Chek user {family_settings.chek_user_id}"
-    )
-
     children = Child.unwrap(family)
 
-    # Create allocations for current and next month
-    create_allocations(children, get_current_month_start())
-    create_allocations(children, get_next_month_start())
-    db.session.commit()
-
-    # send clerk invite
+    # Send clerk invite first - this provides idempotency since Clerk will error on duplicate invites
+    # This prevents allocations from being created multiple times if this endpoint is called multiple times
     clerk: Clerk = current_app.clerk_client
     fe_domain = current_app.config.get("FRONTEND_DOMAIN")
     meta_data = {
@@ -104,6 +92,17 @@ def new_family():
             public_metadata=meta_data,
         )
     )
+
+    # Create Chek user and FamilyPaymentSettings (idempotent - returns existing if already created)
+    payment_service = current_app.payment_service
+    family_settings = payment_service.onboard_family(family_id)
+    current_app.logger.info(
+        f"FamilyPaymentSettings for family {family_id} with Chek user {family_settings.chek_user_id}"
+    )
+
+    # Create allocations for current and next month (after Clerk invite succeeds)
+    create_allocations(children, get_current_month_start())
+    create_allocations(children, get_next_month_start())
 
     link_id = Family.LINK_ID(family)
     if link_id is None:
