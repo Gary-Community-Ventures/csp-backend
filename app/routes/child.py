@@ -114,6 +114,8 @@ def submit_care_days(child_id, provider_id, month, year):
         AllocatedCareDay.provider_supabase_id == provider_id,
         AllocatedCareDay.deleted_at.is_(None),  # Don't submit deleted days
         AllocatedCareDay.last_submitted_at.is_(None),  # Don't submit already submitted days
+        AllocatedCareDay.payment_id.is_(None),  # Don't submit already paid days
+        AllocatedCareDay.amount_cents.isnot(None),  # Only submit days with an amount
     ).all()
 
     # Only process payment for care days that have an amount

@@ -425,6 +425,37 @@ class PaymentService:
             if amount_cents <= 0:
                 raise InvalidPaymentStateException("No allocations provided for payment")
 
+            # 4.1 Ensure care days and lump sums belong to the month allocation
+            if allocated_care_days:
+                for day in allocated_care_days:
+                    if day.care_month_allocation_id != month_allocation.id:
+                        raise InvalidPaymentStateException(
+                            f"Allocated care day {day.id} does not belong to month allocation {month_allocation.id}"
+                        )
+            if allocated_lump_sums:
+                for lump in allocated_lump_sums:
+                    if lump.care_month_allocation_id != month_allocation.id:
+                        raise InvalidPaymentStateException(
+                            f"Allocated lump sum {lump.id} does not belong to month allocation {month_allocation.id}"
+                        )
+
+            # 4.2 Ensure month allocation belongs to the child
+            if month_allocation.child_supabase_id != child_id:
+                raise InvalidPaymentStateException(
+                    f"Month allocation {month_allocation.id} does not belong to child {child_id}"
+                )
+
+            # 4.3 Ensure care days and lump sums are unpaid
+            if allocated_care_days:
+                for day in allocated_care_days:
+                    if day.payment_id is not None:
+                        raise InvalidPaymentStateException(f"Allocated care day {day.id} is already paid")
+
+            if allocated_lump_sums:
+                for lump in allocated_lump_sums:
+                    if lump.payment_id is not None:
+                        raise InvalidPaymentStateException(f"Allocated lump sum {lump.id} is already paid")
+
             # 5. Validate payment doesn't exceed $1400 limit
             if amount_cents > MAX_PAYMENT_AMOUNT_CENTS:
                 error_msg = (
