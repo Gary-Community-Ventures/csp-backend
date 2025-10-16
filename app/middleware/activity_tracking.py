@@ -75,6 +75,7 @@ def track_user_activity():
             current_app.logger.warning("Redis not available, skipping activity cache check")
             # Fall back to non-cached behavior
             _track_without_cache(user, now)
+            g._activity_tracked = True
             return
 
         # Handle each user type independently to avoid one failure affecting the other
