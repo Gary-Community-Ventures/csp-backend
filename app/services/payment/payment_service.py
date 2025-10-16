@@ -455,7 +455,7 @@ class PaymentService:
                 for lump in allocated_lump_sums:
                     if lump.payment_id is not None:
                         raise InvalidPaymentStateException(f"Allocated lump sum {lump.id} is already paid")
-                    
+
             # 4.4 Ensure care days are in the month allocation's month
             if allocated_care_days:
                 for day in allocated_care_days:
