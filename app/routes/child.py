@@ -118,7 +118,7 @@ def submit_care_days(child_id, provider_id, month, year):
         AllocatedCareDay.amount_cents.isnot(None),  # Only submit days with an amount
     ).all()
 
-    # Only process payment for care days that have an amount
+    # Handle when there are no care days to submit
     if not care_days_to_submit:
         return jsonify({"error": "No care days to submit"}), 400
 
