@@ -138,6 +138,8 @@ def new_family():
             }
         ).execute()
 
+        extra_slots -= 1
+
     invite.record_accepted()
     db.session.add(invite)
     db.session.commit()
@@ -359,6 +361,8 @@ def invite_provider():
     family_name = format_name(primary_guardian)
 
     invitations: list[ProviderInvitation] = []
+
+    id = str(uuid4())
     for child in children:
         try:
             child_id = Child.ID(child)
