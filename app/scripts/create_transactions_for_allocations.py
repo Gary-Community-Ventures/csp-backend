@@ -111,13 +111,14 @@ def process_month_allocations(
     return processed_count, errors
 
 
-def fetch_missing_allocations(cutoff_date: date, limit: Optional[int] = None) -> list[MonthAllocation]:
-    """Fetch all allocations missing transfer IDs from the cutoff date."""
+def fetch_missing_allocations(cutoff_date: date, payment_enabled_child_ids: list[str], limit: Optional[int] = None) -> list[MonthAllocation]:
+    """Fetch all allocations missing transfer IDs from the cutoff date for payment-enabled children."""
     query = MonthAllocation.query.filter(
         and_(
             MonthAllocation.date >= cutoff_date,
             MonthAllocation.chek_transfer_id.is_(None),
             MonthAllocation.allocation_cents > 0,
+            MonthAllocation.child_supabase_id.in_(payment_enabled_child_ids),
         )
     ).order_by(MonthAllocation.date, MonthAllocation.child_supabase_id)
 
@@ -177,14 +178,22 @@ def process_missing_allocations(dry_run: bool = False, limit: Optional[int] = No
     print(f"\n{'[DRY RUN] ' if dry_run else ''}Processing allocations missing transfer IDs")
     print("=" * 60)
 
-    children_result = Child.query().select(cols(Child.ID, Child.FIRST_NAME, Child.LAST_NAME)).execute()
+    children_result = (
+        Child.query()
+        .select(cols(Child.ID, Child.FIRST_NAME, Child.LAST_NAME, Child.PAYMENT_ENABLED))
+        .eq(Child.PAYMENT_ENABLED, True)
+        .execute()
+    )
     children = unwrap_or_error(children_result)
 
     # Define the cutoff date - September 2025
     cutoff_date = date(2025, 9, 1)
 
+    # Extract child IDs with payment enabled
+    payment_enabled_child_ids = [Child.ID(child) for child in children]
+
     # Fetch allocations
-    allocations = fetch_missing_allocations(cutoff_date, limit)
+    allocations = fetch_missing_allocations(cutoff_date, payment_enabled_child_ids, limit)
 
     if not allocations:
         print(f"✅ No allocations missing transfer IDs from {cutoff_date.strftime('%B %Y')} onwards")
