@@ -38,21 +38,6 @@ from app.utils.sms_service import send_sms
 bp = Blueprint("family", __name__)
 
 
-def create_allocations(family_children, month):
-    """Create allocations for a list of children for a specific month.
-
-    Args:
-        family_children: List of child data from Supabase query
-        month: The month to create allocations for
-
-    Returns:
-        AllocationResult with details about created allocations
-    """
-    child_ids = [Child.ID(child) for child in family_children]
-    allocation_service = AllocationService(current_app)
-    return allocation_service.create_allocations_for_specific_children(child_ids, month)
-
-
 @bp.post("/family")
 @api_key_required
 def new_family():
@@ -154,35 +139,39 @@ def new_family():
     db.session.commit()
 
     # Create allocations for current and next month (at the end after all other operations succeed)
-    current_month_result = create_allocations(children, get_current_month_start())
-    next_month_result = create_allocations(children, get_next_month_start())
+    from app.utils.onboarding import create_family_allocations
 
-    # Check if any allocations were created
-    total_created = current_month_result.created_count + next_month_result.created_count
-    total_expected = len(children) * 2  # current month + next month for each child
+    current_month_result, next_month_result = create_family_allocations(children, family_id)
 
-    if total_created < total_expected:
-        # Some allocations were created but not all
-        current_app.logger.warning(
-            f"Partial allocation creation for family {family_id}: {total_created}/{total_expected} created. "
-            f"Current month: {current_month_result.created_count} created, {current_month_result.skipped_count} skipped, {current_month_result.error_count} errors. "
-            f"Next month: {next_month_result.created_count} created, {next_month_result.skipped_count} skipped, {next_month_result.error_count} errors."
-        )
+    # Check if any allocations were created (only if we have payment-enabled children)
+    if current_month_result is not None and next_month_result is not None:
+        total_created = current_month_result.created_count + next_month_result.created_count
+        # Only count payment-enabled children for expected count
+        payment_enabled_count = sum(1 for c in children if Child.PAYMENT_ENABLED(c))
+        total_expected = payment_enabled_count * 2  # current month + next month for each payment-enabled child
 
-    if total_created == 0:
-        # No allocations were created at all - return 400 at the very end
-        error_messages = current_month_result.errors + next_month_result.errors
-        error_detail = f"No allocations were created. " + (
-            f"Errors: {'; '.join(error_messages[:3])}"
-            if error_messages
-            else "No children matched the allocation criteria."
-        )
-        current_app.logger.error(
-            f"Failed to create allocations for family {family_id}: {error_detail}. "
-            f"Current month: {current_month_result.created_count} created, {current_month_result.error_count} errors. "
-            f"Next month: {next_month_result.created_count} created, {next_month_result.error_count} errors."
-        )
-        abort(400, description=error_detail)
+        if total_created < total_expected:
+            # Some allocations were created but not all
+            current_app.logger.warning(
+                f"Partial allocation creation for family {family_id}: {total_created}/{total_expected} created. "
+                f"Current month: {current_month_result.created_count} created, {current_month_result.skipped_count} skipped, {current_month_result.error_count} errors. "
+                f"Next month: {next_month_result.created_count} created, {next_month_result.skipped_count} skipped, {next_month_result.error_count} errors."
+            )
+
+        if total_created == 0 and payment_enabled_count > 0:
+            # No allocations were created at all despite having payment-enabled children - return 400 at the very end
+            error_messages = current_month_result.errors + next_month_result.errors
+            error_detail = f"No allocations were created. " + (
+                f"Errors: {'; '.join(error_messages[:3])}"
+                if error_messages
+                else "No children matched the allocation criteria."
+            )
+            current_app.logger.error(
+                f"Failed to create allocations for family {family_id}: {error_detail}. "
+                f"Current month: {current_month_result.created_count} created, {current_month_result.error_count} errors. "
+                f"Next month: {next_month_result.created_count} created, {next_month_result.error_count} errors."
+            )
+            abort(400, description=error_detail)
 
     return jsonify(data)
 
