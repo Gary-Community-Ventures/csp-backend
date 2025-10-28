@@ -115,7 +115,7 @@ def new_family():
         # No allocations were created at all
         error_messages = current_month_result.errors + next_month_result.errors
         error_detail = f"No allocations were created. " + (
-            f"Errors: {'; '.join(error_messages[:3])}" if error_messages else "Children may not have payment enabled."
+            f"Errors: {'; '.join(error_messages[:3])}" if error_messages else "No children matched the allocation criteria."
         )
         current_app.logger.error(
             f"Failed to create allocations for family {family_id}: {error_detail}. "
