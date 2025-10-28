@@ -36,16 +36,19 @@ from app.utils.sms_service import send_sms
 bp = Blueprint("family", __name__)
 
 
-def create_allocations(family_children, month) -> None:
+def create_allocations(family_children, month):
     """Create allocations for a list of children for a specific month.
 
     Args:
         family_children: List of child data from Supabase query
         month: The month to create allocations for
+
+    Returns:
+        AllocationResult with details about created allocations
     """
     child_ids = [Child.ID(child) for child in family_children]
     allocation_service = AllocationService(current_app)
-    allocation_service.create_allocations_for_specific_children(child_ids, month)
+    return allocation_service.create_allocations_for_specific_children(child_ids, month)
 
 
 @bp.post("/family")
@@ -101,8 +104,33 @@ def new_family():
     )
 
     # Create allocations for current and next month (after Clerk invite succeeds)
-    create_allocations(children, get_current_month_start())
-    create_allocations(children, get_next_month_start())
+    current_month_result = create_allocations(children, get_current_month_start())
+    next_month_result = create_allocations(children, get_next_month_start())
+
+    # Check if any allocations were created
+    total_created = current_month_result.created_count + next_month_result.created_count
+    total_expected = len(children) * 2  # current month + next month for each child
+
+    if total_created == 0:
+        # No allocations were created at all
+        error_messages = current_month_result.errors + next_month_result.errors
+        error_detail = f"No allocations were created. " + (
+            f"Errors: {'; '.join(error_messages[:3])}" if error_messages else "Children may not have payment enabled."
+        )
+        current_app.logger.error(
+            f"Failed to create allocations for family {family_id}: {error_detail}. "
+            f"Current month: {current_month_result.created_count} created, {current_month_result.error_count} errors. "
+            f"Next month: {next_month_result.created_count} created, {next_month_result.error_count} errors."
+        )
+        abort(400, description=error_detail)
+
+    if total_created < total_expected:
+        # Some allocations were created but not all
+        current_app.logger.warning(
+            f"Partial allocation creation for family {family_id}: {total_created}/{total_expected} created. "
+            f"Current month: {current_month_result.created_count} created, {current_month_result.skipped_count} skipped, {current_month_result.error_count} errors. "
+            f"Next month: {next_month_result.created_count} created, {next_month_result.skipped_count} skipped, {next_month_result.error_count} errors."
+        )
 
     link_id = Family.LINK_ID(family)
     if link_id is None:
