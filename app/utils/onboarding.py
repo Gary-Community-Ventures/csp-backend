@@ -19,6 +19,9 @@ def update_clerk_user_metadata(clerk_user_id: str, user_type: ClerkUserType, ent
     """
     Update Clerk user metadata with entity ID and type.
 
+    Sets both 'types' array and the entity ID key (family_id or provider_id)
+    in the public_metadata, matching the format used in Clerk invitations.
+
     Args:
         clerk_user_id: Clerk user ID
         user_type: Type of user (FAMILY or PROVIDER)
@@ -30,8 +33,16 @@ def update_clerk_user_metadata(clerk_user_id: str, user_type: ClerkUserType, ent
     clerk: Clerk = current_app.clerk_client
     metadata_key = "family_id" if user_type == ClerkUserType.FAMILY else "provider_id"
 
-    clerk.users.update(user_id=clerk_user_id, public_metadata={"types": [user_type.value], metadata_key: entity_id})
-    current_app.logger.info(f"Updated Clerk user {clerk_user_id} with {metadata_key} {entity_id}")
+    # Build metadata dict with both types array and entity ID
+    metadata = {
+        "types": [user_type.value],  # List in case users fit into multiple categories
+        metadata_key: entity_id,
+    }
+
+    clerk.users.update(user_id=clerk_user_id, public_metadata=metadata)
+    current_app.logger.info(
+        f"Updated Clerk user {clerk_user_id} with types={[user_type.value]} and {metadata_key}={entity_id}"
+    )
 
 
 def send_portal_invite_email(
