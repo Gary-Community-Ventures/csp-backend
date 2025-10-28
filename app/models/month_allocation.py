@@ -138,6 +138,13 @@ class MonthAllocation(db.Model, TimestampMixin):
         if month_start > next_month_start:
             raise ValueError(f"Cannot create allocation for a month more than one month in the future.")
 
+        # Check if child has payment enabled
+        child_results = Child.select_by_id(cols(Child.PAYMENT_ENABLED), int(child_id)).execute()
+        child = unwrap_or_error(child_results)
+
+        if not Child.PAYMENT_ENABLED(child):
+            raise ValueError(f"Child {child_id} does not have payment enabled")
+
         # First, try to get existing allocation
         allocation = MonthAllocation.query.filter_by(child_supabase_id=child_id, date=month_start).first()
 

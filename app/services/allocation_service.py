@@ -62,11 +62,16 @@ class AllocationService:
         """
         result = AllocationResult()
 
-        children_result = Child.query().select(cols(Child.ID, Child.FIRST_NAME, Child.LAST_NAME)).execute()
+        children_result = (
+            Child.query()
+            .select(cols(Child.ID, Child.FIRST_NAME, Child.LAST_NAME, Child.PAYMENT_ENABLED))
+            .eq(Child.PAYMENT_ENABLED, True)
+            .execute()
+        )
         children = unwrap_or_error(children_result)
 
         if len(children) == 0:
-            self.app.logger.warning("No children found")
+            self.app.logger.warning("No children with payment enabled found")
             return result
 
         # Process each child
@@ -114,12 +119,16 @@ class AllocationService:
         result = AllocationResult()
 
         children_result = (
-            Child.query().select(cols(Child.ID, Child.FIRST_NAME, Child.LAST_NAME)).in_(Child.ID, child_ids).execute()
+            Child.query()
+            .select(cols(Child.ID, Child.FIRST_NAME, Child.LAST_NAME, Child.PAYMENT_ENABLED))
+            .in_(Child.ID, child_ids)
+            .eq(Child.PAYMENT_ENABLED, True)
+            .execute()
         )
         children = unwrap_or_error(children_result)
 
         if len(children) == 0:
-            self.app.logger.warning(f"No matching children found for IDs: {child_ids}")
+            self.app.logger.warning(f"No matching children with payment enabled found for IDs: {child_ids}")
             return result
 
         self.app.logger.info(f"Creating allocations for {len(children)} specific children for {target_month}")
