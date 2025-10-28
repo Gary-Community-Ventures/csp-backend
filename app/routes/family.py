@@ -1,7 +1,9 @@
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
+import sentry_sdk
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, current_app, jsonify, request
 
@@ -54,6 +56,17 @@ def create_allocations(family_children, month):
 @bp.post("/family")
 @api_key_required
 def new_family():
+    """
+    DEPRECATED: Use POST /family/onboard instead.
+
+    This endpoint creates a Clerk invitation and onboards a family.
+    It is being phased out in favor of the new flow where users create
+    their own Clerk accounts first, then get linked via /family/onboard.
+
+    Will be removed in a future version.
+    """
+    current_app.logger.warning("DEPRECATED: POST /family endpoint called. Use POST /family/onboard instead.")
+
     data = request.json
 
     family_id = data.get("family_id")
@@ -174,6 +187,164 @@ def new_family():
         abort(400, description=error_detail)
 
     return jsonify(data)
+
+
+@bp.post("/family/onboard")
+@api_key_required
+def onboard_family():
+    """
+    Onboard an existing Clerk user to a family account.
+
+    This endpoint:
+    1. Links a Clerk user to a family in the database
+    2. Updates Clerk metadata with family_id
+    3. Onboards family to Chek payment system
+    4. Creates monthly allocations
+    5. Sends portal invitation email
+
+    Idempotent: Safe to call multiple times. Uses Redis locking to prevent
+    duplicate operations from concurrent requests.
+    """
+    data = request.json
+    clerk_user_id = data.get("clerk_user_id")
+    family_id = data.get("family_id")
+
+    # Validate required fields
+    if not clerk_user_id:
+        abort(400, description="Missing required field: clerk_user_id")
+    if not family_id:
+        abort(400, description="Missing required field: family_id")
+
+    # Get Redis connection for distributed locking
+    try:
+        redis_conn = current_app.extensions["job_manager"].get_redis()
+        lock_key = f"onboarding:family:{family_id}"
+
+        # Try to acquire lock (5 minute TTL) - fail-closed approach
+        lock_acquired = redis_conn.set(lock_key, clerk_user_id, nx=True, ex=300)
+
+        if not lock_acquired:
+            # Another request is already processing or recently processed this
+            current_app.logger.info(f"Family {family_id} onboarding already in progress or completed, skipping")
+            return jsonify({"message": "Onboarding already in progress or completed"}), 200
+
+    except Exception as redis_error:
+        # Redis is down - fail closed (reject request)
+        current_app.logger.error(f"Redis unavailable for onboarding lock: {redis_error}")
+        sentry_sdk.capture_exception(redis_error)
+        abort(503, description="Service temporarily unavailable, please retry in a few moments")
+
+    try:
+        # 1. Fetch family data with children and language preference
+        family_result = Family.select_by_id(
+            cols(
+                Family.ID,
+                Family.LANGUAGE,
+                Family.PORTAL_INVITE_SENT_AT,
+                Child.join(Child.ID, Child.PAYMENT_ENABLED),
+                Guardian.join(Guardian.EMAIL, Guardian.TYPE),
+            ),
+            int(family_id),
+        ).execute()
+        family_data = unwrap_or_abort(family_result)
+        children = Child.unwrap(family_data)
+        guardians = Guardian.unwrap(family_data)
+
+        # Get primary guardian email for portal invite
+        primary_guardian = Guardian.get_primary_guardian(guardians)
+        guardian_email = Guardian.EMAIL(primary_guardian) if primary_guardian else None
+
+        if not guardian_email:
+            current_app.logger.error(f"No primary guardian email found for family {family_id}")
+            abort(400, description="Family has no primary guardian email")
+
+        # 2. Update Clerk user metadata
+        try:
+            from app.utils.onboarding import update_clerk_user_metadata
+
+            update_clerk_user_metadata(clerk_user_id, ClerkUserType.FAMILY, int(family_id))
+        except Exception as clerk_error:
+            current_app.logger.error(f"Failed to update Clerk user metadata: {clerk_error}")
+            sentry_sdk.capture_exception(clerk_error)
+            raise
+
+        # 3. Update family table with clerk_user_id
+        Family.query().update({"clerk_user_id": clerk_user_id}).eq("id", family_id).execute()
+
+        # 4. Onboard to Chek (already idempotent)
+        payment_service = current_app.payment_service
+        family_settings = payment_service.onboard_family(family_id)
+        current_app.logger.info(f"Onboarded family {family_id} to Chek with user {family_settings.chek_user_id}")
+
+        # 5. Create allocations for payment-enabled children (already idempotent via get_or_create)
+        payment_enabled_children = [c for c in children if Child.PAYMENT_ENABLED(c)]
+
+        if len(payment_enabled_children) > 0:
+            child_ids = [Child.ID(c) for c in payment_enabled_children]
+            allocation_service = AllocationService(current_app)
+
+            current_month_result = allocation_service.create_allocations_for_specific_children(
+                child_ids, get_current_month_start()
+            )
+            next_month_result = allocation_service.create_allocations_for_specific_children(
+                child_ids, get_next_month_start()
+            )
+
+            current_app.logger.info(
+                f"Created allocations for family {family_id}: "
+                f"Current month: {current_month_result.created_count} created, {current_month_result.skipped_count} skipped. "
+                f"Next month: {next_month_result.created_count} created, {next_month_result.skipped_count} skipped."
+            )
+        else:
+            current_app.logger.warning(f"No payment-enabled children found for family {family_id}")
+
+        # 6. Send portal invite email (only once)
+        if not Family.PORTAL_INVITE_SENT_AT(family_data):
+            language = Family.LANGUAGE(family_data) or Language.ENGLISH
+
+            from app.utils.onboarding import send_portal_invite_email
+
+            email_sent = send_portal_invite_email(
+                email=guardian_email,
+                entity_type="family",
+                entity_id=int(family_id),
+                language=language,
+                clerk_user_id=clerk_user_id,
+            )
+
+            if email_sent:
+                # Mark portal invite as sent
+                Family.query().update({"portal_invite_sent_at": datetime.now(timezone.utc)}).eq(
+                    "id", family_id
+                ).execute()
+                current_app.logger.info(f"Sent portal invite email to family {family_id}")
+            else:
+                current_app.logger.error(f"Failed to send portal invite email to family {family_id}")
+        else:
+            current_app.logger.info(f"Portal invite already sent for family {family_id}, skipping email")
+
+        return (
+            jsonify(
+                {
+                    "message": "Family onboarded successfully",
+                    "family_id": family_id,
+                    "clerk_user_id": clerk_user_id,
+                }
+            ),
+            200,
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"Error onboarding family {family_id}: {e}")
+        sentry_sdk.capture_exception(e)
+        raise
+
+    finally:
+        # Always release the lock
+        try:
+            redis_conn.delete(lock_key)
+        except Exception as cleanup_error:
+            current_app.logger.warning(f"Failed to release Redis lock: {cleanup_error}")
 
 
 @bp.get("/family/default_child_id")

@@ -1,18 +1,22 @@
+
 #!/bin/bash
 
-# Create Provider Script
-# Usage: ./create_provider.sh <environment> [email] [supabase_id]
-# Example: ./create_provider.sh "dev" "provider@example.com" "1xyz789abc123def456ghi"
+# Create Family Script
+# Usage: ./scripts/create_family.sh <environment> [email] [supabase_id]
+# Example: ./scripts/create_family.sh "dev" "family@example.com" "1abc123def456ghi789jkl"
 # Environments: dev, staging, prod
 
-# Load environment variables from .env.local
-if [ -f ".env.local" ]; then
-    export $(cat .env.local | grep -v '^#' | xargs)
+# Get the project root directory (parent of scripts directory)
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Load environment variables from .env.local in project root
+if [ -f "$PROJECT_ROOT/.env.local" ]; then
+    export $(cat "$PROJECT_ROOT/.env.local" | grep -v '^#' | xargs)
 else
-    echo "Error: .env.local file not found"
+    echo "Error: .env.local file not found in $PROJECT_ROOT"
     echo "Please create .env.local with your API keys:"
     echo "DEV_API_KEY=your-dev-api-key"
-    echo "STAGING_API_KEY=your-staging-api-key" 
+    echo "STAGING_API_KEY=your-staging-api-key"
     echo "PROD_API_KEY=your-prod-api-key"
     exit 1
 fi
@@ -21,7 +25,7 @@ fi
 if [ $# -lt 1 ]; then
     echo "Usage: $0 <environment> [email] [supabase_id]"
     echo "Environments: dev, staging, prod"
-    echo "Example: $0 'dev' 'provider@example.com' '1xyz789abc123def456ghi'"
+    echo "Example: $0 'dev' 'family@example.com' '1abc123def456ghi789jkl'"
     exit 1
 fi
 
@@ -57,21 +61,21 @@ if [ -z "$API_KEY" ]; then
 fi
 
 # Get optional parameters from command line or use defaults
-EMAIL=${2:-"provider@example.com"}
-SUPABASE_ID=${3:-"1xyz789abc123def456ghi"}
+EMAIL=${2:-"family@example.com"}
+SUPABASE_ID=${3:-"1abc123def456ghi789jkl"}
 
-echo "Creating new provider..."
+echo "Creating new family..."
 echo "Environment: $ENVIRONMENT"
 echo "Base URL: $BASE_URL"
 echo "Email: $EMAIL"
-echo "Supabase ID: $SUPABASE_ID"
+echo "Google Sheet ID: $SUPABASE_ID"
 echo ""
 
-curl -X POST "$BASE_URL/provider" \
+curl -X POST "$BASE_URL/family" \
     -H "Content-Type: application/json" \
     -H "X-API-Key: $API_KEY" \
     -d "{
-        \"provider_id\": \"$SUPABASE_ID\",
+        \"family_id\": \"$SUPABASE_ID\",
         \"email\": \"$EMAIL\"
     }" \
     -w "\nHTTP Status: %{http_code}\n" \

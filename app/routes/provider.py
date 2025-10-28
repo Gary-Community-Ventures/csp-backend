@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from uuid import uuid4
 
+import sentry_sdk
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, current_app, jsonify, request
 from pydantic import ValidationError
@@ -48,6 +49,17 @@ bp = Blueprint("provider", __name__)
 @bp.post("/provider")
 @api_key_required
 def new_provider():
+    """
+    DEPRECATED: Use POST /provider/onboard instead.
+
+    This endpoint creates a Clerk invitation and onboards a provider.
+    It is being phased out in favor of the new flow where users create
+    their own Clerk accounts first, then get linked via /provider/onboard.
+
+    Will be removed in a future version.
+    """
+    current_app.logger.warning("DEPRECATED: POST /provider endpoint called. Use POST /provider/onboard instead.")
+
     data = request.json
 
     # Validate required fields
@@ -121,6 +133,139 @@ def new_provider():
     db.session.commit()
 
     return jsonify(data)
+
+
+@bp.post("/provider/onboard")
+@api_key_required
+def onboard_provider():
+    """
+    Onboard an existing Clerk user to a provider account.
+
+    This endpoint:
+    1. Links a Clerk user to a provider in the database
+    2. Updates Clerk metadata with provider_id
+    3. Onboards provider to Chek payment system
+    4. Sends portal invitation email
+
+    Idempotent: Safe to call multiple times. Uses Redis locking to prevent
+    duplicate operations from concurrent requests.
+    """
+    data = request.json
+    clerk_user_id = data.get("clerk_user_id")
+    provider_id = data.get("provider_id")
+
+    # Validate required fields
+    if not clerk_user_id:
+        abort(400, description="Missing required field: clerk_user_id")
+    if not provider_id:
+        abort(400, description="Missing required field: provider_id")
+
+    # Get Redis connection for distributed locking
+    try:
+        redis_conn = current_app.extensions["job_manager"].get_redis()
+        lock_key = f"onboarding:provider:{provider_id}"
+
+        # Try to acquire lock (5 minute TTL) - fail-closed approach
+        lock_acquired = redis_conn.set(lock_key, clerk_user_id, nx=True, ex=300)
+
+        if not lock_acquired:
+            # Another request is already processing or recently processed this
+            current_app.logger.info(f"Provider {provider_id} onboarding already in progress or completed, skipping")
+            return jsonify({"message": "Onboarding already in progress or completed"}), 200
+
+    except Exception as redis_error:
+        # Redis is down - fail closed (reject request)
+        current_app.logger.error(f"Redis unavailable for onboarding lock: {redis_error}")
+        sentry_sdk.capture_exception(redis_error)
+        abort(503, description="Service temporarily unavailable, please retry in a few moments")
+
+    try:
+        # 1. Fetch provider data with language preference
+        provider_result = Provider.select_by_id(
+            cols(
+                Provider.ID,
+                Provider.FIRST_NAME,
+                Provider.EMAIL,
+                Provider.PREFERRED_LANGUAGE,
+                Provider.PORTAL_INVITE_SENT_AT,
+            ),
+            int(provider_id),
+        ).execute()
+        provider_data = unwrap_or_abort(provider_result)
+
+        provider_email = Provider.EMAIL(provider_data)
+        provider_name = Provider.FIRST_NAME(provider_data)
+
+        if not provider_email:
+            current_app.logger.error(f"No email found for provider {provider_id}")
+            abort(400, description="Provider has no email address")
+
+        # 2. Update Clerk user metadata
+        try:
+            from app.utils.onboarding import update_clerk_user_metadata
+
+            update_clerk_user_metadata(clerk_user_id, ClerkUserType.PROVIDER, int(provider_id))
+        except Exception as clerk_error:
+            current_app.logger.error(f"Failed to update Clerk user metadata: {clerk_error}")
+            sentry_sdk.capture_exception(clerk_error)
+            raise
+
+        # 3. Update provider table with clerk_user_id
+        Provider.query().update({"clerk_user_id": clerk_user_id}).eq("id", provider_id).execute()
+
+        # 4. Onboard to Chek (already idempotent)
+        payment_service = current_app.payment_service
+        provider_settings = payment_service.onboard_provider(provider_id)
+        current_app.logger.info(f"Onboarded provider {provider_id} to Chek with user {provider_settings.chek_user_id}")
+
+        # 5. Send portal invite email (only once)
+        if not Provider.PORTAL_INVITE_SENT_AT(provider_data):
+            language = Provider.PREFERRED_LANGUAGE(provider_data) or Language.ENGLISH
+
+            from app.utils.onboarding import send_portal_invite_email
+
+            email_sent = send_portal_invite_email(
+                email=provider_email,
+                entity_type="provider",
+                entity_id=int(provider_id),
+                language=language,
+                clerk_user_id=clerk_user_id,
+                provider_name=provider_name,
+            )
+
+            if email_sent:
+                # Mark portal invite as sent
+                Provider.query().update({"portal_invite_sent_at": datetime.now(timezone.utc)}).eq(
+                    "id", provider_id
+                ).execute()
+                current_app.logger.info(f"Sent portal invite email to provider {provider_id}")
+            else:
+                current_app.logger.error(f"Failed to send portal invite email to provider {provider_id}")
+        else:
+            current_app.logger.info(f"Portal invite already sent for provider {provider_id}, skipping email")
+
+        return (
+            jsonify(
+                {
+                    "message": "Provider onboarded successfully",
+                    "provider_id": provider_id,
+                    "clerk_user_id": clerk_user_id,
+                }
+            ),
+            200,
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"Error onboarding provider {provider_id}: {e}")
+        sentry_sdk.capture_exception(e)
+        raise
+
+    finally:
+        # Always release the lock
+        try:
+            redis_conn.delete(lock_key)
+        except Exception as cleanup_error:
+            current_app.logger.warning(f"Failed to release Redis lock: {cleanup_error}")
 
 
 @bp.get("/provider")

@@ -52,6 +52,8 @@ class Family(Table):
     ZIP = Column("zip")
     LANGUAGE = Column("language", enum_column(Language))
     LINK_ID = Column("link_id")
+    CLERK_USER_ID = Column("clerk_user_id")
+    PORTAL_INVITE_SENT_AT = Column("portal_invite_sent_at", datetime_column)
 
 
 class Guardian(Table):
@@ -144,6 +146,8 @@ class Provider(Table):
     PDIS_MEDICATION_ADMINISTRATION_PART_ONE_COMPLETED_AT = Column(
         "pdis_medication_administration_part_one_completed_at", datetime_column
     )
+    CLERK_USER_ID = Column("clerk_user_id")
+    PORTAL_INVITE_SENT_AT = Column("portal_invite_sent_at", datetime_column)
 
 
 class ProviderChildMapping(Table):
