@@ -111,11 +111,9 @@ def new_family():
     )
 
     # Create Chek user and FamilyPaymentSettings (idempotent - returns existing if already created)
-    payment_service = current_app.payment_service
-    family_settings = payment_service.onboard_family(family_id)
-    current_app.logger.info(
-        f"FamilyPaymentSettings for family {family_id} with Chek user {family_settings.chek_user_id}"
-    )
+    from app.utils.onboarding import onboard_family_to_chek
+
+    onboard_family_to_chek(family_id)
 
     link_id = Family.LINK_ID(family)
     if link_id is None:
@@ -239,6 +237,7 @@ def onboard_family():
         family_result = Family.select_by_id(
             cols(
                 Family.ID,
+                Family.CLERK_USER_ID,
                 Family.LANGUAGE,
                 Family.PORTAL_INVITE_SENT_AT,
                 Child.join(Child.ID, Child.PAYMENT_ENABLED),
@@ -249,6 +248,19 @@ def onboard_family():
         family_data = unwrap_or_abort(family_result)
         children = Child.unwrap(family_data)
         guardians = Guardian.unwrap(family_data)
+
+        # Validate that the clerk_user_id matches what's in the database
+        stored_clerk_user_id = Family.CLERK_USER_ID(family_data)
+        if stored_clerk_user_id and stored_clerk_user_id != clerk_user_id:
+            current_app.logger.error(
+                f"Clerk user ID mismatch for family {family_id}: "
+                f"provided {clerk_user_id}, stored {stored_clerk_user_id}"
+            )
+            abort(400, description="Clerk user ID does not match family record")
+
+        if not stored_clerk_user_id:
+            current_app.logger.error(f"No clerk_user_id found in database for family {family_id}")
+            abort(400, description="Family does not have a clerk_user_id set")
 
         # Get primary guardian email for portal invite
         primary_guardian = Guardian.get_primary_guardian(guardians)
@@ -268,37 +280,18 @@ def onboard_family():
             sentry_sdk.capture_exception(clerk_error)
             raise
 
-        # 3. Update family table with clerk_user_id
-        Family.query().update({"clerk_user_id": clerk_user_id}).eq("id", family_id).execute()
+        # 3. Onboard to Chek (already idempotent)
+        from app.utils.onboarding import (
+            create_family_allocations,
+            onboard_family_to_chek,
+        )
 
-        # 4. Onboard to Chek (already idempotent)
-        payment_service = current_app.payment_service
-        family_settings = payment_service.onboard_family(family_id)
-        current_app.logger.info(f"Onboarded family {family_id} to Chek with user {family_settings.chek_user_id}")
+        onboard_family_to_chek(family_id)
 
-        # 5. Create allocations for payment-enabled children (already idempotent via get_or_create)
-        payment_enabled_children = [c for c in children if Child.PAYMENT_ENABLED(c)]
+        # 4. Create allocations for payment-enabled children (already idempotent via get_or_create)
+        create_family_allocations(children, family_id)
 
-        if len(payment_enabled_children) > 0:
-            child_ids = [Child.ID(c) for c in payment_enabled_children]
-            allocation_service = AllocationService(current_app)
-
-            current_month_result = allocation_service.create_allocations_for_specific_children(
-                child_ids, get_current_month_start()
-            )
-            next_month_result = allocation_service.create_allocations_for_specific_children(
-                child_ids, get_next_month_start()
-            )
-
-            current_app.logger.info(
-                f"Created allocations for family {family_id}: "
-                f"Current month: {current_month_result.created_count} created, {current_month_result.skipped_count} skipped. "
-                f"Next month: {next_month_result.created_count} created, {next_month_result.skipped_count} skipped."
-            )
-        else:
-            current_app.logger.warning(f"No payment-enabled children found for family {family_id}")
-
-        # 6. Send portal invite email (only once)
+        # 5. Send portal invite email (only once)
         if not Family.PORTAL_INVITE_SENT_AT(family_data):
             language = Family.LANGUAGE(family_data) or Language.ENGLISH
 

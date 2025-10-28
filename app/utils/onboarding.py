@@ -2,7 +2,8 @@
 Shared onboarding utilities for families and providers.
 
 This module contains common logic for onboarding users to the CAP system,
-including Clerk metadata updates and portal invitation emails.
+including Clerk metadata updates, portal invitation emails, Chek onboarding,
+and allocation creation.
 """
 
 from typing import Optional
@@ -82,3 +83,90 @@ def send_portal_invite_email(
         },
         is_internal=False,
     )
+
+
+def onboard_family_to_chek(family_id: int):
+    """
+    Onboard a family to the Chek payment system.
+
+    This is idempotent - returns existing settings if already created.
+
+    Args:
+        family_id: Family ID
+
+    Returns:
+        FamilyPaymentSettings instance
+
+    Raises:
+        Exception: If Chek onboarding fails
+    """
+    payment_service = current_app.payment_service
+    family_settings = payment_service.onboard_family(family_id)
+    current_app.logger.info(f"Onboarded family {family_id} to Chek with user {family_settings.chek_user_id}")
+    return family_settings
+
+
+def onboard_provider_to_chek(provider_id: int):
+    """
+    Onboard a provider to the Chek payment system.
+
+    This is idempotent - returns existing settings if already created.
+
+    Args:
+        provider_id: Provider ID
+
+    Returns:
+        ProviderPaymentSettings instance
+
+    Raises:
+        Exception: If Chek onboarding fails
+    """
+    payment_service = current_app.payment_service
+    provider_settings = payment_service.onboard_provider(provider_id)
+    current_app.logger.info(f"Onboarded provider {provider_id} to Chek with user {provider_settings.chek_user_id}")
+    return provider_settings
+
+
+def create_family_allocations(children: list, family_id: int):
+    """
+    Create month allocations for payment-enabled children.
+
+    Creates allocations for both current and next month.
+    This is idempotent via get_or_create logic.
+
+    Args:
+        children: List of child records
+        family_id: Family ID for logging
+
+    Returns:
+        Tuple of (current_month_result, next_month_result)
+
+    Raises:
+        Exception: If allocation creation fails
+    """
+    from app.services.allocation_service import AllocationService
+    from app.supabase.tables import Child
+    from app.utils.dates import get_current_month_start, get_next_month_start
+
+    # Filter to payment-enabled children
+    payment_enabled_children = [c for c in children if Child.PAYMENT_ENABLED(c)]
+
+    if len(payment_enabled_children) == 0:
+        current_app.logger.warning(f"No payment-enabled children found for family {family_id}")
+        return None, None
+
+    child_ids = [Child.ID(c) for c in payment_enabled_children]
+    allocation_service = AllocationService(current_app)
+
+    current_month_result = allocation_service.create_allocations_for_specific_children(
+        child_ids, get_current_month_start()
+    )
+    next_month_result = allocation_service.create_allocations_for_specific_children(child_ids, get_next_month_start())
+
+    current_app.logger.info(
+        f"Created allocations for family {family_id}: "
+        f"Current month: {current_month_result.created_count} created, {current_month_result.skipped_count} skipped. "
+        f"Next month: {next_month_result.created_count} created, {next_month_result.skipped_count} skipped."
+    )
+
+    return current_month_result, next_month_result

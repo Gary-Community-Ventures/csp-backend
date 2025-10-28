@@ -77,11 +77,9 @@ def new_provider():
         abort(404, description=f"Provider with ID {provider_id} not found.")
 
     # Create Chek user and ProviderPaymentSettings
-    payment_service = current_app.payment_service
-    provider_settings = payment_service.onboard_provider(provider_id)
-    current_app.logger.info(
-        f"Created ProviderPaymentSettings for provider {provider_id} with Chek user {provider_settings.chek_user_id}"
-    )
+    from app.utils.onboarding import onboard_provider_to_chek
+
+    onboard_provider_to_chek(provider_id)
 
     # send clerk invite
     clerk: Clerk = current_app.clerk_client
@@ -184,6 +182,7 @@ def onboard_provider():
         provider_result = Provider.select_by_id(
             cols(
                 Provider.ID,
+                Provider.CLERK_USER_ID,
                 Provider.FIRST_NAME,
                 Provider.EMAIL,
                 Provider.PREFERRED_LANGUAGE,
@@ -192,6 +191,19 @@ def onboard_provider():
             int(provider_id),
         ).execute()
         provider_data = unwrap_or_abort(provider_result)
+
+        # Validate that the clerk_user_id matches what's in the database
+        stored_clerk_user_id = Provider.CLERK_USER_ID(provider_data)
+        if stored_clerk_user_id and stored_clerk_user_id != clerk_user_id:
+            current_app.logger.error(
+                f"Clerk user ID mismatch for provider {provider_id}: "
+                f"provided {clerk_user_id}, stored {stored_clerk_user_id}"
+            )
+            abort(400, description="Clerk user ID does not match provider record")
+
+        if not stored_clerk_user_id:
+            current_app.logger.error(f"No clerk_user_id found in database for provider {provider_id}")
+            abort(400, description="Provider does not have a clerk_user_id set")
 
         provider_email = Provider.EMAIL(provider_data)
         provider_name = Provider.FIRST_NAME(provider_data)
@@ -210,15 +222,12 @@ def onboard_provider():
             sentry_sdk.capture_exception(clerk_error)
             raise
 
-        # 3. Update provider table with clerk_user_id
-        Provider.query().update({"clerk_user_id": clerk_user_id}).eq("id", provider_id).execute()
+        # 3. Onboard to Chek (already idempotent)
+        from app.utils.onboarding import onboard_provider_to_chek
 
-        # 4. Onboard to Chek (already idempotent)
-        payment_service = current_app.payment_service
-        provider_settings = payment_service.onboard_provider(provider_id)
-        current_app.logger.info(f"Onboarded provider {provider_id} to Chek with user {provider_settings.chek_user_id}")
+        onboard_provider_to_chek(provider_id)
 
-        # 5. Send portal invite email (only once)
+        # 4. Send portal invite email (only once)
         if not Provider.PORTAL_INVITE_SENT_AT(provider_data):
             language = Provider.PREFERRED_LANGUAGE(provider_data) or Language.ENGLISH
 
