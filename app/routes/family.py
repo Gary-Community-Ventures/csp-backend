@@ -71,6 +71,7 @@ def new_family():
             Family.LINK_ID,
             Child.join(
                 Child.ID,
+                Child.PAYMENT_ENABLED,
                 Provider.join(Provider.ID),
             ),
         ),
@@ -102,37 +103,6 @@ def new_family():
     current_app.logger.info(
         f"FamilyPaymentSettings for family {family_id} with Chek user {family_settings.chek_user_id}"
     )
-
-    # Create allocations for current and next month (after Clerk invite succeeds)
-    current_month_result = create_allocations(children, get_current_month_start())
-    next_month_result = create_allocations(children, get_next_month_start())
-
-    # Check if any allocations were created
-    total_created = current_month_result.created_count + next_month_result.created_count
-    total_expected = len(children) * 2  # current month + next month for each child
-
-    if total_created == 0:
-        # No allocations were created at all
-        error_messages = current_month_result.errors + next_month_result.errors
-        error_detail = f"No allocations were created. " + (
-            f"Errors: {'; '.join(error_messages[:3])}"
-            if error_messages
-            else "No children matched the allocation criteria."
-        )
-        current_app.logger.error(
-            f"Failed to create allocations for family {family_id}: {error_detail}. "
-            f"Current month: {current_month_result.created_count} created, {current_month_result.error_count} errors. "
-            f"Next month: {next_month_result.created_count} created, {next_month_result.error_count} errors."
-        )
-        abort(400, description=error_detail)
-
-    if total_created < total_expected:
-        # Some allocations were created but not all
-        current_app.logger.warning(
-            f"Partial allocation creation for family {family_id}: {total_created}/{total_expected} created. "
-            f"Current month: {current_month_result.created_count} created, {current_month_result.skipped_count} skipped, {current_month_result.error_count} errors. "
-            f"Next month: {next_month_result.created_count} created, {next_month_result.skipped_count} skipped, {next_month_result.error_count} errors."
-        )
 
     link_id = Family.LINK_ID(family)
     if link_id is None:
@@ -171,6 +141,37 @@ def new_family():
     invite.record_accepted()
     db.session.add(invite)
     db.session.commit()
+
+    # Create allocations for current and next month (at the end after all other operations succeed)
+    current_month_result = create_allocations(children, get_current_month_start())
+    next_month_result = create_allocations(children, get_next_month_start())
+
+    # Check if any allocations were created
+    total_created = current_month_result.created_count + next_month_result.created_count
+    total_expected = len(children) * 2  # current month + next month for each child
+
+    if total_created < total_expected:
+        # Some allocations were created but not all
+        current_app.logger.warning(
+            f"Partial allocation creation for family {family_id}: {total_created}/{total_expected} created. "
+            f"Current month: {current_month_result.created_count} created, {current_month_result.skipped_count} skipped, {current_month_result.error_count} errors. "
+            f"Next month: {next_month_result.created_count} created, {next_month_result.skipped_count} skipped, {next_month_result.error_count} errors."
+        )
+
+    if total_created == 0:
+        # No allocations were created at all - return 400 at the very end
+        error_messages = current_month_result.errors + next_month_result.errors
+        error_detail = f"No allocations were created. " + (
+            f"Errors: {'; '.join(error_messages[:3])}"
+            if error_messages
+            else "No children matched the allocation criteria."
+        )
+        current_app.logger.error(
+            f"Failed to create allocations for family {family_id}: {error_detail}. "
+            f"Current month: {current_month_result.created_count} created, {current_month_result.error_count} errors. "
+            f"Next month: {next_month_result.created_count} created, {next_month_result.error_count} errors."
+        )
+        abort(400, description=error_detail)
 
     return jsonify(data)
 
