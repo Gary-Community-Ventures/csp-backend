@@ -163,8 +163,9 @@ def onboard_provider():
         redis_conn = current_app.extensions["job_manager"].get_redis()
         lock_key = f"onboarding:provider:{provider_id}"
 
-        # Try to acquire lock (5 minute TTL) - fail-closed approach
-        lock_acquired = redis_conn.set(lock_key, clerk_user_id, nx=True, ex=300)
+        # Try to acquire lock (15 minute TTL) - fail-closed approach
+        # TTL is generous since onboarding should complete in seconds
+        lock_acquired = redis_conn.set(lock_key, "1", nx=True, ex=900)
 
         if not lock_acquired:
             # Another request is already processing or recently processed this
@@ -270,9 +271,10 @@ def onboard_provider():
         raise
 
     finally:
-        # Always release the lock
+        # Release the lock when done
         try:
             redis_conn.delete(lock_key)
+            current_app.logger.debug(f"Released Redis lock for provider {provider_id}")
         except Exception as cleanup_error:
             current_app.logger.warning(f"Failed to release Redis lock: {cleanup_error}")
 
