@@ -139,39 +139,13 @@ def new_family():
     db.session.commit()
 
     # Create allocations for current and next month (at the end after all other operations succeed)
-    from app.utils.onboarding import create_family_allocations
+    from app.utils.onboarding import (
+        create_family_allocations,
+        validate_family_allocations,
+    )
 
     current_month_result, next_month_result = create_family_allocations(children, family_id)
-
-    # Check if any allocations were created (only if we have payment-enabled children)
-    if current_month_result is not None and next_month_result is not None:
-        total_created = current_month_result.created_count + next_month_result.created_count
-        # Only count payment-enabled children for expected count
-        payment_enabled_count = sum(1 for c in children if Child.PAYMENT_ENABLED(c))
-        total_expected = payment_enabled_count * 2  # current month + next month for each payment-enabled child
-
-        if total_created < total_expected:
-            # Some allocations were created but not all
-            current_app.logger.warning(
-                f"Partial allocation creation for family {family_id}: {total_created}/{total_expected} created. "
-                f"Current month: {current_month_result.created_count} created, {current_month_result.skipped_count} skipped, {current_month_result.error_count} errors. "
-                f"Next month: {next_month_result.created_count} created, {next_month_result.skipped_count} skipped, {next_month_result.error_count} errors."
-            )
-
-        if total_created == 0 and payment_enabled_count > 0:
-            # No allocations were created at all despite having payment-enabled children - return 400 at the very end
-            error_messages = current_month_result.errors + next_month_result.errors
-            error_detail = f"No allocations were created. " + (
-                f"Errors: {'; '.join(error_messages[:3])}"
-                if error_messages
-                else "No children matched the allocation criteria."
-            )
-            current_app.logger.error(
-                f"Failed to create allocations for family {family_id}: {error_detail}. "
-                f"Current month: {current_month_result.created_count} created, {current_month_result.error_count} errors. "
-                f"Next month: {next_month_result.created_count} created, {next_month_result.error_count} errors."
-            )
-            abort(400, description=error_detail)
+    validate_family_allocations(children, family_id, current_month_result, next_month_result)
 
     return jsonify(data)
 
@@ -278,7 +252,10 @@ def onboard_family():
         onboard_family_to_chek(family_id)
 
         # 4. Create allocations for payment-enabled children (already idempotent via get_or_create)
-        create_family_allocations(children, family_id)
+        from app.utils.onboarding import validate_family_allocations
+
+        current_month_result, next_month_result = create_family_allocations(children, family_id)
+        validate_family_allocations(children, family_id, current_month_result, next_month_result)
 
         # 5. Send portal invite email (only once)
         if not Family.PORTAL_INVITE_SENT_AT(family_data):

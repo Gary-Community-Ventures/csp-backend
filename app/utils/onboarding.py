@@ -170,3 +170,54 @@ def create_family_allocations(children: list, family_id: int):
     )
 
     return current_month_result, next_month_result
+
+
+def validate_family_allocations(children: list, family_id: int, current_month_result, next_month_result) -> None:
+    """
+    Validate that allocations were created successfully for payment-enabled children.
+
+    Logs warnings for partial allocation creation and raises abort(400) if no
+    allocations were created despite having payment-enabled children.
+
+    Args:
+        children: List of child records
+        family_id: Family ID for logging
+        current_month_result: AllocationResult for current month
+        next_month_result: AllocationResult for next month
+
+    Raises:
+        werkzeug.exceptions.BadRequest: If no allocations were created for payment-enabled children
+    """
+    from flask import abort
+
+    from app.supabase.tables import Child
+
+    # Only validate if we got results (i.e., there were payment-enabled children)
+    if current_month_result is None or next_month_result is None:
+        return
+
+    total_created = current_month_result.created_count + next_month_result.created_count
+    payment_enabled_count = sum(1 for c in children if Child.PAYMENT_ENABLED(c))
+    total_expected = payment_enabled_count * 2  # current month + next month for each payment-enabled child
+
+    if total_created < total_expected:
+        current_app.logger.warning(
+            f"Partial allocation creation for family {family_id}: {total_created}/{total_expected} created. "
+            f"Current month: {current_month_result.created_count} created, {current_month_result.skipped_count} skipped, {current_month_result.error_count} errors. "
+            f"Next month: {next_month_result.created_count} created, {next_month_result.skipped_count} skipped, {next_month_result.error_count} errors."
+        )
+
+    if total_created == 0 and payment_enabled_count > 0:
+        # No allocations were created at all despite having payment-enabled children
+        error_messages = current_month_result.errors + next_month_result.errors
+        error_detail = f"No allocations were created. " + (
+            f"Errors: {'; '.join(error_messages[:3])}"
+            if error_messages
+            else "No children matched the allocation criteria."
+        )
+        current_app.logger.error(
+            f"Failed to create allocations for family {family_id}: {error_detail}. "
+            f"Current month: {current_month_result.created_count} created, {current_month_result.error_count} errors. "
+            f"Next month: {next_month_result.created_count} created, {next_month_result.error_count} errors."
+        )
+        abort(400, description=error_detail)
