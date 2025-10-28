@@ -111,7 +111,9 @@ def process_month_allocations(
     return processed_count, errors
 
 
-def fetch_missing_allocations(cutoff_date: date, payment_enabled_child_ids: list[str], limit: Optional[int] = None) -> list[MonthAllocation]:
+def fetch_missing_allocations(
+    cutoff_date: date, payment_enabled_child_ids: list[str], limit: Optional[int] = None
+) -> list[MonthAllocation]:
     """Fetch all allocations missing transfer IDs from the cutoff date for payment-enabled children."""
     query = MonthAllocation.query.filter(
         and_(
