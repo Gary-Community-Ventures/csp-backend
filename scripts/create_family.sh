@@ -11,7 +11,9 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # Load environment variables from .env.local in project root
 if [ -f "$PROJECT_ROOT/.env.local" ]; then
-    export $(cat "$PROJECT_ROOT/.env.local" | grep -v '^#' | xargs)
+    set -a
+    source "$PROJECT_ROOT/.env.local"
+    set +a
 else
     echo "Error: .env.local file not found in $PROJECT_ROOT"
     echo "Please create .env.local with your API keys:"
