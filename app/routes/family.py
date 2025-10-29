@@ -6,6 +6,7 @@ from uuid import uuid4
 import sentry_sdk
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, current_app, jsonify, request
+from pydantic import ValidationError
 
 from app.auth.decorators import (
     ClerkUserType,
@@ -17,13 +18,13 @@ from app.auth.helpers import get_current_user, get_family_user, get_provider_use
 from app.constants import MAX_CHILDREN_PER_PROVIDER, UNKNOWN
 from app.extensions import db
 from app.models.attendance import Attendance
-from app.models.family_invitation import FamilyInvitation
 from app.models.family_payment_settings import FamilyPaymentSettings
 from app.models.provider_invitation import ProviderInvitation
 from app.models.provider_payment_settings import ProviderPaymentSettings
+from app.schemas.onboarding import FamilyOnboardRequest, OnboardResponse
 from app.supabase.columns import Language
 from app.supabase.helpers import cols, format_name, unwrap_or_abort
-from app.supabase.tables import Child, Family, Guardian, Provider, ProviderChildMapping
+from app.supabase.tables import Child, Family, Guardian, Provider
 from app.utils.email.config import get_from_email_external
 from app.utils.email.core import send_email
 from app.utils.email.senders import (
@@ -31,6 +32,14 @@ from app.utils.email.senders import (
     send_provider_invited_email,
 )
 from app.utils.email.templates import InvitationTemplate
+from app.utils.onboarding import (
+    create_family_allocations,
+    onboard_family_to_chek,
+    process_family_invitation_mappings,
+    send_portal_invite_email,
+    update_clerk_user_metadata,
+    validate_family_allocations,
+)
 from app.utils.sms_service import send_sms
 
 bp = Blueprint("family", __name__)
@@ -94,54 +103,12 @@ def new_family():
     )
 
     # Create Chek user and FamilyPaymentSettings (idempotent - returns existing if already created)
-    from app.utils.onboarding import onboard_family_to_chek
-
     onboard_family_to_chek(family_id)
 
-    link_id = Family.LINK_ID(family)
-    if link_id is None:
-        return jsonify(data)
-
-    invite: FamilyInvitation = FamilyInvitation.invitation_by_id(link_id).first()
-    if invite is None:
-        current_app.logger.warning(f"Family invitation with ID {link_id} not found.")
-        return jsonify(data)
-
-    provider_result = Provider.select_by_id(
-        cols(Provider.ID, Child.join(Child.ID)), int(invite.provider_supabase_id)
-    ).execute()
-    provider = unwrap_or_abort(provider_result)
-    if not provider:
-        current_app.logger.warning(f"Provider with ID {invite.provider_supabase_id} not found.")
-        return jsonify(data)
-
-    extra_slots = MAX_CHILDREN_PER_PROVIDER - len(Child.unwrap(provider))
-
-    for child in children:
-        if extra_slots <= 0:
-            break
-
-        for provider in Provider.unwrap(child):
-            if Provider.ID(provider) == invite.provider_supabase_id:
-                continue
-
-        ProviderChildMapping.query().insert(
-            {
-                ProviderChildMapping.CHILD_ID: Child.ID(child),
-                ProviderChildMapping.PROVIDER_ID: invite.provider_supabase_id,
-            }
-        ).execute()
-
-    invite.record_accepted()
-    db.session.add(invite)
-    db.session.commit()
+    # Handle provider-child mappings if there's a link_id (invitation)
+    process_family_invitation_mappings(family, children, family_id)
 
     # Create allocations for current and next month (at the end after all other operations succeed)
-    from app.utils.onboarding import (
-        create_family_allocations,
-        validate_family_allocations,
-    )
-
     current_month_result, next_month_result = create_family_allocations(children, family_id)
     validate_family_allocations(children, family_id, current_month_result, next_month_result)
 
@@ -164,15 +131,14 @@ def onboard_family():
     Idempotent: Safe to call multiple times. Uses Redis locking to prevent
     duplicate operations from concurrent requests.
     """
-    data = request.json
-    clerk_user_id = data.get("clerk_user_id")
-    family_id = data.get("family_id")
+    # Validate request body with Pydantic
+    try:
+        onboard_request = FamilyOnboardRequest(**request.json)
+    except ValidationError as e:
+        abort(400, description=f"Invalid request: {e.errors()}")
 
-    # Validate required fields
-    if not clerk_user_id:
-        abort(400, description="Missing required field: clerk_user_id")
-    if not family_id:
-        abort(400, description="Missing required field: family_id")
+    clerk_user_id = onboard_request.clerk_user_id
+    family_id = onboard_request.family_id
 
     # Get Redis connection for distributed locking
     try:
@@ -234,8 +200,6 @@ def onboard_family():
 
         # 2. Update Clerk user metadata
         try:
-            from app.utils.onboarding import update_clerk_user_metadata
-
             update_clerk_user_metadata(clerk_user_id, ClerkUserType.FAMILY, int(family_id))
         except Exception as clerk_error:
             current_app.logger.error(f"Failed to update Clerk user metadata: {clerk_error}")
@@ -243,28 +207,22 @@ def onboard_family():
             raise
 
         # 3. Onboard to Chek (already idempotent)
-        from app.utils.onboarding import (
-            create_family_allocations,
-            onboard_family_to_chek,
-        )
-
         onboard_family_to_chek(family_id)
 
-        # 4. Create allocations for payment-enabled children (already idempotent via get_or_create)
-        from app.utils.onboarding import validate_family_allocations
+        # 4. Handle provider-child mappings if there's a link_id (invitation)
+        process_family_invitation_mappings(family_data, children, family_id)
 
+        # 5. Create allocations for payment-enabled children (already idempotent via get_or_create)
         current_month_result, next_month_result = create_family_allocations(children, family_id)
         validate_family_allocations(children, family_id, current_month_result, next_month_result)
 
-        # 5. Send portal invite email (only once)
+        # 6. Send portal invite email (only once)
         if not Family.PORTAL_INVITE_SENT_AT(family_data):
             language = Family.LANGUAGE(family_data) or Language.ENGLISH
 
-            from app.utils.onboarding import send_portal_invite_email
-
             email_sent = send_portal_invite_email(
                 email=guardian_email,
-                entity_type="family",
+                entity_type=ClerkUserType.FAMILY,
                 entity_id=int(family_id),
                 language=language,
                 clerk_user_id=clerk_user_id,
@@ -272,8 +230,8 @@ def onboard_family():
 
             if email_sent:
                 # Mark portal invite as sent
-                Family.query().update({"portal_invite_sent_at": datetime.now(timezone.utc)}).eq(
-                    "id", family_id
+                Family.query().update({Family.PORTAL_INVITE_SENT_AT: datetime.now(timezone.utc)}).eq(
+                    Family.ID, family_id
                 ).execute()
                 current_app.logger.info(f"Sent portal invite email to family {family_id}")
             else:
@@ -281,16 +239,10 @@ def onboard_family():
         else:
             current_app.logger.info(f"Portal invite already sent for family {family_id}, skipping email")
 
-        return (
-            jsonify(
-                {
-                    "message": "Family onboarded successfully",
-                    "family_id": family_id,
-                    "clerk_user_id": clerk_user_id,
-                }
-            ),
-            200,
+        response = OnboardResponse(
+            message="Family onboarded successfully", family_id=family_id, clerk_user_id=clerk_user_id
         )
+        return jsonify(response.model_dump()), 200
 
     except Exception as e:
         current_app.logger.error(f"Error onboarding family {family_id}: {e}")

@@ -47,7 +47,7 @@ def update_clerk_user_metadata(clerk_user_id: str, user_type: ClerkUserType, ent
 
 def send_portal_invite_email(
     email: str,
-    entity_type: str,
+    entity_type: ClerkUserType,
     entity_id: int,
     language: Language,
     clerk_user_id: str,
@@ -58,7 +58,7 @@ def send_portal_invite_email(
 
     Args:
         email: Recipient email address
-        entity_type: "family" or "provider"
+        entity_type: ClerkUserType.FAMILY or ClerkUserType.PROVIDER
         entity_id: Family or provider ID
         language: Email language preference
         clerk_user_id: Clerk user ID for tracking
@@ -76,7 +76,7 @@ def send_portal_invite_email(
 
     subject = ClerkInvitationTemplate.get_subject(language)
 
-    if entity_type == "family":
+    if entity_type == ClerkUserType.FAMILY:
         html_content = ClerkInvitationTemplate.get_family_invitation_content(portal_url, language)
     else:
         html_content = ClerkInvitationTemplate.get_provider_invitation_content(portal_url, language, provider_name)
@@ -232,3 +232,116 @@ def validate_family_allocations(children: list, family_id: int, current_month_re
             f"Next month: {next_month_result.created_count} created, {next_month_result.error_count} errors."
         )
         abort(400, description=error_detail)
+
+
+def process_family_invitation_mappings(family_data, children: list, family_id: int) -> None:
+    """
+    Process provider-child mappings from family invitation link.
+
+    If the family has a link_id, finds the invitation and creates
+    provider-child mappings for children that don't have a provider yet.
+
+    Args:
+        family_data: Family record from database
+        children: List of child records
+        family_id: Family ID for logging
+    """
+    from app.constants import MAX_CHILDREN_PER_PROVIDER
+    from app.extensions import db
+    from app.models.family_invitation import FamilyInvitation
+    from app.supabase.helpers import cols, unwrap_or_abort
+    from app.supabase.tables import Child, Family, Provider, ProviderChildMapping
+
+    link_id = Family.LINK_ID(family_data)
+    if link_id is None:
+        return  # No invitation to process
+
+    invite: FamilyInvitation = FamilyInvitation.invitation_by_id(link_id).first()
+    if invite is None:
+        current_app.logger.warning(f"Family invitation with ID {link_id} not found")
+        return
+
+    provider_result = Provider.select_by_id(
+        cols(Provider.ID, Child.join(Child.ID)), int(invite.provider_supabase_id)
+    ).execute()
+    provider = unwrap_or_abort(provider_result)
+    if not provider:
+        current_app.logger.warning(f"Provider {invite.provider_supabase_id} not found for invitation {link_id}")
+        return
+
+    extra_slots = MAX_CHILDREN_PER_PROVIDER - len(Child.unwrap(provider))
+
+    for child in children:
+        if extra_slots <= 0:
+            break
+
+        # Skip if child already has this provider
+        child_has_provider = any(Provider.ID(p) == invite.provider_supabase_id for p in Provider.unwrap(child))
+        if child_has_provider:
+            continue
+
+        ProviderChildMapping.query().insert(
+            {
+                ProviderChildMapping.CHILD_ID: Child.ID(child),
+                ProviderChildMapping.PROVIDER_ID: invite.provider_supabase_id,
+            }
+        ).execute()
+        extra_slots -= 1
+
+    invite.record_accepted()
+    db.session.add(invite)
+    db.session.commit()
+    current_app.logger.info(f"Created provider-child mappings for family {family_id} invitation {link_id}")
+
+
+def process_provider_invitation_mappings(provider_data, provider_id: int) -> None:
+    """
+    Process family-child mappings from provider invitation link.
+
+    If the provider has a link_id, finds the invitations and creates
+    provider-child mappings for children that don't have a provider yet.
+
+    Args:
+        provider_data: Provider record from database
+        provider_id: Provider ID for logging and mapping
+    """
+    from app.constants import MAX_CHILDREN_PER_PROVIDER
+    from app.extensions import db
+    from app.models.provider_invitation import ProviderInvitation
+    from app.supabase.helpers import cols, unwrap_or_abort
+    from app.supabase.tables import Child, Provider, ProviderChildMapping
+
+    link_id = Provider.LINK_ID(provider_data)
+    if link_id is None:
+        return  # No invitation to process
+
+    invites: list[ProviderInvitation] = ProviderInvitation.invitations_by_id(link_id).all()
+    if len(invites) == 0:
+        current_app.logger.warning(f"Provider invitation with ID {link_id} not found")
+        return
+
+    for invite in invites[:MAX_CHILDREN_PER_PROVIDER]:
+        child_result = Child.select_by_id(
+            cols(Child.ID, Provider.join(Provider.ID)), int(invite.child_supabase_id)
+        ).execute()
+        child = unwrap_or_abort(child_result)
+
+        if child is None:
+            current_app.logger.warning(f"Child with ID {invite.child_supabase_id} not found.")
+            continue
+
+        # Skip if child already has a provider
+        if len(Provider.unwrap(child)) > 0:
+            continue
+
+        ProviderChildMapping.query().insert(
+            {
+                ProviderChildMapping.CHILD_ID: invite.child_supabase_id,
+                ProviderChildMapping.PROVIDER_ID: provider_id,
+            }
+        ).execute()
+        invite.record_accepted()
+        db.session.add(invite)
+
+    db.session.commit()
+    current_app.logger.info(f"Created family-child mappings for provider {provider_id} invitation {link_id}")

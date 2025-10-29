@@ -22,8 +22,8 @@ from app.models import AllocatedCareDay, MonthAllocation
 from app.models.attendance import Attendance
 from app.models.family_invitation import FamilyInvitation
 from app.models.payment_rate import PaymentRate
-from app.models.provider_invitation import ProviderInvitation
 from app.models.provider_payment_settings import ProviderPaymentSettings
+from app.schemas.onboarding import OnboardResponse, ProviderOnboardRequest
 from app.schemas.payment import PaymentInitializationResponse
 from app.schemas.provider_payment import (
     PaymentMethodInitializeRequest,
@@ -33,7 +33,7 @@ from app.schemas.provider_payment import (
 )
 from app.supabase.columns import Language
 from app.supabase.helpers import UnwrapError, cols, format_name, unwrap_or_abort
-from app.supabase.tables import Child, Family, Guardian, Provider, ProviderChildMapping
+from app.supabase.tables import Child, Family, Guardian, Provider
 from app.utils.email.config import get_from_email_external
 from app.utils.email.core import send_email
 from app.utils.email.senders import (
@@ -41,6 +41,12 @@ from app.utils.email.senders import (
     send_family_invited_email,
 )
 from app.utils.email.templates import InvitationTemplate
+from app.utils.onboarding import (
+    onboard_provider_to_chek,
+    process_provider_invitation_mappings,
+    send_portal_invite_email,
+    update_clerk_user_metadata,
+)
 from app.utils.sms_service import send_sms
 
 bp = Blueprint("provider", __name__)
@@ -77,8 +83,6 @@ def new_provider():
         abort(404, description=f"Provider with ID {provider_id} not found.")
 
     # Create Chek user and ProviderPaymentSettings
-    from app.utils.onboarding import onboard_provider_to_chek
-
     onboard_provider_to_chek(provider_id)
 
     # send clerk invite
@@ -97,38 +101,8 @@ def new_provider():
         )
     )
 
-    link_id = Provider.LINK_ID(provider)
-    if link_id is None:
-        return jsonify(data)
-
-    invites: list[ProviderInvitation] = ProviderInvitation.invitations_by_id(link_id).all()
-    if len(invites) == 0:
-        current_app.logger.warning(f"Provider invitation with ID {link_id} not found.")
-        return jsonify(data)
-
-    for invite in invites[:MAX_CHILDREN_PER_PROVIDER]:
-        child_result = Child.select_by_id(
-            cols(Child.ID, Provider.join(Provider.ID)), int(invite.child_supabase_id)
-        ).execute()
-        child = unwrap_or_abort(child_result)
-
-        if child is None:
-            current_app.logger.warning(f"Child with ID {invite.child_supabase_id} not found.")
-            continue
-
-        if len(Provider.unwrap(child)) > 0:
-            continue
-
-        ProviderChildMapping.query().insert(
-            {
-                ProviderChildMapping.CHILD_ID: invite.child_supabase_id,
-                ProviderChildMapping.PROVIDER_ID: provider_id,
-            }
-        ).execute()
-        invite.record_accepted()
-        db.session.add(invite)
-
-    db.session.commit()
+    # Handle family-child mappings if there's a link_id (invitation)
+    process_provider_invitation_mappings(provider, provider_id)
 
     return jsonify(data)
 
@@ -148,15 +122,14 @@ def onboard_provider():
     Idempotent: Safe to call multiple times. Uses Redis locking to prevent
     duplicate operations from concurrent requests.
     """
-    data = request.json
-    clerk_user_id = data.get("clerk_user_id")
-    provider_id = data.get("provider_id")
+    # Validate request body with Pydantic
+    try:
+        onboard_request = ProviderOnboardRequest(**request.json)
+    except ValidationError as e:
+        abort(400, description=f"Invalid request: {e.errors()}")
 
-    # Validate required fields
-    if not clerk_user_id:
-        abort(400, description="Missing required field: clerk_user_id")
-    if not provider_id:
-        abort(400, description="Missing required field: provider_id")
+    clerk_user_id = onboard_request.clerk_user_id
+    provider_id = onboard_request.provider_id
 
     # Get Redis connection for distributed locking
     try:
@@ -188,6 +161,7 @@ def onboard_provider():
                 Provider.EMAIL,
                 Provider.PREFERRED_LANGUAGE,
                 Provider.PORTAL_INVITE_SENT_AT,
+                Provider.LINK_ID,
             ),
             int(provider_id),
         ).execute()
@@ -215,8 +189,6 @@ def onboard_provider():
 
         # 2. Update Clerk user metadata
         try:
-            from app.utils.onboarding import update_clerk_user_metadata
-
             update_clerk_user_metadata(clerk_user_id, ClerkUserType.PROVIDER, int(provider_id))
         except Exception as clerk_error:
             current_app.logger.error(f"Failed to update Clerk user metadata: {clerk_error}")
@@ -224,19 +196,18 @@ def onboard_provider():
             raise
 
         # 3. Onboard to Chek (already idempotent)
-        from app.utils.onboarding import onboard_provider_to_chek
-
         onboard_provider_to_chek(provider_id)
 
-        # 4. Send portal invite email (only once)
+        # 4. Handle family-child mappings if there's a link_id (invitation)
+        process_provider_invitation_mappings(provider_data, provider_id)
+
+        # 5. Send portal invite email (only once)
         if not Provider.PORTAL_INVITE_SENT_AT(provider_data):
             language = Provider.PREFERRED_LANGUAGE(provider_data) or Language.ENGLISH
 
-            from app.utils.onboarding import send_portal_invite_email
-
             email_sent = send_portal_invite_email(
                 email=provider_email,
-                entity_type="provider",
+                entity_type=ClerkUserType.PROVIDER,
                 entity_id=int(provider_id),
                 language=language,
                 clerk_user_id=clerk_user_id,
@@ -245,8 +216,8 @@ def onboard_provider():
 
             if email_sent:
                 # Mark portal invite as sent
-                Provider.query().update({"portal_invite_sent_at": datetime.now(timezone.utc)}).eq(
-                    "id", provider_id
+                Provider.query().update({Provider.PORTAL_INVITE_SENT_AT: datetime.now(timezone.utc)}).eq(
+                    Provider.ID, provider_id
                 ).execute()
                 current_app.logger.info(f"Sent portal invite email to provider {provider_id}")
             else:
@@ -254,16 +225,10 @@ def onboard_provider():
         else:
             current_app.logger.info(f"Portal invite already sent for provider {provider_id}, skipping email")
 
-        return (
-            jsonify(
-                {
-                    "message": "Provider onboarded successfully",
-                    "provider_id": provider_id,
-                    "clerk_user_id": clerk_user_id,
-                }
-            ),
-            200,
+        response = OnboardResponse(
+            message="Provider onboarded successfully", provider_id=provider_id, clerk_user_id=clerk_user_id
         )
+        return jsonify(response.model_dump()), 200
 
     except Exception as e:
         current_app.logger.error(f"Error onboarding provider {provider_id}: {e}")
