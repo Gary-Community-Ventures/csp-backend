@@ -199,12 +199,7 @@ def onboard_family():
             abort(400, description="Family has no primary guardian email")
 
         # 2. Update Clerk user metadata
-        try:
-            update_clerk_user_metadata(clerk_user_id, ClerkUserType.FAMILY, int(family_id))
-        except Exception as clerk_error:
-            current_app.logger.error(f"Failed to update Clerk user metadata: {clerk_error}")
-            sentry_sdk.capture_exception(clerk_error)
-            raise
+        update_clerk_user_metadata(clerk_user_id, ClerkUserType.FAMILY, int(family_id))
 
         # 3. Onboard to Chek (already idempotent)
         onboard_family_to_chek(family_id)
@@ -243,11 +238,6 @@ def onboard_family():
             message="Family onboarded successfully", family_id=family_id, clerk_user_id=clerk_user_id
         )
         return jsonify(response.model_dump()), 200
-
-    except Exception as e:
-        current_app.logger.error(f"Error onboarding family {family_id}: {e}")
-        sentry_sdk.capture_exception(e)
-        raise
 
     finally:
         # Release the lock when done

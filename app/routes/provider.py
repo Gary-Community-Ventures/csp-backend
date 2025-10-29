@@ -188,12 +188,7 @@ def onboard_provider():
             abort(400, description="Provider has no email address")
 
         # 2. Update Clerk user metadata
-        try:
-            update_clerk_user_metadata(clerk_user_id, ClerkUserType.PROVIDER, int(provider_id))
-        except Exception as clerk_error:
-            current_app.logger.error(f"Failed to update Clerk user metadata: {clerk_error}")
-            sentry_sdk.capture_exception(clerk_error)
-            raise
+        update_clerk_user_metadata(clerk_user_id, ClerkUserType.PROVIDER, int(provider_id))
 
         # 3. Onboard to Chek (already idempotent)
         onboard_provider_to_chek(provider_id)
@@ -229,11 +224,6 @@ def onboard_provider():
             message="Provider onboarded successfully", provider_id=provider_id, clerk_user_id=clerk_user_id
         )
         return jsonify(response.model_dump()), 200
-
-    except Exception as e:
-        current_app.logger.error(f"Error onboarding provider {provider_id}: {e}")
-        sentry_sdk.capture_exception(e)
-        raise
 
     finally:
         # Release the lock when done
