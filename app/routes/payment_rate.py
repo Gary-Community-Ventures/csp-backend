@@ -9,7 +9,7 @@ from app.schemas.payment_rate import (
     PaymentRateCreate,
     PaymentRateResponse,
 )
-from app.supabase.helpers import cols, unwrap_or_abort
+from app.supabase.helpers import cols, set_timestamp_column_if_null, unwrap_or_abort
 from app.supabase.tables import Child, Provider
 from app.utils.email.senders import send_new_payment_rate_email
 
@@ -67,6 +67,9 @@ def create_payment_rate(child_id: str):
 
     db.session.add(payment_rate)
     db.session.commit()
+
+    # Update provider's rates_configured_at timestamp if not already set
+    set_timestamp_column_if_null(Provider, provider_id, Provider.RATES_CONFIGURED_AT)
 
     return jsonify(PaymentRateResponse.model_validate(payment_rate).model_dump()), 201
 
