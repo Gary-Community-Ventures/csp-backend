@@ -167,11 +167,8 @@ def create_family_allocations(children: list, family_id: int):
         children: List of child records
         family_id: Family ID for logging
 
-    Returns:
-        Tuple of (current_month_result, next_month_result)
-
     Raises:
-        Exception: If allocation creation fails
+        werkzeug.exceptions.BadRequest: If no allocations were created for payment-enabled children
     """
 
     # Filter to payment-enabled children
@@ -179,7 +176,7 @@ def create_family_allocations(children: list, family_id: int):
 
     if len(payment_enabled_children) == 0:
         current_app.logger.warning(f"No payment-enabled children found for family {family_id}")
-        return None, None
+        return
 
     child_ids = [Child.ID(c) for c in payment_enabled_children]
     allocation_service = AllocationService(current_app)
@@ -189,40 +186,17 @@ def create_family_allocations(children: list, family_id: int):
     )
     next_month_result = allocation_service.create_allocations_for_specific_children(child_ids, get_next_month_start())
 
+    total_created = current_month_result.created_count + next_month_result.created_count
+    payment_enabled_count = len(payment_enabled_children)
+    total_expected = payment_enabled_count * 2  # current month + next month for each payment-enabled child
+
     current_app.logger.info(
         f"Created allocations for family {family_id}: "
         f"Current month: {current_month_result.created_count} created, {current_month_result.skipped_count} skipped. "
         f"Next month: {next_month_result.created_count} created, {next_month_result.skipped_count} skipped."
     )
 
-    return current_month_result, next_month_result
-
-
-def validate_family_allocations(children: list, family_id: int, current_month_result, next_month_result) -> None:
-    """
-    Validate that allocations were created successfully for payment-enabled children.
-
-    Logs warnings for partial allocation creation and raises abort(400) if no
-    allocations were created despite having payment-enabled children.
-
-    Args:
-        children: List of child records
-        family_id: Family ID for logging
-        current_month_result: AllocationResult for current month
-        next_month_result: AllocationResult for next month
-
-    Raises:
-        werkzeug.exceptions.BadRequest: If no allocations were created for payment-enabled children
-    """
-
-    # Only validate if we got results (i.e., there were payment-enabled children)
-    if current_month_result is None or next_month_result is None:
-        return
-
-    total_created = current_month_result.created_count + next_month_result.created_count
-    payment_enabled_count = sum(1 for c in children if Child.PAYMENT_ENABLED(c))
-    total_expected = payment_enabled_count * 2  # current month + next month for each payment-enabled child
-
+    # Log warning for partial creation
     if total_created < total_expected:
         current_app.logger.warning(
             f"Partial allocation creation for family {family_id}: {total_created}/{total_expected} created. "
@@ -230,8 +204,8 @@ def validate_family_allocations(children: list, family_id: int, current_month_re
             f"Next month: {next_month_result.created_count} created, {next_month_result.skipped_count} skipped, {next_month_result.error_count} errors."
         )
 
+    # Raise exception if complete failure
     if total_created == 0 and payment_enabled_count > 0:
-        # No allocations were created at all despite having payment-enabled children
         error_messages = current_month_result.errors + next_month_result.errors
         error_detail = f"No allocations were created. " + (
             f"Errors: {'; '.join(error_messages[:3])}"

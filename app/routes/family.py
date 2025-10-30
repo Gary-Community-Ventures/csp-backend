@@ -38,7 +38,6 @@ from app.utils.onboarding import (
     process_family_invitation_mappings,
     send_portal_invite_email,
     update_clerk_user_metadata,
-    validate_family_allocations,
 )
 from app.utils.sms_service import send_sms
 
@@ -109,8 +108,7 @@ def new_family():
     process_family_invitation_mappings(family, children, family_id)
 
     # Create allocations for current and next month (at the end after all other operations succeed)
-    current_month_result, next_month_result = create_family_allocations(children, family_id)
-    validate_family_allocations(children, family_id, current_month_result, next_month_result)
+    create_family_allocations(children, family_id)
 
     return jsonify(data)
 
@@ -219,8 +217,7 @@ def onboard_family():
         process_family_invitation_mappings(family_data, children, family_id)
 
         # 5. Create allocations for payment-enabled children
-        current_month_result, next_month_result = create_family_allocations(children, family_id)
-        validate_family_allocations(children, family_id, current_month_result, next_month_result)
+        create_family_allocations(children, family_id)
 
         # 6. Send portal invite email
         language = Family.LANGUAGE(family_data) or Language.ENGLISH
