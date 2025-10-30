@@ -190,10 +190,6 @@ def onboard_provider():
             )
             abort(400, description="Clerk user ID does not match provider record")
 
-        if not stored_clerk_user_id:
-            current_app.logger.error(f"No clerk_user_id found in database for provider {provider_id}")
-            abort(400, description="Provider does not have a clerk_user_id set")
-
         provider_email = Provider.EMAIL(provider_data)
         provider_name = Provider.FIRST_NAME(provider_data)
 
