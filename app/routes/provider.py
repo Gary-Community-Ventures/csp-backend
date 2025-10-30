@@ -45,6 +45,23 @@ from app.utils.sms_service import send_sms
 bp = Blueprint("provider", __name__)
 
 
+def set_provider_timestamp_column_if_null(provider_id: str, timestamp_column, timestamp_value: str = None):
+    """
+    Helper to set a provider timestamp column if it's currently null.
+
+    Args:
+        provider_id: The provider's Supabase ID
+        timestamp_column: The Column object to update (e.g., Provider.FAMILY_INVITED_AT)
+        timestamp_value: Optional ISO timestamp string. Defaults to current UTC time.
+    """
+    if timestamp_value is None:
+        timestamp_value = datetime.now(timezone.utc).isoformat()
+
+    Provider.query().update({timestamp_column: timestamp_value}).eq(Provider.ID, provider_id).is_(
+        timestamp_column, "null"
+    ).execute()
+
+
 @bp.post("/provider")
 @api_key_required
 def new_provider():
@@ -298,6 +315,8 @@ def update_payment_settings():
     # Validate payment method
     try:
         new_payment_method = PaymentMethod(request_data.payment_method)
+        # Update provider's payment_method_configured_at timestamp if not already set
+        set_provider_timestamp_column_if_null(provider_id, Provider.PAYMENT_METHOD_CONFIGURED_AT)
     except ValueError:
         return jsonify({"error": f"Invalid payment method. Must be one of: {[e.value for e in PaymentMethod]}"}), 400
 
@@ -364,9 +383,7 @@ def initialize_provider_payment(provider_id: str):
         result = payment_service.initialize_provider_payment_method(provider_id, payment_method)
 
         # Update provider's payment_method_configured_at timestamp if not already set
-        Provider.query().update({Provider.PAYMENT_METHOD_CONFIGURED_AT: datetime.now(timezone.utc).isoformat()}).eq(
-            Provider.ID, provider_id
-        ).is_(Provider.PAYMENT_METHOD_CONFIGURED_AT, "null").execute()
+        set_provider_timestamp_column_if_null(provider_id, Provider.PAYMENT_METHOD_CONFIGURED_AT)
 
         # Convert the result to PaymentInitializationResponse
         response = PaymentInitializationResponse(**result)
@@ -402,9 +419,7 @@ def initialize_my_payment():
         result = payment_service.initialize_provider_payment_method(provider_id, payment_method)
 
         # Update provider's payment_method_configured_at timestamp if not already set
-        Provider.query().update({Provider.PAYMENT_METHOD_CONFIGURED_AT: datetime.now(timezone.utc).isoformat()}).eq(
-            Provider.ID, provider_id
-        ).is_(Provider.PAYMENT_METHOD_CONFIGURED_AT, "null").execute()
+        set_provider_timestamp_column_if_null(provider_id, Provider.PAYMENT_METHOD_CONFIGURED_AT)
 
         # Convert the result to PaymentInitializationResponse for consistency
         response = PaymentInitializationResponse(**result)
@@ -545,9 +560,7 @@ def invite_family():
     send_family_invited_email(provider_name, Provider.ID(provider), data["family_email"], invitation.public_id)
 
     # Update provider's family_invited_at timestamp if not already set
-    Provider.query().update({Provider.FAMILY_INVITED_AT: datetime.now(timezone.utc).isoformat()}).eq(
-        Provider.ID, provider_id
-    ).is_(Provider.FAMILY_INVITED_AT, "null").execute()
+    set_provider_timestamp_column_if_null(provider_id, Provider.FAMILY_INVITED_AT)
 
     return jsonify({"message": "Success"}, 201)
 
