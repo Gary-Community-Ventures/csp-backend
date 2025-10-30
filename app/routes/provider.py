@@ -304,8 +304,6 @@ def update_payment_settings():
     # Validate payment method
     try:
         new_payment_method = PaymentMethod(request_data.payment_method)
-        # Update provider's payment_method_configured_at timestamp if not already set
-        set_timestamp_column_if_null(Provider, provider_id, Provider.PAYMENT_METHOD_CONFIGURED_AT)
     except ValueError:
         return jsonify({"error": f"Invalid payment method. Must be one of: {[e.value for e in PaymentMethod]}"}), 400
 
@@ -340,6 +338,9 @@ def update_payment_settings():
             # Don't fail the request if refresh fails
 
     db.session.commit()
+
+    # Update provider's payment_method_configured_at timestamp if not already set
+    set_timestamp_column_if_null(Provider, provider_id, Provider.PAYMENT_METHOD_CONFIGURED_AT)
 
     response = PaymentMethodUpdateResponse(
         message="Payment method updated successfully",
