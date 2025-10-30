@@ -235,7 +235,7 @@ class ProviderAttendanceMessages(AttendanceMessages):
         )
 
 
-def send_attendance_emails(send_to_families=False, send_to_providers=False, dry_run=False):
+def send_attendance_communications(send_to_families=False, send_to_providers=False, dry_run=False):
     current_app.logger.info("create_attendance: Starting attendance creation...")
     bulk_emails: list[BulkEmailData] = []
     bulk_text_messages: list[BulkSmsData] = []
@@ -282,4 +282,4 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    send_attendance_emails(args.family or args.all, args.provider or args.all, args.dry_run)
+    send_attendance_communications(args.family or args.all, args.provider or args.all, args.dry_run)
