@@ -9,10 +9,21 @@ and allocation creation.
 from typing import Optional
 
 from clerk_backend_api import Clerk
-from flask import current_app
+from flask import abort, current_app
 
 from app.auth.decorators import ClerkUserType
+from app.constants import MAX_CHILDREN_PER_PROVIDER
+from app.extensions import db
+from app.models.family_invitation import FamilyInvitation
+from app.models.provider_invitation import ProviderInvitation
+from app.services.allocation_service import AllocationService
 from app.supabase.columns import Language
+from app.supabase.helpers import cols, unwrap_or_abort
+from app.supabase.tables import Child, Family, Provider, ProviderChildMapping
+from app.utils.date_utils import get_current_month_start, get_next_month_start
+from app.utils.email.config import get_from_email_external
+from app.utils.email.core import send_email
+from app.utils.email.templates import ClerkInvitationTemplate
 
 
 def update_clerk_user_metadata(clerk_user_id: str, user_type: ClerkUserType, entity_id: str):
@@ -78,10 +89,6 @@ def send_portal_invite_email(
     Returns:
         True if email sent successfully, False otherwise
     """
-    from app.utils.email.config import get_from_email_external
-    from app.utils.email.core import send_email
-    from app.utils.email.templates import ClerkInvitationTemplate
-
     fe_domain = current_app.config.get("FRONTEND_DOMAIN")
     portal_url = f"{fe_domain}/auth/sign-in"
 
@@ -166,9 +173,6 @@ def create_family_allocations(children: list, family_id: int):
     Raises:
         Exception: If allocation creation fails
     """
-    from app.services.allocation_service import AllocationService
-    from app.supabase.tables import Child
-    from app.utils.date_utils import get_current_month_start, get_next_month_start
 
     # Filter to payment-enabled children
     payment_enabled_children = [c for c in children if Child.PAYMENT_ENABLED(c)]
@@ -210,9 +214,6 @@ def validate_family_allocations(children: list, family_id: int, current_month_re
     Raises:
         werkzeug.exceptions.BadRequest: If no allocations were created for payment-enabled children
     """
-    from flask import abort
-
-    from app.supabase.tables import Child
 
     # Only validate if we got results (i.e., there were payment-enabled children)
     if current_month_result is None or next_month_result is None:
@@ -257,11 +258,6 @@ def process_family_invitation_mappings(family_data, children: list, family_id: i
         children: List of child records
         family_id: Family ID for logging
     """
-    from app.constants import MAX_CHILDREN_PER_PROVIDER
-    from app.extensions import db
-    from app.models.family_invitation import FamilyInvitation
-    from app.supabase.helpers import cols, unwrap_or_abort
-    from app.supabase.tables import Child, Family, Provider, ProviderChildMapping
 
     link_id = Family.LINK_ID(family_data)
     if link_id is None:
@@ -316,11 +312,6 @@ def process_provider_invitation_mappings(provider_data, provider_id: int) -> Non
         provider_data: Provider record from database
         provider_id: Provider ID for logging and mapping
     """
-    from app.constants import MAX_CHILDREN_PER_PROVIDER
-    from app.extensions import db
-    from app.models.provider_invitation import ProviderInvitation
-    from app.supabase.helpers import cols, unwrap_or_abort
-    from app.supabase.tables import Child, Provider, ProviderChildMapping
 
     link_id = Provider.LINK_ID(provider_data)
     if link_id is None:
