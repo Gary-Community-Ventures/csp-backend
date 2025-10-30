@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
 
@@ -67,6 +69,11 @@ def create_payment_rate(child_id: str):
 
     db.session.add(payment_rate)
     db.session.commit()
+
+    # Update provider's rates_configured_at timestamp if not already set
+    Provider.query().update({Provider.RATES_CONFIGURED_AT: datetime.now(timezone.utc).isoformat()}).eq(
+        Provider.ID, provider_id
+    ).is_(Provider.RATES_CONFIGURED_AT, "null").execute()
 
     return jsonify(PaymentRateResponse.model_validate(payment_rate).model_dump()), 201
 

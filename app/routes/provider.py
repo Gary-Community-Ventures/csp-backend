@@ -363,6 +363,11 @@ def initialize_provider_payment(provider_id: str):
         payment_service = current_app.payment_service
         result = payment_service.initialize_provider_payment_method(provider_id, payment_method)
 
+        # Update provider's payment_method_configured_at timestamp if not already set
+        Provider.query().update({Provider.PAYMENT_METHOD_CONFIGURED_AT: datetime.now(timezone.utc).isoformat()}).eq(
+            Provider.ID, provider_id
+        ).is_(Provider.PAYMENT_METHOD_CONFIGURED_AT, "null").execute()
+
         # Convert the result to PaymentInitializationResponse
         response = PaymentInitializationResponse(**result)
         return response.model_dump_json(), 200, {"Content-Type": "application/json"}
@@ -395,6 +400,11 @@ def initialize_my_payment():
     try:
         payment_service = current_app.payment_service
         result = payment_service.initialize_provider_payment_method(provider_id, payment_method)
+
+        # Update provider's payment_method_configured_at timestamp if not already set
+        Provider.query().update({Provider.PAYMENT_METHOD_CONFIGURED_AT: datetime.now(timezone.utc).isoformat()}).eq(
+            Provider.ID, provider_id
+        ).is_(Provider.PAYMENT_METHOD_CONFIGURED_AT, "null").execute()
 
         # Convert the result to PaymentInitializationResponse for consistency
         response = PaymentInitializationResponse(**result)
@@ -533,6 +543,11 @@ def invite_family():
         db.session.commit()
 
     send_family_invited_email(provider_name, Provider.ID(provider), data["family_email"], invitation.public_id)
+
+    # Update provider's family_invited_at timestamp if not already set
+    Provider.query().update({Provider.FAMILY_INVITED_AT: datetime.now(timezone.utc).isoformat()}).eq(
+        Provider.ID, provider_id
+    ).is_(Provider.FAMILY_INVITED_AT, "null").execute()
 
     return jsonify({"message": "Success"}, 201)
 

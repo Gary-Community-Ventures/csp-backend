@@ -61,6 +61,11 @@ class MockSupabaseQuery:
         self._filters.append(("eq", column, value))
         return self
 
+    def is_(self, column: str, value: Any):
+        """Mock is_ filter for null checks."""
+        self._filters.append(("is_", column, value))
+        return self
+
     def single(self):
         """Mock single result method."""
         self._single = True
@@ -79,6 +84,12 @@ class MockSupabaseQuery:
         for filter_type, column, value in self._filters:
             if filter_type == "eq":
                 result = [r for r in result if r.get(column) == value]
+            elif filter_type == "is_":
+                # Handle null checks
+                if value == "null":
+                    result = [r for r in result if r.get(column) is None]
+                else:
+                    result = [r for r in result if r.get(column) == value]
 
         # Return single item if requested
         if self._single:

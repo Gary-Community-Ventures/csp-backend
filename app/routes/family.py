@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
@@ -440,6 +441,11 @@ def invite_provider():
             db.session.commit()
 
     send_provider_invited_email(family_name, family_id, data["provider_email"], [i.public_id for i in invitations])
+
+    # Update family's provider_invited_at timestamp if not already set
+    Family.query().update({Family.PROVIDER_INVITED_AT: datetime.now(timezone.utc).isoformat()}).eq(
+        Family.ID, family_id
+    ).is_(Family.PROVIDER_INVITED_AT, "null").execute()
 
     return jsonify({"message": "Success"}, 201)
 
