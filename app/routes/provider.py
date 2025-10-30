@@ -114,13 +114,14 @@ def onboard_provider():
     Onboard an existing Clerk user to a provider account.
 
     This endpoint:
-    1. Links a Clerk user to a provider in the database
-    2. Updates Clerk metadata with provider_id
+    1. Validates the Clerk user is associated with the provider
+    2. Updates Clerk metadata with provider_id and type
     3. Onboards provider to Chek payment system
-    4. Sends portal invitation email
+    4. Processes family-child mappings from invitation links
+    5. Sends portal invitation email
 
     Idempotent: Safe to call multiple times. Uses Redis locking to prevent
-    duplicate operations from concurrent requests.
+    duplicate operations from concurrent requests. Returns early if already onboarded.
     """
     # Validate request body with Pydantic
     try:
@@ -177,7 +178,12 @@ def onboard_provider():
 
         # Validate that the clerk_user_id matches what's in the database
         stored_clerk_user_id = Provider.CLERK_USER_ID(provider_data)
-        if stored_clerk_user_id and stored_clerk_user_id != clerk_user_id:
+
+        if not stored_clerk_user_id:
+            current_app.logger.error(f"No clerk_user_id found in database for provider {provider_id}")
+            abort(400, description="Provider does not have a clerk_user_id set")
+
+        if stored_clerk_user_id != clerk_user_id:
             current_app.logger.error(
                 f"Clerk user ID mismatch for provider {provider_id}: "
                 f"provided {clerk_user_id}, stored {stored_clerk_user_id}"
@@ -204,29 +210,26 @@ def onboard_provider():
         # 4. Handle family-child mappings if there's a link_id (invitation)
         process_provider_invitation_mappings(provider_data, provider_id)
 
-        # 5. Send portal invite email (only once)
-        if not Provider.PORTAL_INVITE_SENT_AT(provider_data):
-            language = Provider.PREFERRED_LANGUAGE(provider_data) or Language.ENGLISH
+        # 5. Send portal invite email
+        language = Provider.PREFERRED_LANGUAGE(provider_data) or Language.ENGLISH
 
-            email_sent = send_portal_invite_email(
-                email=provider_email,
-                entity_type=ClerkUserType.PROVIDER,
-                entity_id=int(provider_id),
-                language=language,
-                clerk_user_id=clerk_user_id,
-                provider_name=provider_name,
-            )
+        email_sent = send_portal_invite_email(
+            email=provider_email,
+            entity_type=ClerkUserType.PROVIDER,
+            entity_id=int(provider_id),
+            language=language,
+            clerk_user_id=clerk_user_id,
+            provider_name=provider_name,
+        )
 
-            if email_sent:
-                # Mark portal invite as sent
-                Provider.query().update({Provider.PORTAL_INVITE_SENT_AT: datetime.now(timezone.utc).isoformat()}).eq(
-                    Provider.ID, provider_id
-                ).execute()
-                current_app.logger.info(f"Sent portal invite email to provider {provider_id}")
-            else:
-                current_app.logger.error(f"Failed to send portal invite email to provider {provider_id}")
+        if email_sent:
+            # Mark portal invite as sent
+            Provider.query().update({Provider.PORTAL_INVITE_SENT_AT: datetime.now(timezone.utc).isoformat()}).eq(
+                Provider.ID, provider_id
+            ).execute()
+            current_app.logger.info(f"Sent portal invite email to provider {provider_id}")
         else:
-            current_app.logger.info(f"Portal invite already sent for provider {provider_id}, skipping email")
+            current_app.logger.error(f"Failed to send portal invite email to provider {provider_id}")
 
         response = OnboardResponse(
             message="Provider onboarded successfully", provider_id=provider_id, clerk_user_id=clerk_user_id

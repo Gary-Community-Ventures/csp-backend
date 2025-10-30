@@ -122,14 +122,15 @@ def onboard_family():
     Onboard an existing Clerk user to a family account.
 
     This endpoint:
-    1. Links a Clerk user to a family in the database
-    2. Updates Clerk metadata with family_id
+    1. Validates the Clerk user is associated with the family in supabase
+    2. Updates Clerk metadata with family_id and type
     3. Onboards family to Chek payment system
-    4. Creates monthly allocations
-    5. Sends portal invitation email
+    4. Processes provider-child mappings from invitation links
+    5. Creates initial monthly allocations for payment-enabled children
+    6. Sends portal invitation email
 
     Idempotent: Safe to call multiple times. Uses Redis locking to prevent
-    duplicate operations from concurrent requests.
+    duplicate operations from concurrent requests. Returns early if already onboarded.
     """
     # Validate request body with Pydantic
     try:
@@ -169,7 +170,7 @@ def onboard_family():
                 Family.LANGUAGE,
                 Family.PORTAL_INVITE_SENT_AT,
                 Family.LINK_ID,
-                Child.join(Child.ID, Child.PAYMENT_ENABLED),
+                Child.join(Child.ID, Child.PAYMENT_ENABLED, Provider.join(Provider.ID)),
                 Guardian.join(Guardian.EMAIL, Guardian.TYPE),
             ),
             int(family_id),
@@ -188,16 +189,17 @@ def onboard_family():
 
         # Validate that the clerk_user_id matches what's in the database
         stored_clerk_user_id = Family.CLERK_USER_ID(family_data)
-        if stored_clerk_user_id and stored_clerk_user_id != clerk_user_id:
+
+        if not stored_clerk_user_id:
+            current_app.logger.error(f"No clerk_user_id found in database for family {family_id}")
+            abort(400, description="Family does not have a clerk_user_id set")
+
+        if stored_clerk_user_id != clerk_user_id:
             current_app.logger.error(
                 f"Clerk user ID mismatch for family {family_id}: "
                 f"provided {clerk_user_id}, stored {stored_clerk_user_id}"
             )
             abort(400, description="Clerk user ID does not match family record")
-
-        if not stored_clerk_user_id:
-            current_app.logger.error(f"No clerk_user_id found in database for family {family_id}")
-            abort(400, description="Family does not have a clerk_user_id set")
 
         # Get primary guardian email for portal invite
         primary_guardian = Guardian.get_primary_guardian(guardians)
@@ -210,38 +212,34 @@ def onboard_family():
         # 2. Update Clerk user metadata
         update_clerk_user_metadata(clerk_user_id, ClerkUserType.FAMILY, family_id)
 
-        # 3. Onboard to Chek (already idempotent)
+        # 3. Onboard to Chek
         onboard_family_to_chek(family_id)
 
         # 4. Handle provider-child mappings if there's a link_id (invitation)
         process_family_invitation_mappings(family_data, children, family_id)
 
-        # 5. Create allocations for payment-enabled children (already idempotent via get_or_create)
+        # 5. Create allocations for payment-enabled children
         current_month_result, next_month_result = create_family_allocations(children, family_id)
         validate_family_allocations(children, family_id, current_month_result, next_month_result)
 
-        # 6. Send portal invite email (only once)
-        if not Family.PORTAL_INVITE_SENT_AT(family_data):
-            language = Family.LANGUAGE(family_data) or Language.ENGLISH
+        # 6. Send portal invite email
+        language = Family.LANGUAGE(family_data) or Language.ENGLISH
+        email_sent = send_portal_invite_email(
+            email=guardian_email,
+            entity_type=ClerkUserType.FAMILY,
+            entity_id=int(family_id),
+            language=language,
+            clerk_user_id=clerk_user_id,
+        )
 
-            email_sent = send_portal_invite_email(
-                email=guardian_email,
-                entity_type=ClerkUserType.FAMILY,
-                entity_id=int(family_id),
-                language=language,
-                clerk_user_id=clerk_user_id,
-            )
-
-            if email_sent:
-                # Mark portal invite as sent
-                Family.query().update({Family.PORTAL_INVITE_SENT_AT: datetime.now(timezone.utc).isoformat()}).eq(
-                    Family.ID, family_id
-                ).execute()
-                current_app.logger.info(f"Sent portal invite email to family {family_id}")
-            else:
-                current_app.logger.error(f"Failed to send portal invite email to family {family_id}")
+        if email_sent:
+            # Mark portal invite as sent
+            Family.query().update({Family.PORTAL_INVITE_SENT_AT: datetime.now(timezone.utc).isoformat()}).eq(
+                Family.ID, family_id
+            ).execute()
+            current_app.logger.info(f"Sent portal invite email to family {family_id}")
         else:
-            current_app.logger.info(f"Portal invite already sent for family {family_id}, skipping email")
+            current_app.logger.error(f"Failed to send portal invite email to family {family_id}")
 
         response = OnboardResponse(
             message="Family onboarded successfully", family_id=family_id, clerk_user_id=clerk_user_id
