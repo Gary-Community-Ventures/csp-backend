@@ -15,17 +15,18 @@ from app.auth.decorators import ClerkUserType
 from app.supabase.columns import Language
 
 
-def update_clerk_user_metadata(clerk_user_id: str, user_type: ClerkUserType, entity_id: int):
+def update_clerk_user_metadata(clerk_user_id: str, user_type: ClerkUserType, entity_id: str):
     """
     Update Clerk user metadata with entity ID and type.
 
-    Sets both 'types' array and the entity ID key (family_id or provider_id)
-    in the public_metadata, matching the format used in Clerk invitations.
+    Appends to 'types' array and adds the entity ID key (family_id or provider_id)
+    in the public_metadata, preserving existing metadata. This allows a user to be
+    both a family and a provider.
 
     Args:
         clerk_user_id: Clerk user ID
         user_type: Type of user (FAMILY or PROVIDER)
-        entity_id: Family or provider ID
+        entity_id: Family or provider ID (as string)
 
     Raises:
         Exception: If Clerk API call fails
@@ -33,15 +34,25 @@ def update_clerk_user_metadata(clerk_user_id: str, user_type: ClerkUserType, ent
     clerk: Clerk = current_app.clerk_client
     metadata_key = "family_id" if user_type == ClerkUserType.FAMILY else "provider_id"
 
-    # Build metadata dict with both types array and entity ID
-    metadata = {
-        "types": [user_type.value],  # List in case users fit into multiple categories
+    # Fetch existing metadata
+    user = clerk.users.get(user_id=clerk_user_id)
+    existing_metadata = user.public_metadata or {}
+
+    # Get existing types array and append new type if not already present
+    existing_types = existing_metadata.get("types", [])
+    if user_type.value not in existing_types:
+        existing_types.append(user_type.value)
+
+    # Build updated metadata, merging with existing
+    updated_metadata = {
+        **existing_metadata,
+        "types": existing_types,
         metadata_key: entity_id,
     }
 
-    clerk.users.update(user_id=clerk_user_id, public_metadata=metadata)
+    clerk.users.update(user_id=clerk_user_id, public_metadata=updated_metadata)
     current_app.logger.info(
-        f"Updated Clerk user {clerk_user_id} with types={[user_type.value]} and {metadata_key}={entity_id}"
+        f"Updated Clerk user {clerk_user_id} with types={existing_types} and {metadata_key}={entity_id}"
     )
 
 
@@ -157,7 +168,7 @@ def create_family_allocations(children: list, family_id: int):
     """
     from app.services.allocation_service import AllocationService
     from app.supabase.tables import Child
-    from app.utils.dates import get_current_month_start, get_next_month_start
+    from app.utils.date_utils import get_current_month_start, get_next_month_start
 
     # Filter to payment-enabled children
     payment_enabled_children = [c for c in children if Child.PAYMENT_ENABLED(c)]

@@ -167,6 +167,14 @@ def onboard_provider():
         ).execute()
         provider_data = unwrap_or_abort(provider_result)
 
+        # Check if already onboarded
+        if Provider.PORTAL_INVITE_SENT_AT(provider_data):
+            current_app.logger.info(f"Provider {provider_id} has already been onboarded, skipping")
+            response = OnboardResponse(
+                message="Provider has already been onboarded", provider_id=provider_id, clerk_user_id=clerk_user_id
+            )
+            return jsonify(response.model_dump()), 200
+
         # Validate that the clerk_user_id matches what's in the database
         stored_clerk_user_id = Provider.CLERK_USER_ID(provider_data)
         if stored_clerk_user_id and stored_clerk_user_id != clerk_user_id:
@@ -188,7 +196,7 @@ def onboard_provider():
             abort(400, description="Provider has no email address")
 
         # 2. Update Clerk user metadata
-        update_clerk_user_metadata(clerk_user_id, ClerkUserType.PROVIDER, int(provider_id))
+        update_clerk_user_metadata(clerk_user_id, ClerkUserType.PROVIDER, provider_id)
 
         # 3. Onboard to Chek (already idempotent)
         onboard_provider_to_chek(provider_id)
@@ -211,7 +219,7 @@ def onboard_provider():
 
             if email_sent:
                 # Mark portal invite as sent
-                Provider.query().update({Provider.PORTAL_INVITE_SENT_AT: datetime.now(timezone.utc)}).eq(
+                Provider.query().update({Provider.PORTAL_INVITE_SENT_AT: datetime.now(timezone.utc).isoformat()}).eq(
                     Provider.ID, provider_id
                 ).execute()
                 current_app.logger.info(f"Sent portal invite email to provider {provider_id}")

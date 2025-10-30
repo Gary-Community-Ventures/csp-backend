@@ -168,6 +168,7 @@ def onboard_family():
                 Family.CLERK_USER_ID,
                 Family.LANGUAGE,
                 Family.PORTAL_INVITE_SENT_AT,
+                Family.LINK_ID,
                 Child.join(Child.ID, Child.PAYMENT_ENABLED),
                 Guardian.join(Guardian.EMAIL, Guardian.TYPE),
             ),
@@ -176,6 +177,14 @@ def onboard_family():
         family_data = unwrap_or_abort(family_result)
         children = Child.unwrap(family_data)
         guardians = Guardian.unwrap(family_data)
+
+        # Check if already onboarded
+        if Family.PORTAL_INVITE_SENT_AT(family_data):
+            current_app.logger.info(f"Family {family_id} has already been onboarded, skipping")
+            response = OnboardResponse(
+                message="Family has already been onboarded", family_id=family_id, clerk_user_id=clerk_user_id
+            )
+            return jsonify(response.model_dump()), 200
 
         # Validate that the clerk_user_id matches what's in the database
         stored_clerk_user_id = Family.CLERK_USER_ID(family_data)
@@ -199,7 +208,7 @@ def onboard_family():
             abort(400, description="Family has no primary guardian email")
 
         # 2. Update Clerk user metadata
-        update_clerk_user_metadata(clerk_user_id, ClerkUserType.FAMILY, int(family_id))
+        update_clerk_user_metadata(clerk_user_id, ClerkUserType.FAMILY, family_id)
 
         # 3. Onboard to Chek (already idempotent)
         onboard_family_to_chek(family_id)
@@ -225,7 +234,7 @@ def onboard_family():
 
             if email_sent:
                 # Mark portal invite as sent
-                Family.query().update({Family.PORTAL_INVITE_SENT_AT: datetime.now(timezone.utc)}).eq(
+                Family.query().update({Family.PORTAL_INVITE_SENT_AT: datetime.now(timezone.utc).isoformat()}).eq(
                     Family.ID, family_id
                 ).execute()
                 current_app.logger.info(f"Sent portal invite email to family {family_id}")
