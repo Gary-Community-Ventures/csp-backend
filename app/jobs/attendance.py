@@ -34,8 +34,8 @@ def schedule_attendance_communications_job():
     cron_schedule_second_reminder = "0 15 * * 0"
 
     current_app.logger.info(
-        f"Scheduling attendance communications job with crons '{cron_schedule_initial}'(initial), "
-        f"'{cron_schedule_first_reminder}'(first reminder), and '{cron_schedule_second_reminder}'(second reminder)"
+        f"Scheduling attendance communications job with crons '{cron_schedule_initial}' (initial), "
+        f"'{cron_schedule_first_reminder}' (first reminder), and '{cron_schedule_second_reminder}' (second reminder)"
     )
 
     return (
