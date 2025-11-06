@@ -54,6 +54,7 @@ class Family(Table):
     LINK_ID = Column("link_id")
     CLERK_USER_ID = Column("clerk_user_id")
     PORTAL_INVITE_SENT_AT = Column("portal_invite_sent_at", datetime_column)
+    PROVIDER_INVITED_AT = Column("provider_invited_at", datetime_column)
 
 
 class Guardian(Table):
@@ -148,6 +149,9 @@ class Provider(Table):
     )
     CLERK_USER_ID = Column("clerk_user_id")
     PORTAL_INVITE_SENT_AT = Column("portal_invite_sent_at", datetime_column)
+    FAMILY_INVITED_AT = Column("family_invited_at", datetime_column)
+    RATES_CONFIGURED_AT = Column("rates_configured_at", datetime_column)
+    PAYMENT_METHOD_CONFIGURED_AT = Column("payment_method_configured_at", datetime_column)
 
 
 class ProviderChildMapping(Table):
