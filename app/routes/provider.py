@@ -31,7 +31,13 @@ from app.schemas.provider_payment import (
     PaymentSettingsResponse,
 )
 from app.supabase.columns import Language
-from app.supabase.helpers import UnwrapError, cols, format_name, unwrap_or_abort
+from app.supabase.helpers import (
+    UnwrapError,
+    cols,
+    format_name,
+    set_timestamp_column_if_null,
+    unwrap_or_abort,
+)
 from app.supabase.tables import Child, Family, Guardian, Provider, ProviderChildMapping
 from app.utils.email.config import get_from_email_external
 from app.utils.email.core import send_email
@@ -333,6 +339,9 @@ def update_payment_settings():
 
     db.session.commit()
 
+    # Update provider's payment_method_configured_at timestamp if not already set
+    set_timestamp_column_if_null(Provider, provider_id, Provider.PAYMENT_METHOD_CONFIGURED_AT)
+
     response = PaymentMethodUpdateResponse(
         message="Payment method updated successfully",
         provider_id=provider_id,
@@ -362,6 +371,9 @@ def initialize_provider_payment(provider_id: str):
     try:
         payment_service = current_app.payment_service
         result = payment_service.initialize_provider_payment_method(provider_id, payment_method)
+
+        # Update provider's payment_method_configured_at timestamp if not already set
+        set_timestamp_column_if_null(Provider, provider_id, Provider.PAYMENT_METHOD_CONFIGURED_AT)
 
         # Convert the result to PaymentInitializationResponse
         response = PaymentInitializationResponse(**result)
@@ -395,6 +407,9 @@ def initialize_my_payment():
     try:
         payment_service = current_app.payment_service
         result = payment_service.initialize_provider_payment_method(provider_id, payment_method)
+
+        # Update provider's payment_method_configured_at timestamp if not already set
+        set_timestamp_column_if_null(Provider, provider_id, Provider.PAYMENT_METHOD_CONFIGURED_AT)
 
         # Convert the result to PaymentInitializationResponse for consistency
         response = PaymentInitializationResponse(**result)
@@ -533,6 +548,9 @@ def invite_family():
         db.session.commit()
 
     send_family_invited_email(provider_name, Provider.ID(provider), data["family_email"], invitation.public_id)
+
+    # Update provider's family_invited_at timestamp if not already set
+    set_timestamp_column_if_null(Provider, provider_id, Provider.FAMILY_INVITED_AT)
 
     return jsonify({"message": "Success"}, 201)
 

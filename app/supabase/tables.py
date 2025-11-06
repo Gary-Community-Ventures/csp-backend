@@ -52,6 +52,7 @@ class Family(Table):
     ZIP = Column("zip")
     LANGUAGE = Column("language", enum_column(Language))
     LINK_ID = Column("link_id")
+    PROVIDER_INVITED_AT = Column("provider_invited_at", datetime_column)
 
 
 class Guardian(Table):
@@ -144,6 +145,9 @@ class Provider(Table):
     PDIS_MEDICATION_ADMINISTRATION_PART_ONE_COMPLETED_AT = Column(
         "pdis_medication_administration_part_one_completed_at", datetime_column
     )
+    FAMILY_INVITED_AT = Column("family_invited_at", datetime_column)
+    RATES_CONFIGURED_AT = Column("rates_configured_at", datetime_column)
+    PAYMENT_METHOD_CONFIGURED_AT = Column("payment_method_configured_at", datetime_column)
 
 
 class ProviderChildMapping(Table):

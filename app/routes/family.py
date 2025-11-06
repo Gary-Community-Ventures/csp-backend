@@ -21,7 +21,12 @@ from app.models.provider_invitation import ProviderInvitation
 from app.models.provider_payment_settings import ProviderPaymentSettings
 from app.services.allocation_service import AllocationService
 from app.supabase.columns import Language
-from app.supabase.helpers import cols, format_name, unwrap_or_abort
+from app.supabase.helpers import (
+    cols,
+    format_name,
+    set_timestamp_column_if_null,
+    unwrap_or_abort,
+)
 from app.supabase.tables import Child, Family, Guardian, Provider, ProviderChildMapping
 from app.utils.date_utils import get_current_month_start, get_next_month_start
 from app.utils.email.config import get_from_email_external
@@ -440,6 +445,9 @@ def invite_provider():
             db.session.commit()
 
     send_provider_invited_email(family_name, family_id, data["provider_email"], [i.public_id for i in invitations])
+
+    # Update family's provider_invited_at timestamp if not already set
+    set_timestamp_column_if_null(Family, family_id, Family.PROVIDER_INVITED_AT)
 
     return jsonify({"message": "Success"}, 201)
 
