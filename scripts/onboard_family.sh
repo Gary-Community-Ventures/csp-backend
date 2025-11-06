@@ -1,32 +1,39 @@
 #!/bin/bash
 
-# Create Provider Script
-# Usage: ./create_provider.sh <environment> [email] [supabase_id]
-# Example: ./create_provider.sh "dev" "provider@example.com" "1xyz789abc123def456ghi"
+# Onboard Family Script
+# Usage: ./scripts/onboard_family.sh <environment> <clerk_user_id> <family_id>
+# Example: ./scripts/onboard_family.sh "dev" "user_2abc123def456" "42"
 # Environments: dev, staging, prod
 
-# Load environment variables from .env.local
-if [ -f ".env.local" ]; then
-    export $(cat .env.local | grep -v '^#' | xargs)
+# Get the project root directory (parent of scripts directory)
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Load environment variables from .env.local in project root
+if [ -f "$PROJECT_ROOT/.env.local" ]; then
+    set -a
+    source "$PROJECT_ROOT/.env.local"
+    set +a
 else
-    echo "Error: .env.local file not found"
+    echo "Error: .env.local file not found in $PROJECT_ROOT"
     echo "Please create .env.local with your API keys:"
     echo "DEV_API_KEY=your-dev-api-key"
-    echo "STAGING_API_KEY=your-staging-api-key" 
+    echo "STAGING_API_KEY=your-staging-api-key"
     echo "PROD_API_KEY=your-prod-api-key"
     exit 1
 fi
 
 # Check if required parameters are provided
-if [ $# -lt 1 ]; then
-    echo "Usage: $0 <environment> [email] [supabase_id]"
+if [ $# -lt 3 ]; then
+    echo "Usage: $0 <environment> <clerk_user_id> <family_id>"
     echo "Environments: dev, staging, prod"
-    echo "Example: $0 'dev' 'provider@example.com' '1xyz789abc123def456ghi'"
+    echo "Example: $0 'dev' 'user_2abc123def456' '42'"
     exit 1
 fi
 
 # Get required parameters
 ENVIRONMENT="$1"
+CLERK_USER_ID="$2"
+FAMILY_ID="$3"
 
 # Set BASE_URL and API_KEY based on environment
 case "$ENVIRONMENT" in
@@ -56,23 +63,19 @@ if [ -z "$API_KEY" ]; then
     exit 1
 fi
 
-# Get optional parameters from command line or use defaults
-EMAIL=${2:-"provider@example.com"}
-SUPABASE_ID=${3:-"1xyz789abc123def456ghi"}
-
-echo "Creating new provider..."
+echo "Onboarding family..."
 echo "Environment: $ENVIRONMENT"
 echo "Base URL: $BASE_URL"
-echo "Email: $EMAIL"
-echo "Supabase ID: $SUPABASE_ID"
+echo "Clerk User ID: $CLERK_USER_ID"
+echo "Family ID: $FAMILY_ID"
 echo ""
 
-curl -X POST "$BASE_URL/provider" \
+curl -X POST "$BASE_URL/family/onboard" \
     -H "Content-Type: application/json" \
     -H "X-API-Key: $API_KEY" \
     -d "{
-        \"provider_id\": \"$SUPABASE_ID\",
-        \"email\": \"$EMAIL\"
+        \"clerk_user_id\": \"$CLERK_USER_ID\",
+        \"family_id\": \"$FAMILY_ID\"
     }" \
     -w "\nHTTP Status: %{http_code}\n" \
     -v
