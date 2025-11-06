@@ -1,9 +1,12 @@
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import uuid4
 
+import sentry_sdk
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, current_app, jsonify, request
+from pydantic import ValidationError
 
 from app.auth.decorators import (
     ClerkUserType,
@@ -15,15 +18,18 @@ from app.auth.helpers import get_current_user, get_family_user, get_provider_use
 from app.constants import MAX_CHILDREN_PER_PROVIDER, UNKNOWN
 from app.extensions import db
 from app.models.attendance import Attendance
-from app.models.family_invitation import FamilyInvitation
 from app.models.family_payment_settings import FamilyPaymentSettings
 from app.models.provider_invitation import ProviderInvitation
 from app.models.provider_payment_settings import ProviderPaymentSettings
-from app.services.allocation_service import AllocationService
+from app.schemas.onboarding import FamilyOnboardRequest, OnboardResponse
 from app.supabase.columns import Language
-from app.supabase.helpers import cols, format_name, unwrap_or_abort
-from app.supabase.tables import Child, Family, Guardian, Provider, ProviderChildMapping
-from app.utils.date_utils import get_current_month_start, get_next_month_start
+from app.supabase.helpers import (
+    cols,
+    format_name,
+    set_timestamp_column_if_null,
+    unwrap_or_abort,
+)
+from app.supabase.tables import Child, Family, Guardian, Provider
 from app.utils.email.config import get_from_email_external
 from app.utils.email.core import send_email
 from app.utils.email.senders import (
@@ -31,29 +37,32 @@ from app.utils.email.senders import (
     send_provider_invited_email,
 )
 from app.utils.email.templates import InvitationTemplate
+from app.utils.onboarding import (
+    create_family_allocations,
+    onboard_family_to_chek,
+    process_family_invitation_mappings,
+    send_portal_invite_email,
+    update_clerk_user_metadata,
+)
 from app.utils.sms_service import send_sms
 
 bp = Blueprint("family", __name__)
 
 
-def create_allocations(family_children, month):
-    """Create allocations for a list of children for a specific month.
-
-    Args:
-        family_children: List of child data from Supabase query
-        month: The month to create allocations for
-
-    Returns:
-        AllocationResult with details about created allocations
-    """
-    child_ids = [Child.ID(child) for child in family_children]
-    allocation_service = AllocationService(current_app)
-    return allocation_service.create_allocations_for_specific_children(child_ids, month)
-
-
 @bp.post("/family")
 @api_key_required
 def new_family():
+    """
+    DEPRECATED: Use POST /family/onboard instead.
+
+    This endpoint creates a Clerk invitation and onboards a family.
+    It is being phased out in favor of the new flow where users create
+    their own Clerk accounts first, then get linked via /family/onboard.
+
+    Will be removed in a future version.
+    """
+    current_app.logger.warning("DEPRECATED: POST /family endpoint called. Use POST /family/onboard instead.")
+
     data = request.json
 
     family_id = data.get("family_id")
@@ -98,82 +107,154 @@ def new_family():
     )
 
     # Create Chek user and FamilyPaymentSettings (idempotent - returns existing if already created)
-    payment_service = current_app.payment_service
-    family_settings = payment_service.onboard_family(family_id)
-    current_app.logger.info(
-        f"FamilyPaymentSettings for family {family_id} with Chek user {family_settings.chek_user_id}"
-    )
+    onboard_family_to_chek(family_id)
 
-    link_id = Family.LINK_ID(family)
-    if link_id is None:
-        return jsonify(data)
-
-    invite: FamilyInvitation = FamilyInvitation.invitation_by_id(link_id).first()
-    if invite is None:
-        current_app.logger.warning(f"Family invitation with ID {link_id} not found.")
-        return jsonify(data)
-
-    provider_result = Provider.select_by_id(
-        cols(Provider.ID, Child.join(Child.ID)), int(invite.provider_supabase_id)
-    ).execute()
-    provider = unwrap_or_abort(provider_result)
-    if not provider:
-        current_app.logger.warning(f"Provider with ID {invite.provider_supabase_id} not found.")
-        return jsonify(data)
-
-    extra_slots = MAX_CHILDREN_PER_PROVIDER - len(Child.unwrap(provider))
-
-    for child in children:
-        if extra_slots <= 0:
-            break
-
-        for provider in Provider.unwrap(child):
-            if Provider.ID(provider) == invite.provider_supabase_id:
-                continue
-
-        ProviderChildMapping.query().insert(
-            {
-                ProviderChildMapping.CHILD_ID: Child.ID(child),
-                ProviderChildMapping.PROVIDER_ID: invite.provider_supabase_id,
-            }
-        ).execute()
-
-    invite.record_accepted()
-    db.session.add(invite)
-    db.session.commit()
+    # Handle provider-child mappings if there's a link_id (invitation)
+    process_family_invitation_mappings(family, children, family_id)
 
     # Create allocations for current and next month (at the end after all other operations succeed)
-    current_month_result = create_allocations(children, get_current_month_start())
-    next_month_result = create_allocations(children, get_next_month_start())
-
-    # Check if any allocations were created
-    total_created = current_month_result.created_count + next_month_result.created_count
-    total_expected = len(children) * 2  # current month + next month for each child
-
-    if total_created < total_expected:
-        # Some allocations were created but not all
-        current_app.logger.warning(
-            f"Partial allocation creation for family {family_id}: {total_created}/{total_expected} created. "
-            f"Current month: {current_month_result.created_count} created, {current_month_result.skipped_count} skipped, {current_month_result.error_count} errors. "
-            f"Next month: {next_month_result.created_count} created, {next_month_result.skipped_count} skipped, {next_month_result.error_count} errors."
-        )
-
-    if total_created == 0:
-        # No allocations were created at all - return 400 at the very end
-        error_messages = current_month_result.errors + next_month_result.errors
-        error_detail = f"No allocations were created. " + (
-            f"Errors: {'; '.join(error_messages[:3])}"
-            if error_messages
-            else "No children matched the allocation criteria."
-        )
-        current_app.logger.error(
-            f"Failed to create allocations for family {family_id}: {error_detail}. "
-            f"Current month: {current_month_result.created_count} created, {current_month_result.error_count} errors. "
-            f"Next month: {next_month_result.created_count} created, {next_month_result.error_count} errors."
-        )
-        abort(400, description=error_detail)
+    create_family_allocations(children, family_id)
 
     return jsonify(data)
+
+
+@bp.post("/family/onboard")
+@api_key_required
+def onboard_family():
+    """
+    Onboard an existing Clerk user to a family account.
+
+    This endpoint:
+    1. Validates the Clerk user is associated with the family in supabase
+    2. Updates Clerk metadata with family_id and type
+    3. Onboards family to Chek payment system
+    4. Processes provider-child mappings from invitation links
+    5. Creates initial monthly allocations for payment-enabled children
+    6. Sends portal invitation email
+
+    Idempotent: Safe to call multiple times. Uses Redis locking to prevent
+    duplicate operations from concurrent requests. Returns early if already onboarded.
+    """
+    # Validate request body with Pydantic
+    try:
+        onboard_request = FamilyOnboardRequest(**request.json)
+    except ValidationError as e:
+        abort(400, description=f"Invalid request: {e.errors()}")
+
+    clerk_user_id = onboard_request.clerk_user_id
+    family_id = onboard_request.family_id
+
+    # Get Redis connection for distributed locking
+    try:
+        redis_conn = current_app.extensions["job_manager"].get_redis()
+        lock_key = f"onboarding:family:{family_id}"
+
+        # Try to acquire lock (15 minute TTL) - fail-closed approach
+        # TTL is generous since onboarding should complete in seconds
+        lock_acquired = redis_conn.set(lock_key, "1", nx=True, ex=900)
+
+        if not lock_acquired:
+            # Another request is already processing or recently processed this
+            current_app.logger.info(f"Family {family_id} onboarding already in progress or completed, skipping")
+            return jsonify({"message": "Onboarding already in progress or completed"}), 200
+
+    except Exception as redis_error:
+        # Redis is down - fail closed (reject request)
+        current_app.logger.error(f"Redis unavailable for onboarding lock: {redis_error}")
+        sentry_sdk.capture_exception(redis_error)
+        abort(503, description="Service temporarily unavailable, please retry in a few moments")
+
+    try:
+        # 1. Fetch family data with children and language preference
+        family_result = Family.select_by_id(
+            cols(
+                Family.ID,
+                Family.CLERK_USER_ID,
+                Family.LANGUAGE,
+                Family.PORTAL_INVITE_SENT_AT,
+                Family.LINK_ID,
+                Child.join(Child.ID, Child.PAYMENT_ENABLED, Provider.join(Provider.ID)),
+                Guardian.join(Guardian.EMAIL, Guardian.TYPE),
+            ),
+            int(family_id),
+        ).execute()
+        family_data = unwrap_or_abort(family_result)
+        children = Child.unwrap(family_data)
+        guardians = Guardian.unwrap(family_data)
+
+        # Check if already onboarded
+        if Family.PORTAL_INVITE_SENT_AT(family_data):
+            current_app.logger.info(f"Family {family_id} has already been onboarded, skipping")
+            response = OnboardResponse(
+                message="Family has already been onboarded", family_id=family_id, clerk_user_id=clerk_user_id
+            )
+            return jsonify(response.model_dump()), 200
+
+        # Validate that the clerk_user_id matches what's in the database
+        stored_clerk_user_id = Family.CLERK_USER_ID(family_data)
+
+        if not stored_clerk_user_id:
+            current_app.logger.error(f"No clerk_user_id found in database for family {family_id}")
+            abort(400, description="Family does not have a clerk_user_id set")
+
+        if stored_clerk_user_id != clerk_user_id:
+            current_app.logger.error(
+                f"Clerk user ID mismatch for family {family_id}: "
+                f"provided {clerk_user_id}, stored {stored_clerk_user_id}"
+            )
+            abort(400, description="Clerk user ID does not match family record")
+
+        # Get primary guardian email for portal invite
+        primary_guardian = Guardian.get_primary_guardian(guardians)
+        guardian_email = Guardian.EMAIL(primary_guardian) if primary_guardian else None
+
+        if not guardian_email:
+            current_app.logger.error(f"No primary guardian email found for family {family_id}")
+            abort(400, description="Family has no primary guardian email")
+
+        # 2. Update Clerk user metadata
+        update_clerk_user_metadata(clerk_user_id, ClerkUserType.FAMILY, family_id)
+
+        # 3. Onboard to Chek
+        onboard_family_to_chek(family_id)
+
+        # 4. Handle provider-child mappings if there's a link_id (invitation)
+        process_family_invitation_mappings(family_data, children, family_id)
+
+        # 5. Create allocations for payment-enabled children
+        create_family_allocations(children, family_id)
+
+        # 6. Send portal invite email
+        language = Family.LANGUAGE(family_data) or Language.ENGLISH
+        email_sent = send_portal_invite_email(
+            email=guardian_email,
+            entity_type=ClerkUserType.FAMILY,
+            entity_id=int(family_id),
+            language=language,
+            clerk_user_id=clerk_user_id,
+        )
+
+        if email_sent:
+            # Mark portal invite as sent
+            Family.query().update({Family.PORTAL_INVITE_SENT_AT: datetime.now(timezone.utc).isoformat()}).eq(
+                Family.ID, family_id
+            ).execute()
+            current_app.logger.info(f"Sent portal invite email to family {family_id}")
+        else:
+            current_app.logger.error(f"Failed to send portal invite email to family {family_id}")
+
+        response = OnboardResponse(
+            message="Family onboarded successfully", family_id=family_id, clerk_user_id=clerk_user_id
+        )
+        return jsonify(response.model_dump()), 200
+
+    finally:
+        # Release the lock when done
+        try:
+            redis_conn.delete(lock_key)
+            current_app.logger.debug(f"Released Redis lock for family {family_id}")
+        except Exception as cleanup_error:
+            current_app.logger.warning(f"Failed to release Redis lock: {cleanup_error}")
 
 
 @bp.get("/family/default_child_id")
@@ -440,6 +521,9 @@ def invite_provider():
             db.session.commit()
 
     send_provider_invited_email(family_name, family_id, data["provider_email"], [i.public_id for i in invitations])
+
+    # Update family's provider_invited_at timestamp if not already set
+    set_timestamp_column_if_null(Family, family_id, Family.PROVIDER_INVITED_AT)
 
     return jsonify({"message": "Success"}, 201)
 
