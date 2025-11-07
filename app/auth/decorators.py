@@ -96,8 +96,6 @@ def _authenticate_request(user_type: ClerkUserType, allow_cookies: bool = False)
             raise AuthenticationError("Authentication service error", 500)
 
 
-
-
 def _authenticate_api_key():
     """
     Authenticate API key from request headers
