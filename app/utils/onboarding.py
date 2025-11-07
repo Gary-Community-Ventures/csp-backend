@@ -299,7 +299,7 @@ def process_provider_invitation_mappings(provider_data, provider_id: int) -> Non
 
     for invite in invites[:MAX_CHILDREN_PER_PROVIDER]:
         child_result = Child.select_by_id(
-            cols(Child.ID, Provider.join(Provider.ID)), int(invite.child_supabase_id)
+            cols(Child.ID, Child.FAMILY_ID, Provider.join(Provider.ID)), int(invite.child_supabase_id)
         ).execute()
         child = unwrap_or_abort(child_result)
 
@@ -317,6 +317,7 @@ def process_provider_invitation_mappings(provider_data, provider_id: int) -> Non
                 ProviderChildMapping.PROVIDER_ID: provider_id,
             }
         ).execute()
+        set_timestamp_column_if_null(Family, Child.FAMILY_ID(child), Family.PROVIDER_APPROVED_AT)
         invite.record_accepted()
         db.session.add(invite)
 
