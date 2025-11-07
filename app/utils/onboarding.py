@@ -16,9 +16,10 @@ from app.constants import MAX_CHILDREN_PER_PROVIDER
 from app.extensions import db
 from app.models.family_invitation import FamilyInvitation
 from app.models.provider_invitation import ProviderInvitation
+from app.routes import family
 from app.services.allocation_service import AllocationService
 from app.supabase.columns import Language
-from app.supabase.helpers import cols, unwrap_or_abort
+from app.supabase.helpers import cols, set_timestamp_column_if_null, unwrap_or_abort
 from app.supabase.tables import Child, Family, Provider, ProviderChildMapping
 from app.utils.date_utils import get_current_month_start, get_next_month_start
 from app.utils.email.config import get_from_email_external
@@ -267,6 +268,7 @@ def process_family_invitation_mappings(family_data, children: list, family_id: i
                 ProviderChildMapping.PROVIDER_ID: invite.provider_supabase_id,
             }
         ).execute()
+        set_timestamp_column_if_null(Family, str(family_id), Family.PROVIDER_APPROVED_AT)
         extra_slots -= 1
 
     invite.record_accepted()

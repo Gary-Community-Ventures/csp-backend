@@ -113,46 +113,6 @@ def new_family():
     # Handle provider-child mappings if there's a link_id (invitation)
     process_family_invitation_mappings(family, children, family_id)
 
-    link_id = Family.LINK_ID(family)
-    if link_id is None:
-        return jsonify(data)
-
-    invite: FamilyInvitation = FamilyInvitation.invitation_by_id(link_id).first()
-    if invite is None:
-        current_app.logger.warning(f"Family invitation with ID {link_id} not found.")
-        return jsonify(data)
-
-    provider_result = Provider.select_by_id(
-        cols(Provider.ID, Child.join(Child.ID)), int(invite.provider_supabase_id)
-    ).execute()
-    provider = unwrap_or_abort(provider_result)
-    if not provider:
-        current_app.logger.warning(f"Provider with ID {invite.provider_supabase_id} not found.")
-        return jsonify(data)
-
-    extra_slots = MAX_CHILDREN_PER_PROVIDER - len(Child.unwrap(provider))
-
-    for child in children:
-        if extra_slots <= 0:
-            break
-
-        for provider in Provider.unwrap(child):
-            if Provider.ID(provider) == invite.provider_supabase_id:
-                continue
-
-        ProviderChildMapping.query().insert(
-            {
-                ProviderChildMapping.CHILD_ID: Child.ID(child),
-                ProviderChildMapping.PROVIDER_ID: invite.provider_supabase_id,
-            }
-        ).execute()
-
-        extra_slots -= 1
-
-    invite.record_accepted()
-    db.session.add(invite)
-    db.session.commit()
-
     create_family_allocations(children, family_id)
 
     return jsonify(data)
