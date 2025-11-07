@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from uuid import uuid4
 
+import sentry_sdk
 from clerk_backend_api import Clerk, CreateInvitationRequestBody
 from flask import Blueprint, abort, current_app, jsonify, request
 from pydantic import ValidationError
@@ -21,8 +22,8 @@ from app.models import AllocatedCareDay, MonthAllocation
 from app.models.attendance import Attendance
 from app.models.family_invitation import FamilyInvitation
 from app.models.payment_rate import PaymentRate
-from app.models.provider_invitation import ProviderInvitation
 from app.models.provider_payment_settings import ProviderPaymentSettings
+from app.schemas.onboarding import OnboardResponse, ProviderOnboardRequest
 from app.schemas.payment import PaymentInitializationResponse
 from app.schemas.provider_payment import (
     PaymentMethodInitializeRequest,
@@ -31,8 +32,14 @@ from app.schemas.provider_payment import (
     PaymentSettingsResponse,
 )
 from app.supabase.columns import Language
-from app.supabase.helpers import UnwrapError, cols, format_name, unwrap_or_abort
-from app.supabase.tables import Child, Family, Guardian, Provider, ProviderChildMapping
+from app.supabase.helpers import (
+    UnwrapError,
+    cols,
+    format_name,
+    set_timestamp_column_if_null,
+    unwrap_or_abort,
+)
+from app.supabase.tables import Child, Family, Guardian, Provider
 from app.utils.email.config import get_from_email_external
 from app.utils.email.core import send_email
 from app.utils.email.senders import (
@@ -40,6 +47,12 @@ from app.utils.email.senders import (
     send_family_invited_email,
 )
 from app.utils.email.templates import InvitationTemplate
+from app.utils.onboarding import (
+    onboard_provider_to_chek,
+    process_provider_invitation_mappings,
+    send_portal_invite_email,
+    update_clerk_user_metadata,
+)
 from app.utils.sms_service import send_sms
 
 bp = Blueprint("provider", __name__)
@@ -48,6 +61,17 @@ bp = Blueprint("provider", __name__)
 @bp.post("/provider")
 @api_key_required
 def new_provider():
+    """
+    DEPRECATED: Use POST /provider/onboard instead.
+
+    This endpoint creates a Clerk invitation and onboards a provider.
+    It is being phased out in favor of the new flow where users create
+    their own Clerk accounts first, then get linked via /provider/onboard.
+
+    Will be removed in a future version.
+    """
+    current_app.logger.warning("DEPRECATED: POST /provider endpoint called. Use POST /provider/onboard instead.")
+
     data = request.json
 
     # Validate required fields
@@ -65,11 +89,7 @@ def new_provider():
         abort(404, description=f"Provider with ID {provider_id} not found.")
 
     # Create Chek user and ProviderPaymentSettings
-    payment_service = current_app.payment_service
-    provider_settings = payment_service.onboard_provider(provider_id)
-    current_app.logger.info(
-        f"Created ProviderPaymentSettings for provider {provider_id} with Chek user {provider_settings.chek_user_id}"
-    )
+    onboard_provider_to_chek(provider_id)
 
     # send clerk invite
     clerk: Clerk = current_app.clerk_client
@@ -87,40 +107,144 @@ def new_provider():
         )
     )
 
-    link_id = Provider.LINK_ID(provider)
-    if link_id is None:
-        return jsonify(data)
-
-    invites: list[ProviderInvitation] = ProviderInvitation.invitations_by_id(link_id).all()
-    if len(invites) == 0:
-        current_app.logger.warning(f"Provider invitation with ID {link_id} not found.")
-        return jsonify(data)
-
-    for invite in invites[:MAX_CHILDREN_PER_PROVIDER]:
-        child_result = Child.select_by_id(
-            cols(Child.ID, Provider.join(Provider.ID)), int(invite.child_supabase_id)
-        ).execute()
-        child = unwrap_or_abort(child_result)
-
-        if child is None:
-            current_app.logger.warning(f"Child with ID {invite.child_supabase_id} not found.")
-            continue
-
-        if len(Provider.unwrap(child)) > 0:
-            continue
-
-        ProviderChildMapping.query().insert(
-            {
-                ProviderChildMapping.CHILD_ID: invite.child_supabase_id,
-                ProviderChildMapping.PROVIDER_ID: provider_id,
-            }
-        ).execute()
-        invite.record_accepted()
-        db.session.add(invite)
-
-    db.session.commit()
+    # Handle family-child mappings if there's a link_id (invitation)
+    process_provider_invitation_mappings(provider, provider_id)
 
     return jsonify(data)
+
+
+@bp.post("/provider/onboard")
+@api_key_required
+def onboard_provider():
+    """
+    Onboard an existing Clerk user to a provider account.
+
+    This endpoint:
+    1. Validates the Clerk user is associated with the provider
+    2. Updates Clerk metadata with provider_id and type
+    3. Onboards provider to Chek payment system
+    4. Processes family-child mappings from invitation links
+    5. Sends portal invitation email
+
+    Idempotent: Safe to call multiple times. Uses Redis locking to prevent
+    duplicate operations from concurrent requests. Returns early if already onboarded.
+    """
+    # Validate request body with Pydantic
+    try:
+        onboard_request = ProviderOnboardRequest(**request.json)
+    except ValidationError as e:
+        abort(400, description=f"Invalid request: {e.errors()}")
+
+    clerk_user_id = onboard_request.clerk_user_id
+    provider_id = onboard_request.provider_id
+
+    # Get Redis connection for distributed locking
+    try:
+        redis_conn = current_app.extensions["job_manager"].get_redis()
+        lock_key = f"onboarding:provider:{provider_id}"
+
+        # Try to acquire lock (15 minute TTL) - fail-closed approach
+        # TTL is generous since onboarding should complete in seconds
+        lock_acquired = redis_conn.set(lock_key, "1", nx=True, ex=900)
+
+        if not lock_acquired:
+            # Another request is already processing or recently processed this
+            current_app.logger.info(f"Provider {provider_id} onboarding already in progress or completed, skipping")
+            return jsonify({"message": "Onboarding already in progress or completed"}), 200
+
+    except Exception as redis_error:
+        # Redis is down - fail closed (reject request)
+        current_app.logger.error(f"Redis unavailable for onboarding lock: {redis_error}")
+        sentry_sdk.capture_exception(redis_error)
+        abort(503, description="Service temporarily unavailable, please retry in a few moments")
+
+    try:
+        # 1. Fetch provider data with language preference
+        provider_result = Provider.select_by_id(
+            cols(
+                Provider.ID,
+                Provider.CLERK_USER_ID,
+                Provider.FIRST_NAME,
+                Provider.EMAIL,
+                Provider.PREFERRED_LANGUAGE,
+                Provider.PORTAL_INVITE_SENT_AT,
+                Provider.LINK_ID,
+            ),
+            int(provider_id),
+        ).execute()
+        provider_data = unwrap_or_abort(provider_result)
+
+        # Check if already onboarded
+        if Provider.PORTAL_INVITE_SENT_AT(provider_data):
+            current_app.logger.info(f"Provider {provider_id} has already been onboarded, skipping")
+            response = OnboardResponse(
+                message="Provider has already been onboarded", provider_id=provider_id, clerk_user_id=clerk_user_id
+            )
+            return jsonify(response.model_dump()), 200
+
+        # Validate that the clerk_user_id matches what's in the database
+        stored_clerk_user_id = Provider.CLERK_USER_ID(provider_data)
+
+        if not stored_clerk_user_id:
+            current_app.logger.error(f"No clerk_user_id found in database for provider {provider_id}")
+            abort(400, description="Provider does not have a clerk_user_id set")
+
+        if stored_clerk_user_id != clerk_user_id:
+            current_app.logger.error(
+                f"Clerk user ID mismatch for provider {provider_id}: "
+                f"provided {clerk_user_id}, stored {stored_clerk_user_id}"
+            )
+            abort(400, description="Clerk user ID does not match provider record")
+
+        provider_email = Provider.EMAIL(provider_data)
+        provider_name = Provider.FIRST_NAME(provider_data)
+
+        if not provider_email:
+            current_app.logger.error(f"No email found for provider {provider_id}")
+            abort(400, description="Provider has no email address")
+
+        # 2. Update Clerk user metadata
+        update_clerk_user_metadata(clerk_user_id, ClerkUserType.PROVIDER, provider_id)
+
+        # 3. Onboard to Chek (already idempotent)
+        onboard_provider_to_chek(provider_id)
+
+        # 4. Handle family-child mappings if there's a link_id (invitation)
+        process_provider_invitation_mappings(provider_data, provider_id)
+
+        # 5. Send portal invite email
+        language = Provider.PREFERRED_LANGUAGE(provider_data) or Language.ENGLISH
+
+        email_sent = send_portal_invite_email(
+            email=provider_email,
+            entity_type=ClerkUserType.PROVIDER,
+            entity_id=int(provider_id),
+            language=language,
+            clerk_user_id=clerk_user_id,
+            provider_name=provider_name,
+        )
+
+        if email_sent:
+            # Mark portal invite as sent
+            Provider.query().update({Provider.PORTAL_INVITE_SENT_AT: datetime.now(timezone.utc).isoformat()}).eq(
+                Provider.ID, provider_id
+            ).execute()
+            current_app.logger.info(f"Sent portal invite email to provider {provider_id}")
+        else:
+            current_app.logger.error(f"Failed to send portal invite email to provider {provider_id}")
+
+        response = OnboardResponse(
+            message="Provider onboarded successfully", provider_id=provider_id, clerk_user_id=clerk_user_id
+        )
+        return jsonify(response.model_dump()), 200
+
+    finally:
+        # Release the lock when done
+        try:
+            redis_conn.delete(lock_key)
+            current_app.logger.debug(f"Released Redis lock for provider {provider_id}")
+        except Exception as cleanup_error:
+            current_app.logger.warning(f"Failed to release Redis lock: {cleanup_error}")
 
 
 @bp.get("/provider")
@@ -333,6 +457,9 @@ def update_payment_settings():
 
     db.session.commit()
 
+    # Update provider's payment_method_configured_at timestamp if not already set
+    set_timestamp_column_if_null(Provider, provider_id, Provider.PAYMENT_METHOD_CONFIGURED_AT)
+
     response = PaymentMethodUpdateResponse(
         message="Payment method updated successfully",
         provider_id=provider_id,
@@ -362,6 +489,9 @@ def initialize_provider_payment(provider_id: str):
     try:
         payment_service = current_app.payment_service
         result = payment_service.initialize_provider_payment_method(provider_id, payment_method)
+
+        # Update provider's payment_method_configured_at timestamp if not already set
+        set_timestamp_column_if_null(Provider, provider_id, Provider.PAYMENT_METHOD_CONFIGURED_AT)
 
         # Convert the result to PaymentInitializationResponse
         response = PaymentInitializationResponse(**result)
@@ -395,6 +525,9 @@ def initialize_my_payment():
     try:
         payment_service = current_app.payment_service
         result = payment_service.initialize_provider_payment_method(provider_id, payment_method)
+
+        # Update provider's payment_method_configured_at timestamp if not already set
+        set_timestamp_column_if_null(Provider, provider_id, Provider.PAYMENT_METHOD_CONFIGURED_AT)
 
         # Convert the result to PaymentInitializationResponse for consistency
         response = PaymentInitializationResponse(**result)
@@ -533,6 +666,9 @@ def invite_family():
         db.session.commit()
 
     send_family_invited_email(provider_name, Provider.ID(provider), data["family_email"], invitation.public_id)
+
+    # Update provider's family_invited_at timestamp if not already set
+    set_timestamp_column_if_null(Provider, provider_id, Provider.FAMILY_INVITED_AT)
 
     return jsonify({"message": "Success"}, 201)
 

@@ -59,7 +59,7 @@ def _authenticate_request(user_type: ClerkUserType, allow_cookies: bool = False)
     try:
         request_state = clerk_client.authenticate_request(
             httpx_request,
-            AuthenticateRequestOptions(authorized_parties=_get_authorized_parties(), clock_skew_in_ms=1000 * 30),
+            AuthenticateRequestOptions(authorized_parties=_get_authorized_parties(), clock_skew_in_ms=1000 * 60),
         )
 
         if not request_state.is_signed_in:
@@ -94,6 +94,8 @@ def _authenticate_request(user_type: ClerkUserType, allow_cookies: bool = False)
             raise AuthenticationError("Authentication failed")
         else:
             raise AuthenticationError("Authentication service error", 500)
+
+
 
 
 def _authenticate_api_key():

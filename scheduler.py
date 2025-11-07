@@ -5,14 +5,14 @@ from flask import current_app
 from rq_scheduler import Scheduler
 
 from app import create_app
-from app.jobs.attendance import schedule_attendance_job
+from app.jobs.attendance import (
+    schedule_attendance_communications_job,
+    schedule_attendance_job,
+)
 from app.jobs.monthly_allocation_job import schedule_monthly_allocation_job
 from app.utils.redis import create_redis_connection
 
-JOBS = [
-    schedule_monthly_allocation_job,
-    schedule_attendance_job,
-]
+JOBS = [schedule_monthly_allocation_job, schedule_attendance_job, schedule_attendance_communications_job]
 
 if __name__ == "__main__":
     app = create_app()

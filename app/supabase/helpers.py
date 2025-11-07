@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Optional
 
 import sentry_sdk
@@ -80,3 +81,27 @@ def format_name(data: Optional[dict]) -> str:
         return UNKNOWN
 
     return f"{first_name} {last_name}"
+
+
+def set_timestamp_column_if_null(table_class, id_column_value: str, timestamp_column, timestamp_value: str = None):
+    """
+    Helper to set a timestamp column if it's currently null.
+
+    This is useful for tracking "first time" events like when a provider first invites
+    a family, or when payment is first configured.
+
+    Args:
+        table_class: The Table class (e.g., Provider, Family)
+        id_column_value: The ID value to match
+        timestamp_column: The Column object to update (e.g., Provider.FAMILY_INVITED_AT)
+        timestamp_value: Optional ISO timestamp string. Defaults to current UTC time.
+
+    Example:
+        set_timestamp_column_if_null(Provider, provider_id, Provider.FAMILY_INVITED_AT)
+    """
+    if timestamp_value is None:
+        timestamp_value = datetime.now(timezone.utc).isoformat()
+
+    table_class.query().update({timestamp_column: timestamp_value}).eq(table_class.ID, id_column_value).is_(
+        timestamp_column, "null"
+    ).execute()
