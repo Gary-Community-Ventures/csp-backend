@@ -267,6 +267,7 @@ def process_family_invitation_mappings(family_data, children: list, family_id: i
                 ProviderChildMapping.PROVIDER_ID: invite.provider_supabase_id,
             }
         ).execute()
+        set_timestamp_column_if_null(Family, str(family_id), Family.PROVIDER_APPROVED_AT)
         extra_slots -= 1
 
     invite.record_accepted()
