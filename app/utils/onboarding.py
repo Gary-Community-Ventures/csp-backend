@@ -18,7 +18,7 @@ from app.models.family_invitation import FamilyInvitation
 from app.models.provider_invitation import ProviderInvitation
 from app.services.allocation_service import AllocationService
 from app.supabase.columns import Language
-from app.supabase.helpers import cols, unwrap_or_abort
+from app.supabase.helpers import cols, set_timestamp_column_if_null, unwrap_or_abort
 from app.supabase.tables import Child, Family, Provider, ProviderChildMapping
 from app.utils.date_utils import get_current_month_start, get_next_month_start
 from app.utils.email.config import get_from_email_external
@@ -298,7 +298,7 @@ def process_provider_invitation_mappings(provider_data, provider_id: int) -> Non
 
     for invite in invites[:MAX_CHILDREN_PER_PROVIDER]:
         child_result = Child.select_by_id(
-            cols(Child.ID, Provider.join(Provider.ID)), int(invite.child_supabase_id)
+            cols(Child.ID, Child.FAMILY_ID, Provider.join(Provider.ID)), int(invite.child_supabase_id)
         ).execute()
         child = unwrap_or_abort(child_result)
 
@@ -316,6 +316,7 @@ def process_provider_invitation_mappings(provider_data, provider_id: int) -> Non
                 ProviderChildMapping.PROVIDER_ID: provider_id,
             }
         ).execute()
+        set_timestamp_column_if_null(Family, Child.FAMILY_ID(child), Family.PROVIDER_APPROVED_AT)
         invite.record_accepted()
         db.session.add(invite)
 
