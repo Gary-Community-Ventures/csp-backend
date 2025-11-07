@@ -18,7 +18,6 @@ from app.auth.helpers import get_current_user, get_family_user, get_provider_use
 from app.constants import MAX_CHILDREN_PER_PROVIDER, UNKNOWN
 from app.extensions import db
 from app.models.attendance import Attendance
-from app.models.family_invitation import FamilyInvitation
 from app.models.family_payment_settings import FamilyPaymentSettings
 from app.models.provider_invitation import ProviderInvitation
 from app.models.provider_payment_settings import ProviderPaymentSettings
@@ -30,7 +29,7 @@ from app.supabase.helpers import (
     set_timestamp_column_if_null,
     unwrap_or_abort,
 )
-from app.supabase.tables import Child, Family, Guardian, Provider, ProviderChildMapping
+from app.supabase.tables import Child, Family, Guardian, Provider
 from app.utils.email.config import get_from_email_external
 from app.utils.email.core import send_email
 from app.utils.email.senders import (

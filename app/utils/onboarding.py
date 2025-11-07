@@ -16,7 +16,6 @@ from app.constants import MAX_CHILDREN_PER_PROVIDER
 from app.extensions import db
 from app.models.family_invitation import FamilyInvitation
 from app.models.provider_invitation import ProviderInvitation
-from app.routes import family
 from app.services.allocation_service import AllocationService
 from app.supabase.columns import Language
 from app.supabase.helpers import cols, set_timestamp_column_if_null, unwrap_or_abort
