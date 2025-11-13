@@ -31,12 +31,6 @@ def get_current_user() -> Optional[User]:
     provider_id = g.auth_user_data.get("provider_id", None)
     types = g.auth_user_data.get("types", [])
 
-    if not family_id and not provider_id:
-        return None
-
-    if len(types) < 1:
-        return None
-
     return User(
         user_id=g.auth_user_id,
         session_id=g.auth_session_id,
