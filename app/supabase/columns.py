@@ -44,12 +44,17 @@ def enum_column(enum_type: Type[E]) -> Callable[[Any], E]:
 
 
 class Status(str, Enum):
-    PENDING = "Pending"
-    APPROVED = "Approved"
-    DENIED = "Not Eligible"
-    HOLD = "Hold"
-    DUPLICATE = "Duplicate"
-    WAIT_LIST = "Wait List"
+    APPROVED= "Approved"
+    NOT_ELIGIBLE = "Not Eligible"
+    PENDING= "Pending"
+    HOLD= "Hold"
+    DUPLICATE= "Duplicate"
+    WAITLIST= "Waitlist"
+    TEST= "Test"
+    NEED_MORE_INFO = "Need More Info"
+    EXPIRED= "Expired"
+    UNDER_REVIEW = "Under Review"
+    APPLICATION_WITHDRAWN = "Application Withdrawn"
 
     def _missing_(self, value) -> "Status":
         return Status.PENDING
