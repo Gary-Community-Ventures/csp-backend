@@ -27,14 +27,18 @@ def get_current_user() -> Optional[User]:
     if not hasattr(g, "auth_user_id") or not g.auth_user_id:
         return None
 
+    family_id = g.auth_user_data.get("family_id", None)
+    provider_id = g.auth_user_data.get("provider_id", None)
+    types = g.auth_user_data.get("types", [])
+
     return User(
         user_id=g.auth_user_id,
         session_id=g.auth_session_id,
         request_state=g.auth_request_state,
         user_data=UserData(
-            types=g.auth_user_data["types"],
-            family_id=g.auth_user_data.get("family_id", None),
-            provider_id=g.auth_user_data.get("provider_id", None),
+            types=types,
+            family_id=family_id,
+            provider_id=provider_id,
         ),
     )
 
