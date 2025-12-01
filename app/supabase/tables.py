@@ -74,7 +74,7 @@ class Guardian(Table):
     ZIP = Column("zip")
 
     # Foreign keys
-    FAMILY_ID = Column("family", int)
+    FAMILY_ID = Column("family_id", int)
 
     @classmethod
     def get_primary_guardian(cls, data: list[dict]) -> dict:
