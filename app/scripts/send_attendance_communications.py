@@ -7,6 +7,7 @@ from flask import current_app
 from app import create_app
 from app.enums.email_type import EmailType
 from app.models.attendance import Attendance
+from app.services.payment.utils import format_phone_to_e164
 from app.supabase.columns import Language, ProviderType
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child, Family, Guardian, Provider
@@ -115,7 +116,7 @@ class FamilyAttendanceMessages(AttendanceMessages):
             },
         )
         sms = BulkSmsData(
-            phone_number="+1" + Guardian.PHONE_NUMBER(guardian),
+            phone_number=format_phone_to_e164(Guardian.PHONE_NUMBER(guardian)),
             message=message_data.sms,
             lang=lang,
         )
@@ -191,7 +192,7 @@ class ProviderAttendanceMessages(AttendanceMessages):
             },
         )
         sms = BulkSmsData(
-            phone_number="+1" + Provider.PHONE_NUMBER(provider),
+            phone_number=format_phone_to_e164(Provider.PHONE_NUMBER(provider)),
             message=message_data.sms,
             lang=lang,
         )
