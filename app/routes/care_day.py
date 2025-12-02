@@ -89,18 +89,29 @@ def update_care_day(care_day_id):
     if care_day.type != new_day_type or was_deleted:
         care_day.type = new_day_type
 
-        new_cost = get_care_day_cost(
+        new_amount_missing_cents = 0
+        new_care_day_cost = get_care_day_cost(
             new_day_type,
             provider_id=care_day.provider_supabase_id,
             child_id=care_day.care_month_allocation.child_supabase_id,
         )
+
+        total_remaining_cents = (
+            care_day.amount_cents + care_day.care_month_allocation.remaining_unselected_cents
+        )
+
+        if total_remaining_cents < new_care_day_cost:
+            new_amount_missing_cents = new_care_day_cost - total_remaining_cents
+            new_care_day_cost = total_remaining_cents
+
         # If changing the type results in over-allocation, soft delete the care day
         # As that resets the day to the default empty state
-        if care_day.care_month_allocation.remaining_unselected_cents + care_day.amount_cents < new_cost:
+        if new_care_day_cost <= 0:
             care_day.soft_delete()
             return jsonify(AllocatedCareDayResponse.model_validate(care_day).model_dump())
         else:
-            care_day.amount_cents = new_cost
+            care_day.amount_cents = new_care_day_cost
+            care_day.amount_missing_cents = new_amount_missing_cents
 
     db.session.commit()
     db.session.refresh(care_day)
