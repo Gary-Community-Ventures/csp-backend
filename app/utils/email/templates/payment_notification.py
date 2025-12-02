@@ -70,8 +70,8 @@ class PaymentNotificationTemplate:
     def get_lump_sum_header(language: Language = Language.ENGLISH) -> str:
         """Get the lump sum header in the specified language."""
         headers = {
-            Language.ENGLISH: "Number of Days Specified by Family for This Payment:",
-            Language.SPANISH: "Número de Días Especificados por la Familia para Este Pago:",
+            Language.ENGLISH: "Care Days Included:",
+            Language.SPANISH: "Días de Cuidado Incluidos:",
         }
         return headers.get(language, headers[Language.ENGLISH])
 
