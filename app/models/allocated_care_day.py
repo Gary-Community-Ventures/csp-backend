@@ -8,6 +8,7 @@ from typing import Optional
 from ..constants import BUSINESS_TIMEZONE
 from ..enums.care_day_type import CareDayType
 from ..extensions import db
+from ..utils.date_utils import get_relative_week
 from .mixins import TimestampMixin
 from .month_allocation import MonthAllocation
 from .utils import get_care_day_cost
@@ -40,9 +41,7 @@ def calculate_week_lock_date(date_in_week: Optional[date]) -> Optional[datetime]
             f"Use .date() to extract the date from a datetime object."
         )
 
-    # Calculate Monday of the week containing this date
-    days_since_monday = date_in_week.weekday()
-    monday = date_in_week - timedelta(days=days_since_monday)
+    monday = get_relative_week(0, date_in_week)
 
     # Create timezone-aware locked_date in business timezone (Monday at 23:59:59)
     business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
@@ -65,8 +64,7 @@ def get_locked_until_date() -> date:
     # Get the lock date for the current week
     current_week_lock_date = calculate_week_lock_date(today_business)
 
-    # Calculate current Monday
-    current_monday = today_business - timedelta(days=today_business.weekday())
+    current_monday = get_relative_week(0, today_business)
 
     if now_business > current_week_lock_date:
         # Past Monday 23:59:59 - all days in current week are locked
