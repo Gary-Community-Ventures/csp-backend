@@ -12,6 +12,7 @@ class EmailType(str, Enum):
     PAYMENT_RATE_CREATED = "payment_rate_created"
 
     # Invitation system
+    INVITE_REMINDER = "invite_reminder"
     PROVIDER_INVITED = "provider_invited"
     PROVIDER_INVITE_ACCEPTED = "provider_invite_accepted"
     FAMILY_INVITED = "family_invited"
