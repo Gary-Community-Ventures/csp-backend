@@ -58,6 +58,15 @@ class PaymentNotificationTemplate:
         return headers.get(language, headers[Language.ENGLISH])
 
     @staticmethod
+    def get_care_days_header(language: Language = Language.ENGLISH) -> str:
+        """Get the care days header in the specified language."""
+        headers = {
+            Language.ENGLISH: "Care Days Included:",
+            Language.SPANISH: "Días de Cuidado Incluidos:",
+        }
+        return headers.get(language, headers[Language.ENGLISH])
+
+    @staticmethod
     def get_field_labels(language: Language = Language.ENGLISH) -> Dict[str, str]:
         """Get field labels in the specified language."""
         labels = {
@@ -65,14 +74,35 @@ class PaymentNotificationTemplate:
                 "child": "Child:",
                 "amount": "Amount:",
                 "payment_method": "Payment Method:",
+                "date": "Date",
+                "type": "Type",
+                "day_amount": "Amount",
             },
             Language.SPANISH: {
                 "child": "Niño/a:",
                 "amount": "Cantidad:",
                 "payment_method": "Método de Pago:",
+                "date": "Fecha",
+                "type": "Tipo",
+                "day_amount": "Cantidad",
             },
         }
         return labels.get(language, labels[Language.ENGLISH])
+
+    @staticmethod
+    def get_day_type_display(day_type: str, language: Language = Language.ENGLISH) -> str:
+        """Get care day type display text in the specified language."""
+        if day_type == "FULL_DAY" or day_type == "Full Day":
+            displays = {
+                Language.ENGLISH: "Full Day",
+                Language.SPANISH: "Día Completo",
+            }
+        else:  # HALF_DAY or Half Day
+            displays = {
+                Language.ENGLISH: "Half Day",
+                Language.SPANISH: "Medio Día",
+            }
+        return displays.get(language, displays[Language.ENGLISH])
 
     @staticmethod
     def get_payment_method_display(payment_method: str, language: Language = Language.ENGLISH) -> str:
@@ -165,6 +195,7 @@ class PaymentNotificationTemplate:
         amount_cents: int,
         payment_method: str,
         language: Language = Language.ENGLISH,
+        care_days: list = None,
     ) -> str:
         """Build the complete HTML email content in the specified language."""
         amount_dollars = amount_cents / 100
@@ -192,6 +223,42 @@ class PaymentNotificationTemplate:
         </div>
         """
 
+        # Build care days section if provided
+        care_days_section = ""
+        if care_days and len(care_days) > 0:
+            care_days_rows = ""
+            for day in care_days:
+                day_type_display = cls.get_day_type_display(day.type.value, language)
+                day_amount = day.amount_cents / 100
+                # Format date nicely
+                date_str = day.date.strftime("%B %d, %Y") if hasattr(day.date, "strftime") else str(day.date)
+
+                care_days_rows += f"""
+                <tr style="border-bottom: 1px solid #e0e0e0;">
+                    <td style="padding: 8px 0;">{date_str}</td>
+                    <td style="padding: 8px 0;">{day_type_display}</td>
+                    <td style="padding: 8px 0; text-align: right;">${day_amount:.2f}</td>
+                </tr>
+                """
+
+            care_days_section = f"""
+            <div style="background-color: #f8f9fa; border-left: 4px solid #b53363; padding: 15px; margin: 20px 0; border-radius: 5px;">
+                <h3 style="margin-top: 0; color: #2c3e50;">{cls.get_care_days_header(language)}</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid #364f3f;">
+                            <th style="padding: 8px 0; text-align: left;"><strong>{labels['date']}</strong></th>
+                            <th style="padding: 8px 0; text-align: left;"><strong>{labels['type']}</strong></th>
+                            <th style="padding: 8px 0; text-align: right;"><strong>{labels['day_amount']}</strong></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {care_days_rows}
+                    </tbody>
+                </table>
+            </div>
+            """
+
         # Build instructions list
         instructions_html = ""
         if payment_method == PaymentMethod.CARD:
@@ -218,6 +285,7 @@ class PaymentNotificationTemplate:
         <p>{cls.get_greeting(provider_name, language)}</p>
         <p>{cls.get_intro_text(language)}</p>
         {payment_details}
+        {care_days_section}
         {whats_next}
         <p>{cls.get_support_text(language)}</p>
         """

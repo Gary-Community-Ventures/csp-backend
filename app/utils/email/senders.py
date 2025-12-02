@@ -341,6 +341,7 @@ def send_payment_notification(
     amount_cents: int,
     payment_method: str,
     provider_language: Language = Language.ENGLISH,
+    care_days: list[AllocatedCareDay] = None,
 ) -> bool:
     """
     Sends a payment notification email to the provider when payment is completed.
@@ -354,6 +355,7 @@ def send_payment_notification(
         amount_cents: Payment amount in cents
         payment_method: Method used for payment (CARD or ACH)
         provider_language: Provider's preferred language (defaults to English)
+        care_days: Optional list of care days included in this payment
     """
     from_email = get_from_email_external()
 
@@ -375,7 +377,19 @@ def send_payment_notification(
         amount_cents=amount_cents,
         payment_method=payment_method,
         language=provider_language,
+        care_days=care_days,
     )
+
+    context_data = {
+        "provider_id": provider_id,
+        "child_id": child_id,
+        "amount_cents": amount_cents,
+        "payment_method": payment_method,
+        "language": provider_language.value,
+    }
+
+    if care_days:
+        context_data["care_days_count"] = len(care_days)
 
     return send_email(
         from_email=from_email,
@@ -383,13 +397,7 @@ def send_payment_notification(
         subject=subject,
         html_content=html_content,
         email_type=EmailType.PAYMENT_NOTIFICATION,
-        context_data={
-            "provider_id": provider_id,
-            "child_id": child_id,
-            "amount_cents": amount_cents,
-            "payment_method": payment_method,
-            "language": provider_language.value,
-        },
+        context_data=context_data,
         is_internal=False,
     )
 

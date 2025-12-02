@@ -1,8 +1,28 @@
+from datetime import date as date_type
 from typing import Optional
 
 from pydantic import BaseModel, Field
 
 from .care_day import AllocatedCareDayResponse
+
+
+class PaymentCareDayDetail(BaseModel):
+    """Care day details for payment history"""
+
+    date: date_type = Field(..., description="Date of the care day")
+    type: str = Field(..., description="Type of care day: 'Full Day' or 'Half Day'")
+    amount_cents: int = Field(..., description="Amount paid for this care day in cents")
+    amount_missing_cents: Optional[int] = Field(None, description="Amount not covered by allocation (partial payment)")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "date": "2024-01-15",
+                "type": "Full Day",
+                "amount_cents": 5000,
+                "amount_missing_cents": None,
+            }
+        }
 
 
 class PaymentProcessedResponse(BaseModel):
@@ -106,6 +126,9 @@ class FamilyPaymentHistoryItem(BaseModel):
     child_supabase_id: str = Field(..., description="Child external ID")
     month: str = Field(..., description="Month the payment was for (YYYY-MM)")
     payment_type: str = Field(..., description="Type of payment: 'care_days' or 'lump_sum'")
+    care_days: list[PaymentCareDayDetail] = Field(
+        default_factory=list, description="Care days included in this payment"
+    )
 
     class Config:
         json_schema_extra = {
@@ -147,6 +170,9 @@ class ProviderPaymentHistoryItem(BaseModel):
     month: str = Field(..., description="Month the payment was for (YYYY-MM)")
     payment_method: str = Field(..., description="Payment method used: 'card' or 'ach'")
     payment_type: str = Field(..., description="Type of payment: 'care_days' or 'lump_sum'")
+    care_days: list[PaymentCareDayDetail] = Field(
+        default_factory=list, description="Care days included in this payment"
+    )
 
     class Config:
         json_schema_extra = {

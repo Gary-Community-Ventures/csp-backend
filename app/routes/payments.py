@@ -7,6 +7,7 @@ from app.models import MonthAllocation, Payment, ProviderPaymentSettings
 from app.schemas.payment import (
     FamilyPaymentHistoryItem,
     FamilyPaymentHistoryResponse,
+    PaymentCareDayDetail,
     ProviderPaymentHistoryItem,
     ProviderPaymentHistoryResponse,
 )
@@ -78,6 +79,19 @@ def get_family_payment_history():
             "care_days" if payment.allocated_care_days else "lump_sum" if payment.allocated_lump_sums else "other"
         )
 
+        # Build care day details list
+        care_day_details = []
+        if payment.allocated_care_days:
+            for care_day in payment.allocated_care_days:
+                care_day_details.append(
+                    PaymentCareDayDetail(
+                        date=care_day.date,
+                        type=care_day.type.value,
+                        amount_cents=care_day.amount_cents,
+                        amount_missing_cents=care_day.amount_missing_cents,
+                    )
+                )
+
         payment_items.append(
             FamilyPaymentHistoryItem(
                 payment_id=str(payment.id),
@@ -90,6 +104,7 @@ def get_family_payment_history():
                 child_supabase_id=payment.child_supabase_id,
                 month=month_str,
                 payment_type=payment_type,
+                care_days=care_day_details,
             )
         )
 
@@ -170,6 +185,19 @@ def get_provider_payment_history():
             "care_days" if payment.allocated_care_days else "lump_sum" if payment.allocated_lump_sums else "other"
         )
 
+        # Build care day details list
+        care_day_details = []
+        if payment.allocated_care_days:
+            for care_day in payment.allocated_care_days:
+                care_day_details.append(
+                    PaymentCareDayDetail(
+                        date=care_day.date,
+                        type=care_day.type.value,
+                        amount_cents=care_day.amount_cents,
+                        amount_missing_cents=care_day.amount_missing_cents,
+                    )
+                )
+
         payment_items.append(
             ProviderPaymentHistoryItem(
                 payment_id=str(payment.id),
@@ -181,6 +209,7 @@ def get_provider_payment_history():
                 month=month_str,
                 payment_method=payment_method,
                 payment_type=payment_type,
+                care_days=care_day_details,
             )
         )
 

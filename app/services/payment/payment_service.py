@@ -224,6 +224,7 @@ class PaymentService:
             amount_cents=intent.amount_cents,
             payment_method=attempt.payment_method.value,
             provider_language=Provider.PREFERRED_LANGUAGE(provider),
+            care_days=allocated_care_days if allocated_care_days else None,
         )
         current_app.logger.info(f"Payment notification sent for Payment {payment.id}")
 
