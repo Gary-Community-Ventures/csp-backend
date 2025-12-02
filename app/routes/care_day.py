@@ -96,9 +96,7 @@ def update_care_day(care_day_id):
             child_id=care_day.care_month_allocation.child_supabase_id,
         )
 
-        total_remaining_cents = (
-            care_day.amount_cents + care_day.care_month_allocation.remaining_unselected_cents
-        )
+        total_remaining_cents = care_day.amount_cents + care_day.care_month_allocation.remaining_unselected_cents
 
         if total_remaining_cents < new_care_day_cost:
             new_amount_missing_cents = new_care_day_cost - total_remaining_cents
