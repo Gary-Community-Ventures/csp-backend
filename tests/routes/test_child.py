@@ -122,11 +122,11 @@ def test_get_month_allocation_success(client, seed_db, app):
 
     # Check submission statuses
     care_day_statuses = {d["id"]: d["status"] for d in response.json["care_days"]}
-    assert care_day_statuses[1] == "new"
-    assert care_day_statuses[2] == "submitted"
-    assert care_day_statuses[3] == "needs_resubmission"
-    assert care_day_statuses[4] == "submitted"
-    assert care_day_statuses[5] == "delete_not_submitted"
+    assert care_day_statuses[1] == "needs_submission"  # Never submitted
+    assert care_day_statuses[2] == "unknown"  # Submitted but no payment
+    assert care_day_statuses[3] == "unknown"  # Needs resubmission but no payment
+    assert care_day_statuses[4] == "unknown"  # Locked but no payment
+    assert care_day_statuses[5] == "deleted"  # Soft deleted
 
 
 def test_get_month_allocation_invalid_date(client, seed_db, app):
