@@ -8,10 +8,8 @@ from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child
 from app.utils.date_utils import get_current_month_start, get_next_month_start
 
-from ..enums.care_day_type import CareDayType
 from ..extensions import db
 from .mixins import TimestampMixin
-from .utils import get_care_day_cost
 
 
 def get_allocation_amount(child_id: str) -> int:
