@@ -164,7 +164,6 @@ def create_app(config_class=None):
     from .routes.payment_rate import bp as payment_rate_bp
     from .routes.payments import bp as payments_bp
     from .routes.provider import bp as provider_bp
-    from .routes.provider_trainings import bp as provider_trainings_bp
     from .routes.supabase import bp as supabase_bp
     from .routes.webhooks import bp as webhooks_bp
 
@@ -176,8 +175,6 @@ def create_app(config_class=None):
     csrf.exempt(family_bp)
     app.register_blueprint(provider_bp)
     csrf.exempt(provider_bp)
-    app.register_blueprint(provider_trainings_bp)
-    csrf.exempt(provider_trainings_bp)
     app.register_blueprint(care_day_bp)
     csrf.exempt(care_day_bp)
     app.register_blueprint(child_bp)
