@@ -214,6 +214,16 @@ class PaymentService:
 
         child = Child.find_by_id(Child.unwrap(provider), intent.child_supabase_id)
 
+        # Prepare lump sum data if applicable
+        lump_sum_data = None
+        if allocated_lump_sums:
+            # Get the first lump sum (should only be one per payment)
+            lump_sum = allocated_lump_sums[0]
+            lump_sum_data = {
+                "days": lump_sum.days,
+                "half_days": lump_sum.half_days,
+            }
+
         # Send payment notification email to provider
         send_payment_notification(
             provider_name=format_name(provider),
@@ -225,6 +235,7 @@ class PaymentService:
             payment_method=attempt.payment_method.value,
             provider_language=Provider.PREFERRED_LANGUAGE(provider),
             care_days=allocated_care_days if allocated_care_days else None,
+            lump_sum=lump_sum_data,
         )
         current_app.logger.info(f"Payment notification sent for Payment {payment.id}")
 

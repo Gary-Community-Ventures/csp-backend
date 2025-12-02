@@ -25,6 +25,23 @@ class PaymentCareDayDetail(BaseModel):
         }
 
 
+class PaymentLumpSumDetail(BaseModel):
+    """Lump sum details for payment history"""
+
+    days: int = Field(..., description="Number of full days")
+    half_days: int = Field(..., description="Number of half days")
+    amount_cents: int = Field(..., description="Total amount paid for the lump sum in cents")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "days": 10,
+                "half_days": 5,
+                "amount_cents": 50000,
+            }
+        }
+
+
 class PaymentProcessedResponse(BaseModel):
     """Response for successful care day payment processing"""
 
@@ -129,6 +146,7 @@ class FamilyPaymentHistoryItem(BaseModel):
     care_days: list[PaymentCareDayDetail] = Field(
         default_factory=list, description="Care days included in this payment"
     )
+    lump_sum: Optional[PaymentLumpSumDetail] = Field(None, description="Lump sum details if this is a lump sum payment")
 
     class Config:
         json_schema_extra = {
@@ -167,12 +185,12 @@ class ProviderPaymentHistoryItem(BaseModel):
     status: str = Field(..., description="Payment status: 'success', 'failed', 'pending'")
     child_name: str = Field(..., description="Name of the child")
     child_id: str = Field(..., description="Child external ID")
-    month: str = Field(..., description="Month the payment was for (YYYY-MM)")
     payment_method: str = Field(..., description="Payment method used: 'card' or 'ach'")
     payment_type: str = Field(..., description="Type of payment: 'care_days' or 'lump_sum'")
     care_days: list[PaymentCareDayDetail] = Field(
         default_factory=list, description="Care days included in this payment"
     )
+    lump_sum: Optional[PaymentLumpSumDetail] = Field(None, description="Lump sum details if this is a lump sum payment")
 
     class Config:
         json_schema_extra = {
@@ -183,9 +201,10 @@ class ProviderPaymentHistoryItem(BaseModel):
                 "status": "success",
                 "child_name": "John Doe",
                 "child_id": "CHILD456",
-                "month": "2024-01",
                 "payment_method": "card",
                 "payment_type": "care_days",
+                "care_days": [],
+                "lump_sum": None,
             }
         }
 

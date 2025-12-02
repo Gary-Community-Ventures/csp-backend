@@ -67,6 +67,15 @@ class PaymentNotificationTemplate:
         return headers.get(language, headers[Language.ENGLISH])
 
     @staticmethod
+    def get_lump_sum_header(language: Language = Language.ENGLISH) -> str:
+        """Get the lump sum header in the specified language."""
+        headers = {
+            Language.ENGLISH: "Number of Days Specified by Family for This Payment:",
+            Language.SPANISH: "Número de Días Especificados por la Familia para Este Pago:",
+        }
+        return headers.get(language, headers[Language.ENGLISH])
+
+    @staticmethod
     def get_field_labels(language: Language = Language.ENGLISH) -> Dict[str, str]:
         """Get field labels in the specified language."""
         labels = {
@@ -77,6 +86,8 @@ class PaymentNotificationTemplate:
                 "date": "Date",
                 "type": "Type",
                 "day_amount": "Amount",
+                "full_days": "Full Days:",
+                "half_days": "Half Days:",
             },
             Language.SPANISH: {
                 "child": "Niño/a:",
@@ -85,6 +96,8 @@ class PaymentNotificationTemplate:
                 "date": "Fecha",
                 "type": "Tipo",
                 "day_amount": "Cantidad",
+                "full_days": "Días Completos:",
+                "half_days": "Medios Días:",
             },
         }
         return labels.get(language, labels[Language.ENGLISH])
@@ -196,6 +209,7 @@ class PaymentNotificationTemplate:
         payment_method: str,
         language: Language = Language.ENGLISH,
         care_days: list = None,
+        lump_sum: dict = None,
     ) -> str:
         """Build the complete HTML email content in the specified language."""
         amount_dollars = amount_cents / 100
@@ -227,14 +241,17 @@ class PaymentNotificationTemplate:
         care_days_section = ""
         if care_days and len(care_days) > 0:
             care_days_rows = ""
-            for day in care_days:
+            for idx, day in enumerate(care_days):
                 day_type_display = cls.get_day_type_display(day.type.value, language)
                 day_amount = day.amount_cents / 100
                 # Format date nicely
                 date_str = day.date.strftime("%B %d, %Y") if hasattr(day.date, "strftime") else str(day.date)
 
+                # Add border-bottom except for last row
+                border_style = "border-bottom: 1px solid #e0e0e0;" if idx < len(care_days) - 1 else ""
+
                 care_days_rows += f"""
-                <tr style="border-bottom: 1px solid #e0e0e0;">
+                <tr style="{border_style}">
                     <td style="padding: 8px 0;">{date_str}</td>
                     <td style="padding: 8px 0;">{day_type_display}</td>
                     <td style="padding: 8px 0; text-align: right;">${day_amount:.2f}</td>
@@ -255,6 +272,28 @@ class PaymentNotificationTemplate:
                     <tbody>
                         {care_days_rows}
                     </tbody>
+                </table>
+            </div>
+            """
+
+        # Build lump sum section if provided
+        lump_sum_section = ""
+        if lump_sum:
+            days = lump_sum.get("days", 0)
+            half_days = lump_sum.get("half_days", 0)
+
+            lump_sum_section = f"""
+            <div style="background-color: #f8f9fa; border-left: 4px solid #b53363; padding: 15px; margin: 20px 0; border-radius: 5px;">
+                <h3 style="margin-top: 0; color: #2c3e50;">{cls.get_lump_sum_header(language)}</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 8px 0;"><strong>{labels['full_days']}</strong></td>
+                        <td style="padding: 8px 0;">{days}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0;"><strong>{labels['half_days']}</strong></td>
+                        <td style="padding: 8px 0;">{half_days}</td>
+                    </tr>
                 </table>
             </div>
             """
@@ -286,6 +325,7 @@ class PaymentNotificationTemplate:
         <p>{cls.get_intro_text(language)}</p>
         {payment_details}
         {care_days_section}
+        {lump_sum_section}
         {whats_next}
         <p>{cls.get_support_text(language)}</p>
         """
