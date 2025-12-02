@@ -8,7 +8,7 @@ from app import create_app
 from app.enums.email_type import EmailType
 from app.models.provider_invitation import ProviderInvitation
 from app.services.payment.utils import format_phone_to_e164
-from app.supabase.columns import Language
+from app.supabase.columns import Language, Status
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child, Family, Guardian, Provider
 from app.utils.email.config import get_from_email_external
@@ -60,6 +60,7 @@ def send_invite_reminders(dry_run=False):
                 ),
                 Child.join(
                     Child.ID,
+                    Child.STATUS,
                     Provider.join(Provider.ID),
                 ),
             )
@@ -75,12 +76,17 @@ def send_invite_reminders(dry_run=False):
             continue
 
         has_provider = False
+        has_approved_child = False
         for child in Child.unwrap(family):
+            if Child.STATUS(child) == Status.APPROVED:
+                has_approved_child = True
+
             if len(Provider.unwrap(child)) != 0:
                 has_provider = True
-                break
 
         if has_provider:
+            continue
+        if not has_approved_child:
             continue
 
         child_ids = [Child.ID(c) for c in Child.unwrap(family)]
