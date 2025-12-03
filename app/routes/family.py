@@ -335,7 +335,6 @@ def family_data(child_id: Optional[str] = None):
 
         # Look up the ProviderPaymentSettings to get is_payable status
         provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_supabase_id=provider_id).first()
-        current_app.logger.error(f"Provider {provider_id} payment settings: {provider_payment_settings}")
 
         provider_status = Provider.STATUS(p)
         provider_type = Provider.TYPE(p)
