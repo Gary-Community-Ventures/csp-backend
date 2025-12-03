@@ -6,7 +6,7 @@ from app.models.payment_rate import PaymentRate
 
 def get_care_day_cost(
     day_type: CareDayType, provider_id: str, child_id: str, allocation_remaining: int
-) -> Tuple[int, int]:
+) -> tuple[int, int]:
     """Get the cost for a care day type from the payment rate"""
     amount_missing_cents = 0
     care_day_cost = get_care_day_rate(
