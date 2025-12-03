@@ -1,8 +1,9 @@
 import argparse
-from datetime import date, datetime, timezone
 from dataclasses import dataclass
+from datetime import date, datetime, timezone
 
 from flask import current_app
+
 from app import create_app
 from app.enums.care_day_type import CareDayType
 from app.enums.email_type import EmailType
@@ -10,7 +11,7 @@ from app.models.allocated_care_day import AllocatedCareDay
 from app.models.month_allocation import MonthAllocation
 from app.supabase.columns import Language, ProviderType, Status
 from app.supabase.helpers import cols, unwrap_or_error
-from app.supabase.tables import Family, Guardian, Provider, Child
+from app.supabase.tables import Child, Family, Guardian, Provider
 from app.utils.date_utils import get_relative_week, get_week_range
 from app.utils.email.config import get_from_email_external
 from app.utils.email.core import BulkEmailData, bulk_send_emails
