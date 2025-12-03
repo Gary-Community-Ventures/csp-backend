@@ -267,7 +267,7 @@ def send_attendance_communications(send_to_families=False, send_to_providers=Fal
     bulk_send_emails(get_from_email_external(), bulk_emails, EmailType.ATTENDANCE_REMINDER, batch_name=batch_name)
     bulk_send_sms(bulk_text_messages)
 
-    current_app.logger.info("create_attendance: Finished sending attendance emails and SMS.")
+    current_app.logger.info("attendance_communications: Finished sending attendance emails and SMS.")
 
 
 if __name__ == "__main__":

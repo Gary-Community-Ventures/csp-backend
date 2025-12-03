@@ -10,6 +10,7 @@ class EmailType(str, Enum):
     LUMP_SUM_PAYMENT = "lump_sum_payment"
     PAYMENT_NOTIFICATION = "payment_notification"
     PAYMENT_RATE_CREATED = "payment_rate_created"
+    PAYMENT_REMINDER = "payment_reminder"
 
     # Invitation system
     PROVIDER_INVITED = "provider_invited"
