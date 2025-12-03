@@ -1,9 +1,29 @@
+from typing import Tuple
+
 from app.enums.care_day_type import CareDayType
 from app.models.payment_rate import PaymentRate
 
 
-def get_care_day_cost(day_type: CareDayType, provider_id: str, child_id: str) -> int:
+def get_care_day_cost(
+    day_type: CareDayType, provider_id: str, child_id: str, allocation_remaining: int
+) -> Tuple[int, int]:
     """Get the cost for a care day type from the payment rate"""
+    amount_missing_cents = 0
+    care_day_cost = get_care_day_rate(
+        day_type,
+        provider_id=provider_id,
+        child_id=child_id,
+    )
+
+    if allocation_remaining < care_day_cost:
+        amount_missing_cents = care_day_cost - allocation_remaining
+        care_day_cost = allocation_remaining
+
+    return (care_day_cost, amount_missing_cents)
+
+
+def get_care_day_rate(day_type: CareDayType, provider_id: str, child_id: str) -> int:
+    """Get the rate for a care day type from the payment rate"""
     rate = PaymentRate.get(provider_id=provider_id, child_id=child_id)
 
     if not rate:

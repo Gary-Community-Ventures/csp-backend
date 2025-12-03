@@ -89,18 +89,12 @@ def update_care_day(care_day_id):
     if care_day.type != new_day_type or was_deleted:
         care_day.type = new_day_type
 
-        new_amount_missing_cents = 0
-        new_care_day_cost = get_care_day_cost(
+        new_care_day_cost, new_amount_missing_cents = get_care_day_cost(
             new_day_type,
             provider_id=care_day.provider_supabase_id,
             child_id=care_day.care_month_allocation.child_supabase_id,
+            allocation_remaining=care_day.amount_cents + care_day.care_month_allocation.remaining_unselected_cents,
         )
-
-        total_remaining_cents = care_day.amount_cents + care_day.care_month_allocation.remaining_unselected_cents
-
-        if total_remaining_cents < new_care_day_cost:
-            new_amount_missing_cents = new_care_day_cost - total_remaining_cents
-            new_care_day_cost = total_remaining_cents
 
         # If changing the type results in over-allocation, soft delete the care day
         # As that resets the day to the default empty state

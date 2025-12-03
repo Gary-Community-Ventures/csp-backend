@@ -221,16 +221,12 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         if existing and not existing.is_deleted:
             raise ValueError("Care day already exists for this date")
 
-        amount_missing_cents = 0
-        care_day_cost = get_care_day_cost(
+        care_day_cost, amount_missing_cents = get_care_day_cost(
             day_type,
             provider_id=provider_id,
             child_id=allocation.child_supabase_id,
+            allocation_remaining=allocation.remaining_unselected_cents,
         )
-
-        if allocation.remaining_unselected_cents < care_day_cost:
-            amount_missing_cents = care_day_cost - allocation.remaining_unselected_cents
-            care_day_cost = allocation.remaining_unselected_cents
 
         # If there's a soft-deleted one, restore and update it
         if existing and existing.is_deleted:
