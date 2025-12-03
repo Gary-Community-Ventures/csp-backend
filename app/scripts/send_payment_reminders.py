@@ -53,12 +53,8 @@ def provider_is_payable(provider: dict, month_allocation: MonthAllocation):
     if not Provider.PAYMENT_ENABLED(provider):
         return False
 
-    try:
-        if month_allocation.can_add_care_day(CareDayType.HALF_DAY, Provider.ID(provider)):
-            return True
-    except ValueError:
-        # if no payment rate is not set
-        return False
+    if month_allocation.can_add_care_day():
+        return True
 
     return False
 
