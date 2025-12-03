@@ -78,9 +78,20 @@ class MonthAllocation(db.Model, TimestampMixin):
     __table_args__ = (db.UniqueConstraint("child_supabase_id", "date", name="unique_child_month"),)
 
     @property
+    def total_reclaimed_cents(self):
+        """Total amount reclaimed from this allocation."""
+        return sum(reclamation.amount_cents for reclamation in self.reclaimed_funds)
+
+    @property
+    def net_allocation_cents(self):
+        """Effective allocation after reclamations.
+        This represents the actual funds available after any reclamations."""
+        return self.allocation_cents - self.total_reclaimed_cents
+
+    @property
     def selected_over_allocation(self):
-        """Check if allocated care days exceed the monthly allocation"""
-        return self.selected_cents > self.allocation_cents
+        """Check if allocated care days exceed the net monthly allocation"""
+        return self.selected_cents > self.net_allocation_cents
 
     @property
     def selected_cents(self):
@@ -100,22 +111,24 @@ class MonthAllocation(db.Model, TimestampMixin):
     @property
     def remaining_unselected_cents(self):
         """How much budget is left to select (create new care days/lump sums).
-        This prevents over-promising but doesn't reflect actual payment status."""
-        return self.allocation_cents - self.selected_cents
+        This prevents over-promising but doesn't reflect actual payment status.
+        Uses net allocation (after reclamations)."""
+        return self.net_allocation_cents - self.selected_cents
 
     @property
     def remaining_unpaid_cents(self):
         """How much allocation is actually left to use.
-        This is the real remaining allocation after successful payments."""
-        return self.allocation_cents - self.paid_cents
+        This is the real remaining allocation after successful payments and reclamations."""
+        return self.net_allocation_cents - self.paid_cents
 
     def can_add_care_day(self) -> bool:
         """Check if we can add a care day of given type without over-allocating"""
         return self.remaining_unselected_cents > 0
 
     def can_add_lump_sum(self, amount_cents: int) -> bool:
-        """Check if we can add a lump sum without over-allocating"""
-        return self.paid_cents + amount_cents <= self.allocation_cents
+        """Check if we can add a lump sum without over-allocating.
+        Uses net allocation (after reclamations)."""
+        return self.paid_cents + amount_cents <= self.net_allocation_cents
 
     @staticmethod
     def get_or_create_for_month(child_id: str, month_date: date):

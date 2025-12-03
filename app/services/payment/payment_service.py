@@ -31,6 +31,7 @@ from app.models import (
     AllocatedCareDay,
     AllocatedLumpSum,
     FamilyPaymentSettings,
+    FundReclamation,
     MonthAllocation,
     Payment,
     PaymentAttempt,
@@ -998,9 +999,19 @@ class PaymentService:
             user_id=int(family_payment_settings.chek_user_id), request=transfer_request
         )
 
-    def reclaim_funds(self, chek_user_id: int, amount: int) -> TransferBalanceResponse:
+    def reclaim_funds(
+        self, chek_user_id: int, amount: int, month_allocation_id: Optional[int] = None
+    ) -> TransferBalanceResponse:
         """
         Reclaims funds from a family's Chek account back into the program wallet.
+
+        Args:
+            chek_user_id: Chek user ID to reclaim funds from
+            amount: Amount to reclaim in cents
+            month_allocation_id: Optional month allocation ID to link this reclamation to
+
+        Returns:
+            TransferBalanceResponse from Chek API
         """
         from app.integrations.chek.schemas import FlowDirection, TransferBalanceRequest
 
@@ -1014,30 +1025,59 @@ class PaymentService:
             metadata={
                 "chek_user_id": chek_user_id,
                 "reclaim_amount": amount,
+                "month_allocation_id": month_allocation_id,
             },
         )
 
-        return self.chek_service.transfer_balance(user_id=chek_user_id, request=transfer_request)
+        response = self.chek_service.transfer_balance(user_id=chek_user_id, request=transfer_request)
 
-    def reclaim_funds_by_family(self, family_id: str, amount: int) -> TransferBalanceResponse:
+        # Create FundReclamation record after successful transfer
+        try:
+            fund_reclamation = FundReclamation(
+                amount_cents=amount,
+                chek_transfer_id=response.transfer.id if response and response.transfer else None,
+                chek_user_id=str(chek_user_id),
+                month_allocation_id=month_allocation_id,
+            )
+            db.session.add(fund_reclamation)
+            db.session.commit()
+
+            current_app.logger.info(
+                f"Created FundReclamation record {fund_reclamation.id} for ${amount / 100:.2f} "
+                f"(chek_user_id: {chek_user_id}, transfer_id: {fund_reclamation.chek_transfer_id})"
+            )
+        except Exception as e:
+            current_app.logger.error(f"Failed to create FundReclamation record: {e}", exc_info=True)
+            # Don't fail the entire operation if just the record creation fails
+            sentry_sdk.capture_exception(e)
+
+        return response
+
+    def reclaim_funds_by_family(
+        self, family_id: str, amount: int, month_allocation_id: Optional[int] = None
+    ) -> TransferBalanceResponse:
         """
         Reclaims funds back into the program wallet from a family's Chek account using family ID.
         """
         family_payment_settings = FamilyPaymentSettings.query.filter_by(family_supabase_id=family_id).first()
         if not family_payment_settings or not family_payment_settings.chek_user_id:
             raise FamilyNotFoundException(f"Family {family_id} not found or has no Chek account")
-        return self.reclaim_funds(int(family_payment_settings.chek_user_id), amount)
+        return self.reclaim_funds(int(family_payment_settings.chek_user_id), amount, month_allocation_id)
 
-    def reclaim_funds_by_child(self, child_id: str, amount: int) -> TransferBalanceResponse:
+    def reclaim_funds_by_child(
+        self, child_id: str, amount: int, month_allocation_id: Optional[int] = None
+    ) -> TransferBalanceResponse:
         """
         Reclaims funds back into the program wallet from a family's Chek account using child ID.
         """
         family_payment_settings = self._get_family_settings_from_child_id(child_id)
         if not family_payment_settings or not family_payment_settings.chek_user_id:
             raise FamilyNotFoundException(f"Family for child {child_id} not found or has no Chek account")
-        return self.reclaim_funds(int(family_payment_settings.chek_user_id), amount)
+        return self.reclaim_funds(int(family_payment_settings.chek_user_id), amount, month_allocation_id)
 
-    def reclaim_funds_by_provider(self, provider_id: str, amount: int) -> TransferBalanceResponse:
+    def reclaim_funds_by_provider(
+        self, provider_id: str, amount: int, month_allocation_id: Optional[int] = None
+    ) -> TransferBalanceResponse:
         """
         Reclaims funds back into the program wallet from a family's Chek account using provider ID.
         """
@@ -1045,4 +1085,4 @@ class PaymentService:
         if not provider_payment_settings or not provider_payment_settings.chek_user_id:
             raise ProviderNotFoundException(f"Provider {provider_id} not found or has no Chek account")
 
-        return self.reclaim_funds(int(provider_payment_settings.chek_user_id), amount)
+        return self.reclaim_funds(int(provider_payment_settings.chek_user_id), amount, month_allocation_id)
