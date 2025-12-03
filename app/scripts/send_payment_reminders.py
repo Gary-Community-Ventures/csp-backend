@@ -3,8 +3,6 @@ from datetime import date, datetime, timezone
 from dataclasses import dataclass
 
 from flask import current_app
-from sqlalchemy import except_
-
 from app import create_app
 from app.enums.care_day_type import CareDayType
 from app.enums.email_type import EmailType
@@ -27,18 +25,20 @@ class MessageCopy:
     sms: str
 
 
-def message(name: str, default_id: str, lang: Language):
+def message(name: str, lang: Language):
+    domain = current_app.config.get("FRONTEND_DOMAIN")
+    link = f"{domain}/family"
     if lang == Language.SPANISH:
         return MessageCopy(
-            subject="",
-            email="",
-            sms="",
+            subject="Acción Requerida - Pague a su Proveedor",
+            email=f"Hola {name},<br><br>Por favor recuerde iniciar sesión en el {html_link(link, 'portal')} y pagar a su proveedor por el cuidado infantil de la próxima semana. La fecha límite para enviar su pago es el lunes.",
+            sms=f"No olvide pagar a su proveedor para la próxima semana. {link}",
         )
 
     return MessageCopy(
-        subject="",
-        email="",
-        sms="",
+        subject="Action Needed - Pay Your Provider",
+        email=f"Hi {name},<br><br>Please remember to log into the {html_link(link, 'portal')} and pay your provider for childcare next week. The deadline to submit your payment is Monday.",
+        sms=f"Don't forget to pay your provider for next week. {link}",
     )
 
 
@@ -55,7 +55,7 @@ def provider_is_payable(provider: dict, month_allocation: MonthAllocation):
     try:
         if month_allocation.can_add_care_day(CareDayType.HALF_DAY, Provider.ID(provider)):
             return True
-    except ValueError: 
+    except ValueError:
         # if no payment rate is not set
         return False
 
@@ -142,7 +142,7 @@ def send_payment_reminders(dry_run=False):
 
         guardian = Guardian.get_primary_guardian(Guardian.unwrap(family))
 
-        mes = message(Guardian.FIRST_NAME(guardian), Child.ID(children[0]), Family.LANGUAGE(family))
+        mes = message(Guardian.FIRST_NAME(guardian), Family.LANGUAGE(family))
         emails.append(
             BulkEmailData(
                 Guardian.EMAIL(guardian),
