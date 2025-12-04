@@ -583,7 +583,7 @@ class InviteProviderMessage:
 
 
 def get_invite_family_message(lang: str, provider_name: str, link: str):
-    language = Language.SPANISH if lang == "es" else Language.ENGLISH
+    language = Language(lang) if lang in ["es", "ru", "ar"] else Language.ENGLISH
     email_html = InvitationTemplate.get_family_invitation_content(provider_name, link, language)
 
     if lang == "es":
@@ -591,6 +591,18 @@ def get_invite_family_message(lang: str, provider_name: str, link: str):
             subject=f"Invitación de {provider_name} - ¡Reciba ayuda con los costos de cuidado infantil!",
             email=email_html,
             sms=f"{provider_name} te invitó a unirte al Programa Piloto Childcare Affordability Pilot (CAP). ¡Accede hasta $1,400 mensuales para pagar el cuidado infantil si es aprobado! Haz clic aquí para obtener más información y aplique. {link} ¿Tienes preguntas? Escríbenos a support@capcolorado.org.",
+        )
+    elif lang == "ru":
+        return InviteProviderMessage(
+            subject=f"Приглашение от {provider_name} - Получите помощь с расходами на уход за детьми!",
+            email=email_html,
+            sms=f"{provider_name} приглашает вас присоединиться к пилотной программе Childcare Affordability Pilot (CAP) — получите до $1,400 в месяц на оплату ухода за детьми при одобрении! Нажмите, чтобы узнать больше и подать заявку! {link} Вопросы? support@capcolorado.org.",
+        )
+    elif lang == "ar":
+        return InviteProviderMessage(
+            subject=f"دعوة من {provider_name} - احصل على مساعدة في تكاليف رعاية الأطفال!",
+            email=email_html,
+            sms=f"دعاك {provider_name} للانضمام إلى البرنامج التجريبي Childcare Affordability Pilot (CAP) - احصل على ما يصل إلى $1,400 شهرياً لدفع تكاليف رعاية الأطفال إذا تمت الموافقة! انقر لمعرفة المزيد والتقديم! {link} أسئلة؟ support@capcolorado.org.",
         )
 
     return InviteProviderMessage(

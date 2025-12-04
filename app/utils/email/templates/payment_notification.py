@@ -18,6 +18,8 @@ class PaymentNotificationTemplate:
         subjects = {
             Language.ENGLISH: f"New Payment - ${amount_dollars:.2f}",
             Language.SPANISH: f"Nuevo Pago - ${amount_dollars:.2f}",
+            Language.RUSSIAN: f"Новый Платёж - ${amount_dollars:.2f}",
+            Language.ARABIC: f"دفعة جديدة - ${amount_dollars:.2f}",
         }
         return subjects.get(language, subjects[Language.ENGLISH])
 
@@ -27,6 +29,8 @@ class PaymentNotificationTemplate:
         greetings = {
             Language.ENGLISH: f"Hello {provider_name},",
             Language.SPANISH: f"Hola {provider_name},",
+            Language.RUSSIAN: f"Здравствуйте, {provider_name},",
+            Language.ARABIC: f"مرحباً {provider_name}،",
         }
         return greetings.get(language, greetings[Language.ENGLISH])
 
@@ -36,6 +40,8 @@ class PaymentNotificationTemplate:
         intros = {
             Language.ENGLISH: "We're pleased to inform you that a payment is heading your way.",
             Language.SPANISH: "Nos complace informarle que un pago se dirige hacia usted.",
+            Language.RUSSIAN: "Мы рады сообщить вам, что платёж направляется к вам.",
+            Language.ARABIC: "يسعدنا إبلاغك بأن دفعة في طريقها إليك.",
         }
         return intros.get(language, intros[Language.ENGLISH])
 
@@ -45,6 +51,8 @@ class PaymentNotificationTemplate:
         headers = {
             Language.ENGLISH: "New Payment Processed",
             Language.SPANISH: "Nuevo Pago Procesado",
+            Language.RUSSIAN: "Новый Платёж Обработан",
+            Language.ARABIC: "تمت معالجة دفعة جديدة",
         }
         return headers.get(language, headers[Language.ENGLISH])
 
@@ -54,6 +62,8 @@ class PaymentNotificationTemplate:
         headers = {
             Language.ENGLISH: "Payment Details:",
             Language.SPANISH: "Detalles del Pago:",
+            Language.RUSSIAN: "Детали Платежа:",
+            Language.ARABIC: "تفاصيل الدفع:",
         }
         return headers.get(language, headers[Language.ENGLISH])
 
@@ -63,6 +73,8 @@ class PaymentNotificationTemplate:
         headers = {
             Language.ENGLISH: "Care Days Included:",
             Language.SPANISH: "Días de Cuidado Incluidos:",
+            Language.RUSSIAN: "Включённые Дни Ухода:",
+            Language.ARABIC: "أيام الرعاية المشمولة:",
         }
         return headers.get(language, headers[Language.ENGLISH])
 
@@ -72,6 +84,8 @@ class PaymentNotificationTemplate:
         headers = {
             Language.ENGLISH: "Care Days Included:",
             Language.SPANISH: "Días de Cuidado Incluidos:",
+            Language.RUSSIAN: "Включённые Дни Ухода:",
+            Language.ARABIC: "أيام الرعاية المشمولة:",
         }
         return headers.get(language, headers[Language.ENGLISH])
 
@@ -99,6 +113,26 @@ class PaymentNotificationTemplate:
                 "full_days": "Días Completos:",
                 "half_days": "Medios Días:",
             },
+            Language.RUSSIAN: {
+                "child": "Ребёнок:",
+                "amount": "Сумма:",
+                "payment_method": "Способ Оплаты:",
+                "date": "Дата",
+                "type": "Тип",
+                "day_amount": "Сумма",
+                "full_days": "Полные Дни:",
+                "half_days": "Половина Дня:",
+            },
+            Language.ARABIC: {
+                "child": "الطفل:",
+                "amount": "المبلغ:",
+                "payment_method": "طريقة الدفع:",
+                "date": "التاريخ",
+                "type": "النوع",
+                "day_amount": "المبلغ",
+                "full_days": "أيام كاملة:",
+                "half_days": "أنصاف أيام:",
+            },
         }
         return labels.get(language, labels[Language.ENGLISH])
 
@@ -109,11 +143,15 @@ class PaymentNotificationTemplate:
             displays = {
                 Language.ENGLISH: "Full Day",
                 Language.SPANISH: "Día Completo",
+                Language.RUSSIAN: "Полный День",
+                Language.ARABIC: "يوم كامل",
             }
         else:  # HALF_DAY or Half Day
             displays = {
                 Language.ENGLISH: "Half Day",
                 Language.SPANISH: "Medio Día",
+                Language.RUSSIAN: "Половина Дня",
+                Language.ARABIC: "نصف يوم",
             }
         return displays.get(language, displays[Language.ENGLISH])
 
@@ -124,11 +162,15 @@ class PaymentNotificationTemplate:
             displays = {
                 Language.ENGLISH: "Virtual Card",
                 Language.SPANISH: "Tarjeta Virtual",
+                Language.RUSSIAN: "Виртуальная Карта",
+                Language.ARABIC: "بطاقة افتراضية",
             }
         else:  # ACH
             displays = {
                 Language.ENGLISH: "Direct Deposit (ACH)",
                 Language.SPANISH: "Depósito Directo (ACH)",
+                Language.RUSSIAN: "Прямой Депозит (ACH)",
+                Language.ARABIC: "إيداع مباشر (ACH)",
             }
         return displays.get(language, displays[Language.ENGLISH])
 
@@ -138,6 +180,8 @@ class PaymentNotificationTemplate:
         headers = {
             Language.ENGLISH: "What's Next?",
             Language.SPANISH: "¿Qué Sigue?",
+            Language.RUSSIAN: "Что Дальше?",
+            Language.ARABIC: "ما التالي؟",
         }
         return headers.get(language, headers[Language.ENGLISH])
 
@@ -155,6 +199,16 @@ class PaymentNotificationTemplate:
                 "Puede usar su tarjeta inmediatamente para compras",
                 "Verifique el saldo de su tarjeta en su cuenta Chek",
             ],
+            Language.RUSSIAN: [
+                "Средства были зачислены на вашу виртуальную карту",
+                "Вы можете использовать карту немедленно для покупок",
+                "Проверьте баланс карты в вашем аккаунте Chek",
+            ],
+            Language.ARABIC: [
+                "تم تحميل الأموال على بطاقتك الافتراضية",
+                "يمكنك استخدام بطاقتك فوراً للمشتريات",
+                "تحقق من رصيد بطاقتك في حساب Chek الخاص بك",
+            ],
         }
         return instructions.get(language, instructions[Language.ENGLISH])
 
@@ -170,6 +224,14 @@ class PaymentNotificationTemplate:
                 "Los fondos están siendo transferidos a su cuenta bancaria",
                 "Los depósitos directos generalmente llegan dentro de 1-2 días hábiles",
             ],
+            Language.RUSSIAN: [
+                "Средства переводятся на ваш банковский счёт",
+                "Прямые депозиты обычно поступают в течение 1-2 рабочих дней",
+            ],
+            Language.ARABIC: [
+                "يتم تحويل الأموال إلى حسابك المصرفي",
+                "عادةً ما تصل الإيداعات المباشرة خلال 1-2 يوم عمل",
+            ],
         }
         return instructions.get(language, instructions[Language.ENGLISH])
 
@@ -179,6 +241,8 @@ class PaymentNotificationTemplate:
         texts = {
             Language.ENGLISH: "If you have any questions about this payment, please reach out to our support team.",
             Language.SPANISH: "Si tiene alguna pregunta sobre este pago, por favor comuníquese con nuestro equipo de soporte.",
+            Language.RUSSIAN: "Если у вас есть вопросы об этом платеже, пожалуйста, свяжитесь с нашей службой поддержки.",
+            Language.ARABIC: "إذا كان لديك أي أسئلة حول هذه الدفعة، يرجى التواصل مع فريق الدعم لدينا.",
         }
         return texts.get(language, texts[Language.ENGLISH])
 
@@ -188,6 +252,8 @@ class PaymentNotificationTemplate:
         signatures = {
             Language.ENGLISH: "Best regards,<br>The CAP Team",
             Language.SPANISH: "Saludos cordiales,<br>El Equipo CAP",
+            Language.RUSSIAN: "С уважением,<br>Команда CAP",
+            Language.ARABIC: "مع أطيب التحيات،<br>فريق CAP",
         }
         return signatures.get(language, signatures[Language.ENGLISH])
 
@@ -197,6 +263,8 @@ class PaymentNotificationTemplate:
         footers = {
             Language.ENGLISH: "This is an automated notification from the CAP portal system.",
             Language.SPANISH: "Esta es una notificación automática del sistema del portal CAP.",
+            Language.RUSSIAN: "Это автоматическое уведомление от системы портала CAP.",
+            Language.ARABIC: "هذا إشعار تلقائي من نظام بوابة CAP.",
         }
         return footers.get(language, footers[Language.ENGLISH])
 

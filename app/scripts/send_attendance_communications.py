@@ -125,7 +125,7 @@ class FamilyAttendanceMessages(AttendanceMessages):
 
     def _family_message(self, family_name: str, lang: str):
         link = f"{self.domain}/family/attendance"
-        language = Language.SPANISH if lang == "es" else Language.ENGLISH
+        language = Language(lang) if lang in ["es", "ru", "ar"] else Language.ENGLISH
         email_html = AttendanceReminderTemplate.get_family_content(family_name, link, language)
 
         if lang == "es":
@@ -133,6 +133,18 @@ class FamilyAttendanceMessages(AttendanceMessages):
                 subject="Acción necesaria - Asistencia CAP",
                 email=email_html,
                 sms=f"Confirme los días de cuidado de la semana pasada para que su proveedor pueda recibir su pago. {link}",
+            )
+        elif lang == "ru":
+            return MessageCopy(
+                subject="Требуется действие - Посещаемость CAP",
+                email=email_html,
+                sms=f"Подтвердите дни ухода за прошлую неделю, чтобы ваш воспитатель мог получить оплату. {link}",
+            )
+        elif lang == "ar":
+            return MessageCopy(
+                subject="إجراء مطلوب - حضور CAP",
+                email=email_html,
+                sms=f"قم بتأكيد أيام الرعاية للأسبوع الماضي حتى يتمكن مقدم الرعاية من الحصول على أجره. {link}",
             )
 
         return MessageCopy(
@@ -201,7 +213,7 @@ class ProviderAttendanceMessages(AttendanceMessages):
 
     def _provider_message(self, provider_name: str, lang: str):
         link = f"{self.domain}/provider/attendance"
-        language = Language.SPANISH if lang == "es" else Language.ENGLISH
+        language = Language(lang) if lang in ["es", "ru", "ar"] else Language.ENGLISH
         email_html = AttendanceReminderTemplate.get_provider_content(provider_name, link, language)
 
         if lang == "es":
@@ -209,6 +221,18 @@ class ProviderAttendanceMessages(AttendanceMessages):
                 subject="Acción necesaria - Asistencia CAP",
                 email=email_html,
                 sms=f"Confirme la asistencia de todos los niños bajo su cuidado que reciben el subsidio CAP, para que pueda recibir su pago a tiempo. {link}",
+            )
+        elif lang == "ru":
+            return MessageCopy(
+                subject="Требуется действие - Посещаемость CAP",
+                email=email_html,
+                sms=f"Пожалуйста, подтвердите посещаемость всех детей, получающих субсидию CAP, чтобы получить оплату вовремя. {link}",
+            )
+        elif lang == "ar":
+            return MessageCopy(
+                subject="إجراء مطلوب - حضور CAP",
+                email=email_html,
+                sms=f"يرجى تأكيد الحضور لجميع الأطفال الذين يتلقون دعم CAP حتى تتمكن من الحصول على أجرك في الوقت المحدد. {link}",
             )
 
         return MessageCopy(
@@ -219,7 +243,7 @@ class ProviderAttendanceMessages(AttendanceMessages):
 
     def _center_message(self, provider_name: str, lang: str):
         link = f"{self.domain}/provider/attendance"
-        language = Language.SPANISH if lang == "es" else Language.ENGLISH
+        language = Language(lang) if lang in ["es", "ru", "ar"] else Language.ENGLISH
         email_html = AttendanceReminderTemplate.get_center_content(provider_name, link, language)
 
         if lang == "es":
@@ -227,6 +251,18 @@ class ProviderAttendanceMessages(AttendanceMessages):
                 subject="Acción necesaria - Asistencia CAP",
                 email=email_html,
                 sms=f"Por favor, complete la asistencia de todos los niños bajo su cuidado que reciben subsidio de CAP del mes pasado antes del fin de semana. Si ya envió la verificación de asistencia del mes pasado, ignore este correo electrónico. {link}",
+            )
+        elif lang == "ru":
+            return MessageCopy(
+                subject="Требуется действие - Посещаемость CAP",
+                email=email_html,
+                sms=f"Пожалуйста, заполните данные о посещаемости всех детей, получающих субсидию CAP, за прошлый месяц до конца недели. Если вы уже отправили подтверждение посещаемости за прошлый месяц, проигнорируйте это сообщение. {link}",
+            )
+        elif lang == "ar":
+            return MessageCopy(
+                subject="إجراء مطلوب - حضور CAP",
+                email=email_html,
+                sms=f"يرجى ملء سجل الحضور لجميع الأطفال الذين يتلقون دعم CAP للشهر الماضي قبل نهاية الأسبوع. إذا كنت قد أرسلت بالفعل تأكيد الحضور للشهر الماضي، يرجى تجاهل هذه الرسالة. {link}",
             )
 
         return MessageCopy(
