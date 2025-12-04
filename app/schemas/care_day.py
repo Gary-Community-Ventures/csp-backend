@@ -18,6 +18,7 @@ class AllocatedCareDayResponse(AllocatedCareDayBase):
     id: int
     care_month_allocation_id: int
     amount_cents: int
+    amount_missing_cents: Optional[int]
     day_count: float
     payment_distribution_requested: bool
     last_submitted_at: Optional[datetime] = None
@@ -27,9 +28,8 @@ class AllocatedCareDayResponse(AllocatedCareDayBase):
     locked_date: datetime
     is_locked: bool
     is_deleted: bool
-    needs_resubmission: bool
-    is_new: bool
-    delete_not_submitted: bool
+    is_partial_payment: bool
+    needs_submission: bool
     status: str
 
     model_config = {"from_attributes": True}

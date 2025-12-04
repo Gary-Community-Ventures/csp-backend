@@ -10,6 +10,7 @@ class EmailType(str, Enum):
     LUMP_SUM_PAYMENT = "lump_sum_payment"
     PAYMENT_NOTIFICATION = "payment_notification"
     PAYMENT_RATE_CREATED = "payment_rate_created"
+    PAYMENT_REMINDER = "payment_reminder"
 
     # Invitation system
     INVITE_REMINDER = "invite_reminder"
@@ -19,6 +20,10 @@ class EmailType(str, Enum):
     FAMILY_INVITE_ACCEPTED = "family_invite_accepted"
     PROVIDER_FAMILY_INVITATION = "provider_family_invitation"
     FAMILY_PROVIDER_INVITATION = "family_provider_invitation"
+
+    # Attendance
+    PROVIDER_ATTENDANCE_COMPLETED = "provider_attendance_completed"
+    FAMILY_ATTENDANCE_COMPLETED = "family_attendance_completed"
 
     # Reminders
     ATTENDANCE_REMINDER = "attendance_reminder"

@@ -4,6 +4,7 @@ import pytest
 
 from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation
+from app.utils.date_utils import get_relative_week
 
 
 @pytest.fixture
@@ -122,11 +123,11 @@ def test_get_month_allocation_success(client, seed_db, app):
 
     # Check submission statuses
     care_day_statuses = {d["id"]: d["status"] for d in response.json["care_days"]}
-    assert care_day_statuses[1] == "new"
-    assert care_day_statuses[2] == "submitted"
-    assert care_day_statuses[3] == "needs_resubmission"
-    assert care_day_statuses[4] == "submitted"
-    assert care_day_statuses[5] == "delete_not_submitted"
+    assert care_day_statuses[1] == "needs_submission"  # Never submitted
+    assert care_day_statuses[2] == "unknown"  # Submitted but no payment
+    assert care_day_statuses[3] == "unknown"  # Needs resubmission but no payment
+    assert care_day_statuses[4] == "unknown"  # Locked but no payment
+    assert care_day_statuses[5] == "deleted"  # Soft deleted
 
 
 def test_get_month_allocation_invalid_date(client, seed_db, app):
@@ -256,7 +257,7 @@ def test_month_allocation_locked_until_date(client, seed_db):
     business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
     now_business = datetime.now(business_tz)
     today = now_business.date()
-    current_monday = today - timedelta(days=today.weekday())
+    current_monday = get_relative_week(0, today)
     current_monday_eod = datetime.combine(current_monday, time(23, 59, 59), tzinfo=business_tz)
 
     if now_business > current_monday_eod:

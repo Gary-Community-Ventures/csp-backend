@@ -8,9 +8,11 @@ from flask import current_app
 
 from app.enums.email_type import EmailType
 from app.models import AllocatedCareDay
+from app.models.attendance import Attendance
 from app.supabase.columns import Language
 from app.supabase.helpers import format_name
 from app.supabase.tables import Child
+from app.utils.date_utils import get_week_range
 from app.utils.email.config import (
     get_from_email_external,
     get_internal_email_config,
@@ -341,6 +343,8 @@ def send_payment_notification(
     amount_cents: int,
     payment_method: str,
     provider_language: Language = Language.ENGLISH,
+    care_days: list[AllocatedCareDay] = None,
+    lump_sum: dict = None,
 ) -> bool:
     """
     Sends a payment notification email to the provider when payment is completed.
@@ -354,6 +358,8 @@ def send_payment_notification(
         amount_cents: Payment amount in cents
         payment_method: Method used for payment (CARD or ACH)
         provider_language: Provider's preferred language (defaults to English)
+        care_days: Optional list of care days included in this payment
+        lump_sum: Optional dict with 'days' and 'half_days' for lump sum payments
     """
     from_email = get_from_email_external()
 
@@ -375,7 +381,24 @@ def send_payment_notification(
         amount_cents=amount_cents,
         payment_method=payment_method,
         language=provider_language,
+        care_days=care_days,
+        lump_sum=lump_sum,
     )
+
+    context_data = {
+        "provider_id": provider_id,
+        "child_id": child_id,
+        "amount_cents": amount_cents,
+        "payment_method": payment_method,
+        "language": provider_language.value,
+    }
+
+    if care_days:
+        context_data["care_days_count"] = len(care_days)
+
+    if lump_sum:
+        context_data["lump_sum_days"] = lump_sum.get("days", 0)
+        context_data["lump_sum_half_days"] = lump_sum.get("half_days", 0)
 
     return send_email(
         from_email=from_email,
@@ -383,13 +406,7 @@ def send_payment_notification(
         subject=subject,
         html_content=html_content,
         email_type=EmailType.PAYMENT_NOTIFICATION,
-        context_data={
-            "provider_id": provider_id,
-            "child_id": child_id,
-            "amount_cents": amount_cents,
-            "payment_method": payment_method,
-            "language": provider_language.value,
-        },
+        context_data=context_data,
         is_internal=False,
     )
 
@@ -480,6 +497,94 @@ def send_family_invite_accept_email(
             "parent_id": parent_id,
             "provider_name": provider_name,
             "provider_id": provider_id,
+        },
+        is_internal=True,
+    )
+
+
+def send_provider_attendance_completed_email(
+    provider_name: str,
+    provider_id: str,
+    attendance_data: list[Attendance],
+):
+    from_email, to_emails = get_internal_email_config()
+
+    current_app.logger.info(f"Sending accept invite request email to {to_emails} for provider ID: {provider_id}")
+
+    rows = [
+        SystemMessageRow(
+            title="Provider Name",
+            value=f"{provider_name} (ID: {provider_id})",
+        )
+    ]
+
+    for attendance in attendance_data:
+        week_start, week_end = get_week_range(attendance.week)
+        rows.append(
+            SystemMessageRow(
+                title=f"{week_start.strftime('%B %d')} - {week_end.strftime('%B %d')}",
+                value=f"<b>Full Days:</b> {attendance.provider_entered_full_days}, <b>Half Days:</b> {attendance.provider_entered_half_days}, <b>Child ID:</b> {attendance.child_supabase_id}",
+            )
+        )
+
+    subject = "New Provider Attendance Notification"
+    description = f"A new provider has submitted attendance for the following care days:"
+    html_content = system_message(subject, description, rows)
+
+    return send_email(
+        from_email=from_email,
+        to_emails=to_emails,
+        subject=subject,
+        html_content=html_content,
+        email_type=EmailType.PROVIDER_ATTENDANCE_COMPLETED,
+        context_data={
+            "provider_id": provider_id,
+            "provider_name": provider_name,
+            "attendance_data": attendance_data,
+        },
+        is_internal=True,
+    )
+
+
+def send_family_attendance_completed_email(
+    family_name: str,
+    family_id: str,
+    attendance_data: list[Attendance],
+):
+    from_email, to_emails = get_internal_email_config()
+
+    current_app.logger.info(f"Sending attendance completed email to {to_emails} for family ID: {family_id}")
+
+    rows = [
+        SystemMessageRow(
+            title="Family Name",
+            value=f"{family_name} (ID: {family_id})",
+        ),
+    ]
+
+    for attendance in attendance_data:
+        week_start, week_end = get_week_range(attendance.week)
+        rows.append(
+            SystemMessageRow(
+                title=f"{week_start.strftime('%B %d')} - {week_end.strftime('%B %d')}",
+                value=f"<b>Full Days:</b> {attendance.family_entered_full_days}, <b>Half Days:</b> {attendance.family_entered_half_days}, <b>Provider ID:</b> {attendance.provider_supabase_id}, <b>Child ID:</b> {attendance.child_supabase_id}",
+            )
+        )
+
+    subject = "New Family Attendance Notification"
+    description = f"A new family attendance has been completed:"
+    html_content = system_message(subject, description, rows)
+
+    return send_email(
+        from_email=from_email,
+        to_emails=to_emails,
+        subject=subject,
+        html_content=html_content,
+        email_type=EmailType.FAMILY_ATTENDANCE_COMPLETED,
+        context_data={
+            "family_id": family_id,
+            "family_name": family_name,
+            "attendance_data": attendance_data,
         },
         is_internal=True,
     )
