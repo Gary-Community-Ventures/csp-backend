@@ -5,7 +5,6 @@ from datetime import date, datetime, timezone
 from flask import current_app
 
 from app import create_app
-from app.enums.care_day_type import CareDayType
 from app.enums.email_type import EmailType
 from app.models.allocated_care_day import AllocatedCareDay
 from app.models.month_allocation import MonthAllocation
