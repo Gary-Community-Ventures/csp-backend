@@ -3,6 +3,7 @@ from typing import Optional
 
 import sentry_sdk
 from flask import current_app
+from sqlalchemy.exc import IntegrityError
 
 from app.constants import MAX_ALLOCATION_AMOUNT_CENTS
 from app.supabase.helpers import cols, unwrap_or_error
@@ -215,8 +216,6 @@ class MonthAllocation(db.Model, TimestampMixin):
     @staticmethod
     def get_or_create_for_month(child_id: str, month_date: date):
         """Get existing allocation or create with default values"""
-        from sqlalchemy.exc import IntegrityError
-
         # Normalize to first of month
         month_start = month_date.replace(day=1)
 

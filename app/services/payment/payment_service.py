@@ -22,6 +22,8 @@ from app.integrations.chek.schemas import (
     ACHFundingSource,
     ACHPaymentRequest,
     ACHPaymentType,
+    FlowDirection,
+    TransferBalanceRequest,
     TransferBalanceResponse,
 )
 from app.integrations.chek.service import (
@@ -970,8 +972,6 @@ class PaymentService:
         """
         Allocates funds to a family's Chek account.
         """
-        from app.integrations.chek.schemas import FlowDirection, TransferBalanceRequest
-
         # If family does not have settings, onboard them
         family_payment_settings = self._get_family_settings_from_child_id(child_id)
         if not family_payment_settings or not family_payment_settings.chek_user_id:
@@ -1013,8 +1013,6 @@ class PaymentService:
         Returns:
             TransferBalanceResponse from Chek API
         """
-        from app.integrations.chek.schemas import FlowDirection, TransferBalanceRequest
-
         # Transfer funds from chek user's wallet to program
         transfer_request = TransferBalanceRequest(
             flow_direction=FlowDirection.WALLET_TO_PROGRAM.value,
@@ -1063,9 +1061,8 @@ class PaymentService:
                 f"month_allocation_id={month_allocation_id}"
             )
         except Exception as e:
-            # THIS IS A CRITICAL ERROR - money was transferred but we couldn't record it
             current_app.logger.error(
-                f"[RECLAIM DB FAILURE] ⚠️  CRITICAL: Chek transfer succeeded but DB record creation failed! ⚠️  "
+                f"[RECLAIM DB FAILURE] ⚠️  Chek transfer succeeded but DB record creation failed! ⚠️  "
                 f"transfer_id={transfer_id}, amount=${amount / 100:.2f}, chek_user_id={chek_user_id}, "
                 f"month_allocation_id={month_allocation_id}, error={str(e)}",
                 exc_info=True,
