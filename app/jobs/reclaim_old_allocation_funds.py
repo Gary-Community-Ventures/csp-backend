@@ -10,19 +10,15 @@ from . import job_manager
 
 
 @job_manager.job
-def reclaim_past_month_funds(
-    minimum_amount_cents: int = 100, dry_run: bool = False, from_info: str = "scheduler", **kwargs
-) -> dict[str, Any]:
+def reclaim_past_month_funds(dry_run: bool = False, from_info: str = "scheduler", **kwargs) -> dict[str, Any]:
     """
     Job that reclaims unused funds from monthly allocations in past months.
 
     This job finds allocations that are:
     1. From months before the previous month (e.g., if current is December, reclaim from October and earlier)
     2. Have remaining unpaid funds (net_allocation_cents > paid_cents, accounting for prior reclamations)
-    3. Have a remaining amount above the minimum threshold
 
     Args:
-        minimum_amount_cents: Minimum amount in cents to reclaim (default: 100 = $1.00)
         dry_run: If True, only report what would be reclaimed without actually reclaiming
         from_info: Source of the job execution (e.g., "scheduler", "manual")
 
@@ -36,8 +32,7 @@ def reclaim_past_month_funds(
         current_app.logger.info(
             f"{datetime.now()} Starting fund reclamation job from {from_info} "
             f"(current_month: {current_month_start}, previous_month: {previous_month_start}, "
-            f"reclaiming from months before {previous_month_start}, "
-            f"min_amount: ${minimum_amount_cents / 100:.2f}, dry_run: {dry_run})"
+            f"reclaiming from months before {previous_month_start}, dry_run: {dry_run})"
         )
 
         # Find allocations from months before the previous month
@@ -47,10 +42,11 @@ def reclaim_past_month_funds(
             .all()
         )
 
+        # Find all allocations with any remaining funds
         eligible_allocations = []
         for allocation in past_allocations:
             remaining = allocation.remaining_unpaid_cents
-            if remaining >= minimum_amount_cents:
+            if remaining > 0:
                 eligible_allocations.append((allocation, remaining))
 
         current_app.logger.info(
@@ -108,7 +104,6 @@ def reclaim_past_month_funds(
             "current_month": current_month_start.isoformat(),
             "previous_month": previous_month_start.isoformat(),
             "reclaimed_from_months_before": previous_month_start.isoformat(),
-            "minimum_amount_cents": minimum_amount_cents,
             "checked_count": len(past_allocations),
             "eligible_count": len(eligible_allocations),
             "reclaimed_count": reclaimed_count,
@@ -133,14 +128,13 @@ def reclaim_past_month_funds(
 
 @job_manager.job
 def reclaim_funds_for_month(
-    target_month: str, minimum_amount_cents: int = 100, dry_run: bool = False, from_info: str = "manual", **kwargs
+    target_month: str, dry_run: bool = False, from_info: str = "manual", **kwargs
 ) -> dict[str, Any]:
     """
     Job that reclaims unused funds from allocations for a specific month.
 
     Args:
         target_month: Month to reclaim from in YYYY-MM format (e.g., "2024-03")
-        minimum_amount_cents: Minimum amount in cents to reclaim (default: 100 = $1.00)
         dry_run: If True, only report what would be reclaimed without actually reclaiming
         from_info: Source of the job execution (e.g., "manual", "api")
 
@@ -153,7 +147,7 @@ def reclaim_funds_for_month(
 
         current_app.logger.info(
             f"{datetime.now()} Starting fund reclamation for month {target_month} from {from_info} "
-            f"(min_amount: ${minimum_amount_cents / 100:.2f}, dry_run: {dry_run})"
+            f"(dry_run: {dry_run})"
         )
 
         # Find allocations for the specific month
@@ -163,10 +157,11 @@ def reclaim_funds_for_month(
             .all()
         )
 
+        # Find all allocations with any remaining funds
         eligible_allocations = []
         for allocation in month_allocations:
             remaining = allocation.remaining_unpaid_cents
-            if remaining >= minimum_amount_cents:
+            if remaining > 0:
                 eligible_allocations.append((allocation, remaining))
 
         current_app.logger.info(
@@ -222,7 +217,6 @@ def reclaim_funds_for_month(
             "status": "success" if error_count == 0 else "completed_with_errors",
             "dry_run": dry_run,
             "target_month": target_month,
-            "minimum_amount_cents": minimum_amount_cents,
             "checked_count": len(month_allocations),
             "eligible_count": len(eligible_allocations),
             "reclaimed_count": reclaimed_count,
@@ -262,56 +256,39 @@ def schedule_reclaim_old_allocation_funds_job():
     """
     # Run at 9:00 AM UTC on the 5th of every month (2:00 AM MST / 3:00 AM MDT)
     cron_schedule = current_app.config.get("RECLAIM_FUNDS_CRON", "0 9 5 * *")
-    minimum_amount_cents = current_app.config.get("RECLAIM_FUNDS_MIN_AMOUNT_CENTS", 100)
     from_info = "monthly_scheduler"
 
-    current_app.logger.info(
-        f"Scheduling fund reclamation job with cron '{cron_schedule}' in UTC (2 AM MST / 3 AM MDT), "
-        f"min_amount=${minimum_amount_cents / 100:.2f}"
-    )
+    current_app.logger.info(f"Scheduling fund reclamation job with cron '{cron_schedule}' in UTC (2 AM MST / 3 AM MDT)")
 
-    return reclaim_past_month_funds.schedule_cron(
-        cron_schedule, minimum_amount_cents=minimum_amount_cents, from_info=from_info
-    )
+    return reclaim_past_month_funds.schedule_cron(cron_schedule, from_info=from_info)
 
 
-def reclaim_past_months_now(minimum_amount_cents: int = 100, dry_run: bool = True):
+def reclaim_past_months_now(dry_run: bool = True):
     """
     Manually trigger fund reclamation for all past month allocations.
     Useful for testing or manual execution.
 
     Args:
-        minimum_amount_cents: Minimum amount to reclaim in cents (default: 100 = $1.00)
         dry_run: If True, only reports what would be reclaimed (default: True)
     """
-    current_app.logger.info(
-        f"Manually triggering fund reclamation for all past month allocations "
-        f"with minimum ${minimum_amount_cents / 100:.2f} (dry_run: {dry_run})"
-    )
+    current_app.logger.info(f"Manually triggering fund reclamation for all past month allocations (dry_run: {dry_run})")
 
-    return reclaim_past_month_funds.delay(
-        minimum_amount_cents=minimum_amount_cents, dry_run=dry_run, from_info="manual_trigger"
-    )
+    return reclaim_past_month_funds.delay(dry_run=dry_run, from_info="manual_trigger")
 
 
-def reclaim_specific_month_now(target_month: str, minimum_amount_cents: int = 100, dry_run: bool = True):
+def reclaim_specific_month_now(target_month: str, dry_run: bool = True):
     """
     Manually trigger fund reclamation for a specific month.
     Useful for testing or manual execution.
 
     Args:
         target_month: Month to reclaim from in YYYY-MM format (e.g., "2024-03")
-        minimum_amount_cents: Minimum amount to reclaim in cents (default: 100 = $1.00)
         dry_run: If True, only reports what would be reclaimed (default: True)
     """
-    current_app.logger.info(
-        f"Manually triggering fund reclamation for {target_month} "
-        f"with minimum ${minimum_amount_cents / 100:.2f} (dry_run: {dry_run})"
-    )
+    current_app.logger.info(f"Manually triggering fund reclamation for {target_month} (dry_run: {dry_run})")
 
     return reclaim_funds_for_month.delay(
         target_month=target_month,
-        minimum_amount_cents=minimum_amount_cents,
         dry_run=dry_run,
         from_info="manual_trigger",
     )
