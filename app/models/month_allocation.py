@@ -130,6 +130,87 @@ class MonthAllocation(db.Model, TimestampMixin):
         Uses net allocation (after reclamations)."""
         return self.paid_cents + amount_cents <= self.net_allocation_cents
 
+    def reclaim_funds(self, amount_cents: int) -> "FundReclamation":
+        """
+        Reclaim a specific amount of funds from this allocation.
+
+        Args:
+            amount_cents: Amount to reclaim in cents
+
+        Returns:
+            FundReclamation record
+
+        Raises:
+            ValueError: If amount exceeds remaining unpaid funds or if reclamation fails
+        """
+        from app.models import FundReclamation
+
+        if amount_cents <= 0:
+            raise ValueError(f"Amount must be positive (got {amount_cents})")
+
+        if amount_cents > self.remaining_unpaid_cents:
+            raise ValueError(
+                f"Cannot reclaim ${amount_cents / 100:.2f} from allocation {self.id}. "
+                f"Only ${self.remaining_unpaid_cents / 100:.2f} remaining unpaid."
+            )
+
+        # Get family payment settings
+        from app.models import FamilyPaymentSettings
+
+        family_payment_settings = FamilyPaymentSettings.query.filter(
+            FamilyPaymentSettings.family_supabase_id.in_(
+                db.session.query(Child.FAMILY_ID).filter(Child.ID == int(self.child_supabase_id)).scalar_subquery()
+            )
+        ).first()
+
+        if not family_payment_settings or not family_payment_settings.chek_user_id:
+            raise ValueError(f"No family payment settings found for child {self.child_supabase_id}")
+
+        # Reclaim via payment service
+        current_app.payment_service.reclaim_funds(
+            chek_user_id=int(family_payment_settings.chek_user_id),
+            amount=amount_cents,
+            month_allocation_id=self.id,
+        )
+
+        # Find and return the created FundReclamation record
+        fund_reclamation = (
+            FundReclamation.query.filter_by(month_allocation_id=self.id)
+            .order_by(FundReclamation.created_at.desc())
+            .first()
+        )
+
+        if not fund_reclamation:
+            raise ValueError("Failed to create FundReclamation record")
+
+        current_app.logger.info(
+            f"Reclaimed ${amount_cents / 100:.2f} from allocation {self.id} "
+            f"(child: {self.child_supabase_id}, date: {self.date.strftime('%Y-%m')})"
+        )
+
+        return fund_reclamation
+
+    def reclaim_remaining_funds(self) -> "FundReclamation":
+        """
+        Reclaim all remaining unpaid funds from this allocation.
+
+        Returns:
+            FundReclamation record, or None if no funds to reclaim
+
+        Raises:
+            ValueError: If reclamation fails
+        """
+        remaining = self.remaining_unpaid_cents
+
+        if remaining <= 0:
+            current_app.logger.info(
+                f"No funds to reclaim from allocation {self.id} "
+                f"(child: {self.child_supabase_id}, date: {self.date.strftime('%Y-%m')})"
+            )
+            return None
+
+        return self.reclaim_funds(remaining)
+
     @staticmethod
     def get_or_create_for_month(child_id: str, month_date: date):
         """Get existing allocation or create with default values"""

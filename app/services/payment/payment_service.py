@@ -1029,13 +1029,27 @@ class PaymentService:
             },
         )
 
+        # Log before external call
+        current_app.logger.info(
+            f"[RECLAIM START] Initiating Chek transfer for reclamation: "
+            f"chek_user_id={chek_user_id}, amount=${amount / 100:.2f}, "
+            f"month_allocation_id={month_allocation_id}"
+        )
+
         response = self.chek_service.transfer_balance(user_id=chek_user_id, request=transfer_request)
+
+        # Log after successful external call
+        transfer_id = response.transfer.id if response and response.transfer else None
+        current_app.logger.info(
+            f"[RECLAIM CHEK SUCCESS] Chek transfer completed: "
+            f"transfer_id={transfer_id}, amount=${amount / 100:.2f}, chek_user_id={chek_user_id}"
+        )
 
         # Create FundReclamation record after successful transfer
         try:
             fund_reclamation = FundReclamation(
                 amount_cents=amount,
-                chek_transfer_id=response.transfer.id if response and response.transfer else None,
+                chek_transfer_id=transfer_id,
                 chek_user_id=str(chek_user_id),
                 month_allocation_id=month_allocation_id,
             )
@@ -1043,11 +1057,19 @@ class PaymentService:
             db.session.commit()
 
             current_app.logger.info(
-                f"Created FundReclamation record {fund_reclamation.id} for ${amount / 100:.2f} "
-                f"(chek_user_id: {chek_user_id}, transfer_id: {fund_reclamation.chek_transfer_id})"
+                f"[RECLAIM DB SUCCESS] Created FundReclamation record: "
+                f"reclamation_id={fund_reclamation.id}, transfer_id={transfer_id}, "
+                f"amount=${amount / 100:.2f}, chek_user_id={chek_user_id}, "
+                f"month_allocation_id={month_allocation_id}"
             )
         except Exception as e:
-            current_app.logger.error(f"Failed to create FundReclamation record: {e}", exc_info=True)
+            # THIS IS A CRITICAL ERROR - money was transferred but we couldn't record it
+            current_app.logger.error(
+                f"[RECLAIM DB FAILURE] ⚠️  CRITICAL: Chek transfer succeeded but DB record creation failed! ⚠️  "
+                f"transfer_id={transfer_id}, amount=${amount / 100:.2f}, chek_user_id={chek_user_id}, "
+                f"month_allocation_id={month_allocation_id}, error={str(e)}",
+                exc_info=True,
+            )
             # Don't fail the entire operation if just the record creation fails
             sentry_sdk.capture_exception(e)
 

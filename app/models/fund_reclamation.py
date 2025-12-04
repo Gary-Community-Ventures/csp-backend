@@ -11,7 +11,7 @@ class FundReclamation(db.Model, TimestampMixin):
     id = db.Column(UUID(as_uuid=True), index=True, primary_key=True, default=uuid.uuid4)
 
     amount_cents = db.Column(db.Integer, nullable=False)
-    chek_transfer_id = db.Column(db.String(64), nullable=True, index=True)  # Chek transfer ID
+    chek_transfer_id = db.Column(db.String(64), nullable=True, index=True)
     chek_user_id = db.Column(db.String(64), nullable=True, index=True)
 
     # Relationships to allocations
