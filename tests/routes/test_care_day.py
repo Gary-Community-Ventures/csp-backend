@@ -10,17 +10,11 @@ from app.utils.date_utils import get_relative_week
 # Freeze time for all tests in this module to ensure predictable behavior
 TEST_FROZEN_TIME = "2025-01-15 10:00:00"  # Wednesday, Jan 15, 2025 at 10 AM
 from app.enums.care_day_type import CareDayType
-from app.enums.payment_method import PaymentMethod
 from app.extensions import db
 from app.models import (
     AllocatedCareDay,
-    FamilyPaymentSettings,
     MonthAllocation,
-    Payment,
-    PaymentAttempt,
-    PaymentIntent,
     PaymentRate,
-    ProviderPaymentSettings,
 )
 
 business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
@@ -179,63 +173,64 @@ def test_create_care_day_allocation_not_found(client, seed_db):
 
 
 def test_create_care_day_exceeds_allocation(client, seed_db):
-    allocation, _, _, _, _, _ = seed_db
+    allocation, _, _, _, _, payment_rate = seed_db
 
-    # Create a payment that uses up the entire allocation
+    # Create enough care days to use up the entire allocation
+    # Seed already has 3 care days (180000 cents), need to add more to fill allocation (1000000 cents)
     with client.application.app_context():
-        # First create ProviderPaymentSettings and FamilyPaymentSettings
-        provider_settings = ProviderPaymentSettings.new("1")
-        family_settings = FamilyPaymentSettings.new("family1")
-        db.session.add_all([provider_settings, family_settings])
-        db.session.flush()
-
-        # Create PaymentIntent
-        payment_intent = PaymentIntent(
-            provider_payment_settings_id=provider_settings.id,
-            family_payment_settings_id=family_settings.id,
-            amount_cents=allocation.allocation_cents,  # Use entire allocation
-            month_allocation_id=allocation.id,
-            provider_supabase_id="1",
-            child_supabase_id="1",
-        )
-        db.session.add(payment_intent)
-        db.session.flush()
-
-        # Create successful PaymentAttempt
-        payment_attempt = PaymentAttempt(
-            payment_intent_id=payment_intent.id,
-            attempt_number=1,
-            payment_method=PaymentMethod.CARD,
-            provider_chek_user_id="test-provider-user",
-            family_chek_user_id="test-family-user",
-            wallet_transfer_id="test-wallet-transfer",
-            wallet_transfer_at=datetime.now(timezone.utc),
-            card_transfer_id="test-card-transfer",
-            card_transfer_at=datetime.now(timezone.utc),
-        )
-        db.session.add(payment_attempt)
-        db.session.flush()
-
-        # Create Payment (only created for successful attempts)
-        payment = Payment(
-            payment_intent_id=payment_intent.id,
-            successful_attempt_id=payment_attempt.id,
-            provider_payment_settings_id=provider_settings.id,
-            family_payment_settings_id=family_settings.id,
-            amount_cents=allocation.allocation_cents,  # Use entire allocation
-            payment_method=PaymentMethod.CARD,
-            month_allocation_id=allocation.id,
-            provider_supabase_id="1",
-            child_supabase_id="1",
-        )
-        db.session.add(payment)
-        db.session.commit()
-
-        # Verify the allocation is now fully used
         allocation = db.session.get(MonthAllocation, allocation.id)
-        assert allocation.paid_cents == allocation.allocation_cents
+        remaining = allocation.remaining_unselected_cents
+        full_day_cost = payment_rate.full_day_rate_cents  # 60000 cents
 
-    # Now try to create a care day - use a future date in January
+        # Add care days until we've used almost all the allocation
+        # Use provider 2 to avoid conflicts with existing care days for provider 1
+        day_num = 1
+        provider_num = 2
+        while remaining >= full_day_cost:
+            care_day = AllocatedCareDay(
+                care_month_allocation_id=allocation.id,
+                provider_supabase_id=str(provider_num),
+                date=date(2025, 1, day_num),
+                type=CareDayType.FULL_DAY,
+                amount_cents=full_day_cost,
+            )
+            db.session.add(care_day)
+            db.session.commit()
+
+            allocation = db.session.get(MonthAllocation, allocation.id)
+            remaining = allocation.remaining_unselected_cents
+            day_num += 1
+
+            # Move to next provider if we run out of days
+            if day_num > 31:
+                day_num = 1
+                provider_num += 1
+
+            # Prevent infinite loop
+            if provider_num > 100:
+                break
+
+        # Verify we've used up most of the allocation
+        allocation = db.session.get(MonthAllocation, allocation.id)
+        assert allocation.remaining_unselected_cents < full_day_cost
+
+        # Add one more care day to use up ALL remaining allocation (including partial amounts)
+        if allocation.remaining_unselected_cents > 0:
+            care_day = AllocatedCareDay(
+                care_month_allocation_id=allocation.id,
+                provider_supabase_id="999",
+                date=date(2025, 1, 15),  # Use a unique date
+                type=CareDayType.HALF_DAY,  # Use half day to avoid exceeding
+                amount_cents=allocation.remaining_unselected_cents,  # Use exact remaining amount
+            )
+            db.session.add(care_day)
+            db.session.commit()
+
+        # Verify allocation is now completely full
+        allocation = db.session.get(MonthAllocation, allocation.id)
+        assert allocation.remaining_unselected_cents == 0
+
+    # Now try to create a care day - should fail because allocation is completely full
     care_date = date(2025, 1, 28)  # Future date in January
     response = client.post(
         "/care-days",
@@ -248,6 +243,100 @@ def test_create_care_day_exceeds_allocation(client, seed_db):
     )
     assert response.status_code == 400
     assert "Adding this care day would exceed monthly allocation" in response.json["error"]
+
+
+def test_create_care_day_partial_payment(client, seed_db):
+    allocation, _, _, _, _, payment_rate = seed_db
+
+    # Use up allocation except for a small amount (less than a full day cost)
+    with client.application.app_context():
+        allocation = db.session.get(MonthAllocation, allocation.id)
+        full_day_cost = payment_rate.full_day_rate_cents  # 60000 cents
+        partial_amount = 25000  # Leave only 25000 cents remaining
+
+        # Add care days to leave only partial_amount remaining
+        remaining = allocation.remaining_unselected_cents
+        day_num = 1
+        provider_num = 2
+
+        # Add full day care days until adding one more would exceed our target
+        while remaining - full_day_cost >= partial_amount:
+            care_day = AllocatedCareDay(
+                care_month_allocation_id=allocation.id,
+                provider_supabase_id=str(provider_num),
+                date=date(2025, 1, day_num),
+                type=CareDayType.FULL_DAY,
+                amount_cents=full_day_cost,
+            )
+            db.session.add(care_day)
+            db.session.commit()
+
+            allocation = db.session.get(MonthAllocation, allocation.id)
+            remaining = allocation.remaining_unselected_cents
+            day_num += 1
+
+            if day_num > 31:
+                day_num = 1
+                provider_num += 1
+
+            if provider_num > 100:
+                break
+
+        # Now adjust to get exactly partial_amount remaining if needed
+        allocation = db.session.get(MonthAllocation, allocation.id)
+        remaining = allocation.remaining_unselected_cents
+
+        if remaining > partial_amount:
+            # Add one more care day with exact amount to leave partial_amount
+            amount_to_add = remaining - partial_amount
+            care_day = AllocatedCareDay(
+                care_month_allocation_id=allocation.id,
+                provider_supabase_id=str(provider_num),
+                date=date(2025, 1, day_num),
+                type=CareDayType.HALF_DAY,
+                amount_cents=amount_to_add,
+            )
+            db.session.add(care_day)
+            db.session.commit()
+
+        # Verify we have the right amount remaining
+        allocation = db.session.get(MonthAllocation, allocation.id)
+        assert allocation.remaining_unselected_cents == partial_amount
+
+    # Now create a full day care day which should result in partial payment
+    care_date = date(2025, 1, 28)
+    response = client.post(
+        "/care-days",
+        json={
+            "allocation_id": allocation.id,
+            "provider_id": "1",
+            "date": care_date.isoformat(),
+            "type": CareDayType.FULL_DAY.value,
+        },
+    )
+
+    # Should succeed with 201
+    assert response.status_code == 201
+
+    # Verify the care day has partial payment information
+    care_day_data = response.json
+    assert care_day_data["amount_cents"] == partial_amount
+    assert care_day_data["amount_missing_cents"] == full_day_cost - partial_amount
+    assert care_day_data["is_partial_payment"] is True
+
+    # Verify in database
+    with client.application.app_context():
+        care_day = AllocatedCareDay.query.filter_by(
+            date=care_date, provider_supabase_id="1", care_month_allocation_id=allocation.id
+        ).first()
+        assert care_day is not None
+        assert care_day.amount_cents == partial_amount
+        assert care_day.amount_missing_cents == full_day_cost - partial_amount
+        assert care_day.is_partial_payment is True
+
+        # Verify allocation is now fully used
+        allocation = db.session.get(MonthAllocation, allocation.id)
+        assert allocation.remaining_unselected_cents == 0
 
 
 def test_create_care_day_wrong_month(client, seed_db):
@@ -315,8 +404,8 @@ def test_update_care_day_success(client, seed_db):
     with client.application.app_context():
         updated_day = db.session.get(AllocatedCareDay, care_day_updatable.id)
         assert updated_day.type == CareDayType.HALF_DAY
-        # Check if needs_resubmission is true (because last_submitted_at is None)
-        assert updated_day.needs_resubmission is True
+        # Check if needs_submission is true (because last_submitted_at is None)
+        assert updated_day.needs_submission is True
 
 
 def test_update_care_day_not_found(client, seed_db):

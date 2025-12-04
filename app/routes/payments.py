@@ -7,6 +7,8 @@ from app.models import MonthAllocation, Payment, ProviderPaymentSettings
 from app.schemas.payment import (
     FamilyPaymentHistoryItem,
     FamilyPaymentHistoryResponse,
+    PaymentCareDayDetail,
+    PaymentLumpSumDetail,
     ProviderPaymentHistoryItem,
     ProviderPaymentHistoryResponse,
 )
@@ -78,6 +80,30 @@ def get_family_payment_history():
             "care_days" if payment.allocated_care_days else "lump_sum" if payment.allocated_lump_sums else "other"
         )
 
+        # Build care day details list
+        care_day_details = []
+        if payment.allocated_care_days:
+            for care_day in payment.allocated_care_days:
+                care_day_details.append(
+                    PaymentCareDayDetail(
+                        date=care_day.date,
+                        type=care_day.type.value,
+                        amount_cents=care_day.amount_cents,
+                        amount_missing_cents=care_day.amount_missing_cents,
+                    )
+                )
+
+        # Get lump sum details if applicable
+        lump_sum_detail = None
+        if payment.allocated_lump_sums:
+            # Get the first lump sum (should only be one per payment)
+            lump_sum = payment.allocated_lump_sums[0]
+            lump_sum_detail = PaymentLumpSumDetail(
+                days=lump_sum.days,
+                half_days=lump_sum.half_days,
+                amount_cents=lump_sum.amount_cents,
+            )
+
         payment_items.append(
             FamilyPaymentHistoryItem(
                 payment_id=str(payment.id),
@@ -90,6 +116,8 @@ def get_family_payment_history():
                 child_supabase_id=payment.child_supabase_id,
                 month=month_str,
                 payment_type=payment_type,
+                care_days=care_day_details,
+                lump_sum=lump_sum_detail,
             )
         )
 
@@ -151,10 +179,6 @@ def get_provider_payment_history():
         child = Child.find_by_id(Child.unwrap(provider), payment.child_supabase_id)
         child_name = format_name(child)
 
-        # Get month from allocation
-        month_allocation = MonthAllocation.query.get(payment.month_allocation_id)
-        month_str = month_allocation.date.strftime("%Y-%m-%d") if month_allocation else UNKNOWN
-
         # Get payment method used for this payment
         payment_method = UNKNOWN
         if payment.successful_attempt:
@@ -170,6 +194,30 @@ def get_provider_payment_history():
             "care_days" if payment.allocated_care_days else "lump_sum" if payment.allocated_lump_sums else "other"
         )
 
+        # Build care day details list
+        care_day_details = []
+        if payment.allocated_care_days:
+            for care_day in payment.allocated_care_days:
+                care_day_details.append(
+                    PaymentCareDayDetail(
+                        date=care_day.date,
+                        type=care_day.type.value,
+                        amount_cents=care_day.amount_cents,
+                        amount_missing_cents=care_day.amount_missing_cents,
+                    )
+                )
+
+        # Get lump sum details if applicable
+        lump_sum_detail = None
+        if payment.allocated_lump_sums:
+            # Get the first lump sum (should only be one per payment)
+            lump_sum = payment.allocated_lump_sums[0]
+            lump_sum_detail = PaymentLumpSumDetail(
+                days=lump_sum.days,
+                half_days=lump_sum.half_days,
+                amount_cents=lump_sum.amount_cents,
+            )
+
         payment_items.append(
             ProviderPaymentHistoryItem(
                 payment_id=str(payment.id),
@@ -178,9 +226,10 @@ def get_provider_payment_history():
                 status=payment_status,
                 child_name=child_name,
                 child_id=payment.child_supabase_id,
-                month=month_str,
                 payment_method=payment_method,
                 payment_type=payment_type,
+                care_days=care_day_details,
+                lump_sum=lump_sum_detail,
             )
         )
 
