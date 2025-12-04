@@ -5,6 +5,7 @@ import pytest
 from freezegun import freeze_time
 
 from app.constants import BUSINESS_TIMEZONE
+from app.utils.date_utils import get_relative_week
 
 # Freeze time for all tests in this module to ensure predictable behavior
 TEST_FROZEN_TIME = "2025-01-15 10:00:00"  # Wednesday, Jan 15, 2025 at 10 AM
@@ -436,10 +437,7 @@ def test_update_care_day_selected_over_allocation_soft_deletes(client, seed_db):
     db.session.commit()
 
     # Create a half day care day in next week to ensure it's not locked
-    days_until_next_monday = (7 - date.today().weekday()) % 7
-    if days_until_next_monday == 0:
-        days_until_next_monday = 7
-    next_week_date = date.today() + timedelta(days=days_until_next_monday + 15)
+    next_week_date = get_relative_week(3)
     care_day = AllocatedCareDay(
         care_month_allocation_id=allocation.id,
         provider_supabase_id="1",

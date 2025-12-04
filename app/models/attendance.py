@@ -1,7 +1,8 @@
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 
 from app.supabase.columns import ProviderType
+from app.utils.date_utils import get_relative_week
 
 from ..extensions import db
 from .mixins import TimestampMixin
@@ -38,14 +39,6 @@ class Attendance(db.Model, TimestampMixin):
 
     def __repr__(self):
         return f"<Attendance {self.id} - Child: {self.child_supabase_id} - Provider: {self.provider_supabase_id}>"
-
-    @staticmethod
-    def prev_week_date(weeks_ago: int = 1):
-        today = datetime.now(timezone.utc).date()
-
-        days_to_subtract = today.weekday() + 7 * weeks_ago
-
-        return today - timedelta(days=days_to_subtract)
 
     @staticmethod
     def new(child_id: str, provider_id: str, date: date):
@@ -111,7 +104,7 @@ class Attendance(db.Model, TimestampMixin):
             & cls.family_entered_hours.is_(None)  # NOTE: so old attendance doesn't show up
         )
 
-        before_date = cls.prev_week_date()
+        before_date = get_relative_week(-1)
 
         provider_attendance_is_due = (
             cls.provider_entered_full_days.is_(None)
