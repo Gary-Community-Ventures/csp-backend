@@ -11,10 +11,10 @@ from app.jobs.attendance import (
 )
 from app.jobs.invite_reminder import schedule_invite_reminders_job
 from app.jobs.monthly_allocation_job import schedule_monthly_allocation_job
+from app.jobs.payment_reminders import schedule_payment_reminders_job
 from app.jobs.reclaim_old_allocation_funds import (
     schedule_reclaim_old_allocation_funds_job,
 )
-from app.jobs.payment_reminders import schedule_payment_reminders_job
 from app.utils.redis import create_redis_connection
 
 JOBS = [
