@@ -226,13 +226,13 @@ class ProviderAttendanceMessages(AttendanceMessages):
             return MessageCopy(
                 subject="Acción necesaria - Asistencia CAP",
                 email=email_html,
-                sms=f"Por favor, complete la lista de asistencia de todos los niños a su cargo que recibieron subsidio CAP durante el último mes antes del final de esta semana. {link}",
+                sms=f"Por favor, complete la asistencia de todos los niños bajo su cuidado que reciben subsidio de CAP del mes pasado antes del fin de semana. Si ya envió la verificación de asistencia del mes pasado, ignore este correo electrónico. {link}",
             )
 
         return MessageCopy(
             subject="Action Needed - CAP Attendance",
             email=email_html,
-            sms=f"Please fill out attendance for all children in your care who receive CAP subsidy for the past month by the end of the week. {link}",
+            sms=f"Please fill out attendance for all children in your care who receive CAP subsidy for the past month by the end of the week. If you have already submitted last month's attendance verification, please disregard this email. {link}",
         )
 
 

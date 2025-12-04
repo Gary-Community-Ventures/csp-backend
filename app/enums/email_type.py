@@ -20,5 +20,9 @@ class EmailType(str, Enum):
     PROVIDER_FAMILY_INVITATION = "provider_family_invitation"
     FAMILY_PROVIDER_INVITATION = "family_provider_invitation"
 
+    # Attendance
+    PROVIDER_ATTENDANCE_COMPLETED = "provider_attendance_completed"
+    FAMILY_ATTENDANCE_COMPLETED = "family_attendance_completed"
+
     # Reminders
     ATTENDANCE_REMINDER = "attendance_reminder"
