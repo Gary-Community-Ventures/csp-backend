@@ -14,6 +14,10 @@ class ClerkInvitationTemplate:
         """Get subject line for Clerk invitation."""
         if language == Language.SPANISH:
             return "¡Has sido aprobado para el Portal CAP Colorado!"
+        elif language == Language.RUSSIAN:
+            return "Вы одобрены для портала CAP Colorado!"
+        elif language == Language.ARABIC:
+            return "تمت الموافقة على طلبك لبوابة CAP Colorado!"
         else:
             return "You've Been Approved for the CAP Colorado Portal"
 
@@ -45,6 +49,38 @@ class ClerkInvitationTemplate:
             """
             signature = "Saludos cordiales,<br>El Equipo CAP"
             footer = "Esta es una invitación del programa piloto Childcare Affordability Pilot (CAP)."
+        elif language == Language.RUSSIAN:
+            greeting = "Здравствуйте!"
+            main_content = f"""
+            <p>Ваша заявка одобрена, и теперь у вас есть доступ к <strong>порталу CAP Colorado</strong>.</p>
+
+            <p>CAP — это программа, которая помогает семьям оплачивать уход за детьми, предоставляя до <strong>$1,400 в месяц</strong> на покрытие расходов по уходу.</p>
+
+            <p>Нажмите кнопку ниже, чтобы создать свой аккаунт и начать:</p>
+
+            {BaseEmailTemplate.create_button(invitation_url, "Создать Аккаунт")}
+
+            <p style="margin-top: 30px;"><strong>Есть вопросы?</strong></p>
+            <p>Напишите нам на <a href="mailto:support@capcolorado.org" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">support@capcolorado.org</a></p>
+            """
+            signature = "С уважением,<br>Команда CAP"
+            footer = "Это приглашение от пилотной программы Childcare Affordability Pilot (CAP)."
+        elif language == Language.ARABIC:
+            greeting = "مرحباً!"
+            main_content = f"""
+            <p>تمت الموافقة على طلبك وأصبح لديك الآن حق الوصول إلى <strong>بوابة CAP Colorado</strong>.</p>
+
+            <p>CAP هو برنامج يساعد العائلات على دفع تكاليف رعاية الأطفال من خلال توفير ما يصل إلى <strong>$1,400 شهرياً</strong> لتغطية تكاليف الرعاية.</p>
+
+            <p>انقر على الزر أدناه لإنشاء حسابك والبدء:</p>
+
+            {BaseEmailTemplate.create_button(invitation_url, "إنشاء حسابك")}
+
+            <p style="margin-top: 30px;"><strong>هل لديك أسئلة؟</strong></p>
+            <p>راسلنا على <a href="mailto:support@capcolorado.org" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">support@capcolorado.org</a></p>
+            """
+            signature = "مع أطيب التحيات،<br>فريق CAP"
+            footer = "هذه دعوة من البرنامج التجريبي Childcare Affordability Pilot (CAP)."
         else:
             greeting = "Hello!"
             main_content = f"""
@@ -100,6 +136,38 @@ class ClerkInvitationTemplate:
             """
             signature = "Saludos cordiales,<br>El Equipo CAP"
             footer = "Esta es una invitación del programa piloto Childcare Affordability Pilot (CAP)."
+        elif language == Language.RUSSIAN:
+            greeting = f"Здравствуйте{' ' + provider_name if provider_name else ''}!"
+            main_content = f"""
+            <p>Ваша заявка одобрена, и теперь у вас есть доступ к <strong>порталу CAP Colorado</strong> в качестве воспитателя.</p>
+
+            <p>CAP — это программа, которая помогает семьям оплачивать уход за детьми и помогает воспитателям, таким как вы, получать оплату легко и надёжно.</p>
+
+            <p>Нажмите кнопку ниже, чтобы создать свой аккаунт и начать:</p>
+
+            {BaseEmailTemplate.create_button(invitation_url, "Создать Аккаунт")}
+
+            <p style="margin-top: 30px;"><strong>Есть вопросы?</strong></p>
+            <p>Напишите нам на <a href="mailto:support@capcolorado.org" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">support@capcolorado.org</a> или посетите наш сайт <a href="https://www.capcolorado.org/en/providers" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">capcolorado.org</a>.</p>
+            """
+            signature = "С уважением,<br>Команда CAP"
+            footer = "Это приглашение от пилотной программы Childcare Affordability Pilot (CAP)."
+        elif language == Language.ARABIC:
+            greeting = f"مرحباً{' ' + provider_name if provider_name else ''}!"
+            main_content = f"""
+            <p>تمت الموافقة على طلبك وأصبح لديك الآن حق الوصول إلى <strong>بوابة CAP Colorado</strong> كمقدم رعاية أطفال.</p>
+
+            <p>CAP هو برنامج يساعد العائلات على دفع تكاليف رعاية الأطفال ويساعد مقدمي الرعاية مثلك على تلقي المدفوعات بسهولة وموثوقية.</p>
+
+            <p>انقر على الزر أدناه لإنشاء حسابك والبدء:</p>
+
+            {BaseEmailTemplate.create_button(invitation_url, "إنشاء حسابك")}
+
+            <p style="margin-top: 30px;"><strong>هل لديك أسئلة؟</strong></p>
+            <p>راسلنا على <a href="mailto:support@capcolorado.org" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">support@capcolorado.org</a> أو قم بزيارة موقعنا <a href="https://www.capcolorado.org/en/providers" style="color: {BaseEmailTemplate.PRIMARY_COLOR};">capcolorado.org</a>.</p>
+            """
+            signature = "مع أطيب التحيات،<br>فريق CAP"
+            footer = "هذه دعوة من البرنامج التجريبي Childcare Affordability Pilot (CAP)."
         else:
             greeting = f"Hello{' ' + provider_name if provider_name else ''}!"
             main_content = f"""

@@ -13,6 +13,10 @@ def create_message(message: str, lang: str):
 
     if lang == "es":
         message += " Se pueden aplicar tarifas de mensajes y datos. Responda STOP para cancelar"
+    elif lang == "ru":
+        message += " Могут применяться тарифы на сообщения и данные. Ответьте STOP для отмены"
+    elif lang == "ar":
+        message += " قد يتم تطبيق رسوم الرسائل والبيانات. أرسل STOP للإلغاء"
     else:
         message += " Msg&data rates may apply. Reply STOP to cancel"
 

@@ -34,6 +34,18 @@ def message(name: str, lang: Language):
             email=f"Hola {name},<br><br>Por favor recuerda iniciar sesión en el {html_link(link, 'portal')} y pagarle a tu proveedor de cuidado infantil para la próxima semana. La fecha límite para enviar tu pago es el lunes.",
             sms=f"No olvides pagarle a tu proveedor para la próxima semana. {link}",
         )
+    elif lang == Language.RUSSIAN:
+        return MessageCopy(
+            subject="Требуется действие - Оплатите воспитателю",
+            email=f"Здравствуйте, {name},<br><br>Пожалуйста, не забудьте войти в {html_link(link, 'портал')} и оплатить услуги воспитателя на следующую неделю. Крайний срок для отправки платежа — понедельник.",
+            sms=f"Не забудьте оплатить воспитателю на следующую неделю. {link}",
+        )
+    elif lang == Language.ARABIC:
+        return MessageCopy(
+            subject="إجراء مطلوب - ادفع لمقدم الرعاية",
+            email=f"مرحباً {name}،<br><br>يرجى تذكر تسجيل الدخول إلى {html_link(link, 'البوابة')} ودفع أجر مقدم رعاية الأطفال للأسبوع القادم. الموعد النهائي لإرسال دفعتك هو يوم الاثنين.",
+            sms=f"لا تنسَ دفع أجر مقدم الرعاية للأسبوع القادم. {link}",
+        )
 
     return MessageCopy(
         subject="Action Needed - Pay Your Provider",

@@ -35,6 +35,20 @@ def message(family_name: str, default_child_id: str, language: Language):
             email=f"Hola {family_name}:<br><br>Nuestros registros indican que aún no ha referido a su proveedor desde su {portal_link}, por lo que no podrá programar atención ni pagarle.<br><br>Inicie sesión en su {portal_link} e invite a su proveedor a solicitar su cita. Le recordamos que los proveedores deben solicitar su cita dentro de las 2 semanas posteriores a su aprobación.<br><br>Si tiene alguna pregunta, no dude en contactarnos.<br><br>¡Gracias!<br>El equipo de CAP",
             sms=f"Hola {family_name}, nuestros registros indican que aún no ha referido a su proveedor. Inicie sesión en su portal e invite a su proveedor a solicitar su cita. {link}",
         )
+    elif language == Language.RUSSIAN:
+        portal_link = html_link(link, "портал")
+        return MessageCopy(
+            subject="Требуется действие - Приглашение воспитателя CAP",
+            email=f"Здравствуйте, {family_name},<br><br>Наши записи показывают, что вы ещё не пригласили своего воспитателя через ваш {portal_link}, поэтому вы не сможете запланировать уход или оплатить услуги воспитателя.<br><br>Пожалуйста, войдите в ваш {portal_link} и пригласите воспитателя подать заявку. Напоминаем, что воспитатели должны подать заявку в течение 2 недель после вашего одобрения.<br><br>Если у вас есть вопросы, пожалуйста, свяжитесь с нами.<br><br>Спасибо!<br>Команда CAP",
+            sms=f"Здравствуйте, {family_name}, наши записи показывают, что вы ещё не пригласили воспитателя. Войдите в портал и пригласите воспитателя подать заявку. {link}",
+        )
+    elif language == Language.ARABIC:
+        portal_link = html_link(link, "البوابة")
+        return MessageCopy(
+            subject="إجراء مطلوب - دعوة مقدم رعاية CAP",
+            email=f"مرحباً {family_name}،<br><br>تشير سجلاتنا إلى أنك لم تقم بإحالة مقدم الرعاية الخاص بك من {portal_link} الخاصة بك بعد، لذلك لن تتمكن من جدولة الرعاية أو دفع أجر مقدم الرعاية.<br><br>يرجى تسجيل الدخول إلى {portal_link} الخاصة بك ودعوة مقدم الرعاية للتقديم. نذكرك بأن مقدمي الرعاية يجب أن يتقدموا خلال أسبوعين من موافقتك.<br><br>يرجى إعلامنا إذا كان لديك أي أسئلة.<br><br>شكراً!<br>فريق CAP",
+            sms=f"مرحباً {family_name}، تشير سجلاتنا إلى أنك لم تقم بإحالة مقدم الرعاية بعد. يرجى تسجيل الدخول إلى البوابة ودعوة مقدم الرعاية للتقديم. {link}",
+        )
 
     portal_link = html_link(link, "portal")
     return MessageCopy(
