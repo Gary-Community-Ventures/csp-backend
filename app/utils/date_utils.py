@@ -1,5 +1,6 @@
 import zoneinfo
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
+from typing import Optional
 
 from app.constants import BUSINESS_TIMEZONE, DAYS_TO_NEXT_MONTH
 
@@ -37,3 +38,12 @@ def get_week_range(target_date: date) -> tuple[date, date]:
     week_end = week_start + timedelta(days=6)
 
     return week_start, week_end
+
+
+def get_relative_week(weeks_till: int = 0, from_date: Optional[date] = None) -> date:
+    if from_date is None:
+        from_date = datetime.now(timezone.utc).date()
+
+    monday = from_date - timedelta(days=from_date.weekday())
+
+    return monday + timedelta(days=7 * weeks_till)

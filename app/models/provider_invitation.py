@@ -37,6 +37,10 @@ class ProviderInvitation(db.Model, TimestampMixin):
 
         return cls.query.filter_by(public_id=id)
 
+    @classmethod
+    def invitations_by_child_ids(cls, child_ids: list[str]) -> Query:
+        return cls.query.filter(cls.child_supabase_id.in_(child_ids))
+
     def record_email_sent(self):
         self.email_sent = True
 

@@ -280,21 +280,25 @@ def family_data(child_id: Optional[str] = None):
     user = get_family_user()
     family_id = user.user_data.family_id
 
-    family_children_result = Child.select_by_family_id(
+    family_result = Family.select_by_id(
         cols(
-            Child.ID,
-            Child.FIRST_NAME,
-            Child.LAST_NAME,
-            Child.MONTHLY_ALLOCATION,
-            Child.PRORATED_ALLOCATION,
-            Child.STATUS,
-            Child.PAYMENT_ENABLED,
-            Provider.join(Provider.ID, Provider.NAME, Provider.STATUS, Provider.TYPE, Provider.PAYMENT_ENABLED),
+            Family.LINK_ID,
+            Child.join(
+                Child.ID,
+                Child.FIRST_NAME,
+                Child.LAST_NAME,
+                Child.MONTHLY_ALLOCATION,
+                Child.PRORATED_ALLOCATION,
+                Child.STATUS,
+                Child.PAYMENT_ENABLED,
+                Provider.join(Provider.ID, Provider.NAME, Provider.STATUS, Provider.TYPE, Provider.PAYMENT_ENABLED),
+            ),
         ),
         int(family_id),
     ).execute()
+    family = unwrap_or_abort(family_result)
 
-    family_children = unwrap_or_abort(family_children_result)
+    family_children = Child.unwrap(family)
 
     if not family_children or len(family_children) == 0:
         abort(404, description="No children found for this family.")
@@ -371,6 +375,16 @@ def family_data(child_id: Optional[str] = None):
     attendance_due = Attendance.filter_by_child_ids(child_ids).count() > 0
     if attendance_due:
         notifications.append({"type": "attendance"})
+    if not Family.LINK_ID(family):
+
+        has_provider = False
+        for child in family_children:
+            if len(Provider.unwrap(child)) != 0:
+                has_provider = True
+                break
+
+        if not has_provider and ProviderInvitation.invitations_by_child_ids(child_ids).count() == 0:
+            notifications.append({"type": "no_provider_invited"})
 
     family_payment_settings = FamilyPaymentSettings.query.filter_by(family_supabase_id=family_id).first()
 

@@ -226,13 +226,13 @@ class ProviderAttendanceMessages(AttendanceMessages):
             return MessageCopy(
                 subject="Acción necesaria - Asistencia CAP",
                 email=email_html,
-                sms=f"Por favor, complete la lista de asistencia de todos los niños a su cargo que recibieron subsidio CAP durante el último mes antes del final de esta semana. {link}",
+                sms=f"Por favor, complete la asistencia de todos los niños bajo su cuidado que reciben subsidio de CAP del mes pasado antes del fin de semana. Si ya envió la verificación de asistencia del mes pasado, ignore este correo electrónico. {link}",
             )
 
         return MessageCopy(
             subject="Action Needed - CAP Attendance",
             email=email_html,
-            sms=f"Please fill out attendance for all children in your care who receive CAP subsidy for the past month by the end of the week. {link}",
+            sms=f"Please fill out attendance for all children in your care who receive CAP subsidy for the past month by the end of the week. If you have already submitted last month's attendance verification, please disregard this email. {link}",
         )
 
 
@@ -267,11 +267,10 @@ def send_attendance_communications(send_to_families=False, send_to_providers=Fal
     bulk_send_emails(get_from_email_external(), bulk_emails, EmailType.ATTENDANCE_REMINDER, batch_name=batch_name)
     bulk_send_sms(bulk_text_messages)
 
-    current_app.logger.info("create_attendance: Finished sending attendance emails and SMS.")
+    current_app.logger.info("attendance_communications: Finished sending attendance emails and SMS.")
 
 
 if __name__ == "__main__":
-    # Create Flask app context
     app = create_app()
     app.app_context().push()
 

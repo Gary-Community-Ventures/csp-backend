@@ -4,6 +4,7 @@ import pytest
 
 from app.extensions import db
 from app.models import AllocatedCareDay, MonthAllocation
+from app.utils.date_utils import get_relative_week
 
 
 @pytest.fixture
@@ -256,7 +257,7 @@ def test_month_allocation_locked_until_date(client, seed_db):
     business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
     now_business = datetime.now(business_tz)
     today = now_business.date()
-    current_monday = today - timedelta(days=today.weekday())
+    current_monday = get_relative_week(0, today)
     current_monday_eod = datetime.combine(current_monday, time(23, 59, 59), tzinfo=business_tz)
 
     if now_business > current_monday_eod:

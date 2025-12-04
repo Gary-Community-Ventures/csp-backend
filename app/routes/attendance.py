@@ -9,8 +9,12 @@ from app.auth.helpers import get_family_user, get_provider_user
 from app.extensions import db
 from app.models.attendance import Attendance
 from app.schemas.attendance import SetAttendanceRequest
-from app.supabase.helpers import cols, unwrap_or_abort
-from app.supabase.tables import Child, Provider
+from app.supabase.helpers import cols, format_name, unwrap_or_abort
+from app.supabase.tables import Child, Guardian, Provider
+from app.utils.email.senders import (
+    send_family_attendance_completed_email,
+    send_provider_attendance_completed_email,
+)
 
 bp = Blueprint("attendance", __name__)
 
@@ -130,12 +134,26 @@ def enter_family_attendance():
 
     attendance_data: list[Attendance] = Attendance.filter_by_child_ids(child_ids).filter(Attendance.id.in_(ids)).all()
 
+    completed_attendance: list[Attendance] = []
     for family_entered in data.attendance:
         attendance = find_attendance(family_entered.id, attendance_data)
         attendance.set_family_entered(family_entered.full_days, family_entered.half_days)
         db.session.add(attendance)
+        completed_attendance.append(attendance)
 
     db.session.commit()
+
+    guardian_result = (
+        Guardian.query()
+        .select(cols(Guardian.FIRST_NAME, Guardian.LAST_NAME, Guardian.TYPE))
+        .eq(Guardian.FAMILY_ID, int(user.user_data.family_id))
+        .execute()
+    )
+    guardians = unwrap_or_abort(guardian_result)
+    primary_guardian = Guardian.get_primary_guardian(guardians)
+    send_family_attendance_completed_email(
+        format_name(primary_guardian), user.user_data.family_id, completed_attendance
+    )
 
     return jsonify({"message": "Success"}, 200)
 
@@ -218,11 +236,17 @@ def attendance_provider():
         Attendance.filter_by_provider_id(user.user_data.provider_id).filter(Attendance.id.in_(ids)).all()
     )
 
+    completed_attendance: list[Attendance] = []
     for provider_entered in data.attendance:
         attendance = find_attendance(provider_entered.id, attendance_data)
         attendance.set_provider_entered(provider_entered.full_days, provider_entered.half_days)
+        completed_attendance.append(attendance)
         db.session.add(attendance)
 
     db.session.commit()
+
+    provider_result = Provider.select_by_id(cols(Provider.NAME), int(user.user_data.provider_id)).execute()
+    provider = unwrap_or_abort(provider_result)
+    send_provider_attendance_completed_email(Provider.NAME(provider), user.user_data.provider_id, completed_attendance)
 
     return jsonify({"message": "Success"}, 200)

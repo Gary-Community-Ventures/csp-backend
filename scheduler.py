@@ -9,10 +9,12 @@ from app.jobs.attendance import (
     schedule_attendance_communications_job,
     schedule_attendance_job,
 )
+from app.jobs.invite_reminder import schedule_invite_reminders_job
 from app.jobs.monthly_allocation_job import schedule_monthly_allocation_job
 from app.jobs.reclaim_old_allocation_funds import (
     schedule_reclaim_old_allocation_funds_job,
 )
+from app.jobs.payment_reminders import schedule_payment_reminders_job
 from app.utils.redis import create_redis_connection
 
 JOBS = [
@@ -20,6 +22,8 @@ JOBS = [
     schedule_attendance_job,
     schedule_attendance_communications_job,
     schedule_reclaim_old_allocation_funds_job,
+    schedule_invite_reminders_job,
+    schedule_payment_reminders_job,
 ]
 
 if __name__ == "__main__":

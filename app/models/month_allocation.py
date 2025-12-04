@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Optional
 
 import sentry_sdk
 from flask import current_app
@@ -330,7 +331,7 @@ class MonthAllocation(db.Model, TimestampMixin):
             return False
 
     @staticmethod
-    def get_for_month(child_id: str, month_date: date):
+    def get_for_month(child_id: str, month_date: date) -> Optional["MonthAllocation"]:
         """Get existing allocation for a child and month, or None if not found"""
         # Normalize to first of month
         month_start = month_date.replace(day=1)
