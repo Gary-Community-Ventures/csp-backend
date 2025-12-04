@@ -11,7 +11,10 @@ from app.models.attendance import Attendance
 from app.schemas.attendance import SetAttendanceRequest
 from app.supabase.helpers import cols, format_name, unwrap_or_abort
 from app.supabase.tables import Child, Guardian, Provider
-from app.utils.email.senders import send_family_attendance_completed_email, send_provider_attendance_completed_email
+from app.utils.email.senders import (
+    send_family_attendance_completed_email,
+    send_provider_attendance_completed_email,
+)
 
 bp = Blueprint("attendance", __name__)
 

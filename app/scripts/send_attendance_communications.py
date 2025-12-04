@@ -271,7 +271,6 @@ def send_attendance_communications(send_to_families=False, send_to_providers=Fal
 
 
 if __name__ == "__main__":
-    # Create Flask app context
     app = create_app()
     app.app_context().push()
 
