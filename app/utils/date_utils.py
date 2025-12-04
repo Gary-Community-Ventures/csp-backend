@@ -19,6 +19,17 @@ def get_next_month_start() -> date:
     return get_month_start(current_month + timedelta(days=DAYS_TO_NEXT_MONTH))
 
 
+def get_previous_month_start() -> date:
+    """Get the first day of the previous month.
+
+    Works correctly across year boundaries and handles leap years.
+    For example, if today is in December 2024, returns November 1, 2024.
+    """
+    current_month = get_current_month_start()
+    # Go back to last day of previous month, then get first of that month
+    return (current_month - timedelta(days=1)).replace(day=1)
+
+
 def get_week_range(target_date: date) -> tuple[date, date]:
     # Monday is 0, Sunday is 6 in weekday()
     days_since_monday = target_date.weekday()

@@ -3,7 +3,7 @@ from typing import Any
 
 from flask import current_app
 
-from app.utils.date_utils import get_current_month_start
+from app.utils.date_utils import get_current_month_start, get_previous_month_start
 
 from ..models import MonthAllocation
 from . import job_manager
@@ -17,7 +17,7 @@ def reclaim_past_month_funds(
     Job that reclaims unused funds from monthly allocations in past months.
 
     This job finds allocations that are:
-    1. From months before the current month
+    1. From months before the previous month (e.g., if current is December, reclaim from October and earlier)
     2. Have remaining unpaid funds (net_allocation_cents > paid_cents, accounting for prior reclamations)
     3. Have a remaining amount above the minimum threshold
 
@@ -31,15 +31,18 @@ def reclaim_past_month_funds(
     """
     try:
         current_month_start = get_current_month_start()
+        previous_month_start = get_previous_month_start()
 
         current_app.logger.info(
             f"{datetime.now()} Starting fund reclamation job from {from_info} "
-            f"(current_month: {current_month_start}, min_amount: ${minimum_amount_cents / 100:.2f}, dry_run: {dry_run})"
+            f"(current_month: {current_month_start}, previous_month: {previous_month_start}, "
+            f"reclaiming from months before {previous_month_start}, "
+            f"min_amount: ${minimum_amount_cents / 100:.2f}, dry_run: {dry_run})"
         )
 
-        # Find allocations from past months with funds transferred
+        # Find allocations from months before the previous month
         past_allocations = (
-            MonthAllocation.query.filter(MonthAllocation.date < current_month_start)
+            MonthAllocation.query.filter(MonthAllocation.date < previous_month_start)
             .filter(MonthAllocation.chek_transfer_id.isnot(None))  # Only allocations that had funds transferred
             .all()
         )
@@ -103,6 +106,8 @@ def reclaim_past_month_funds(
             "status": "success" if error_count == 0 else "completed_with_errors",
             "dry_run": dry_run,
             "current_month": current_month_start.isoformat(),
+            "previous_month": previous_month_start.isoformat(),
+            "reclaimed_from_months_before": previous_month_start.isoformat(),
             "minimum_amount_cents": minimum_amount_cents,
             "checked_count": len(past_allocations),
             "eligible_count": len(eligible_allocations),
