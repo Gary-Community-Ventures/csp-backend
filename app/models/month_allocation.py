@@ -159,11 +159,16 @@ class MonthAllocation(db.Model, TimestampMixin):
         # Get family payment settings
         from app.models import FamilyPaymentSettings
 
-        family_payment_settings = FamilyPaymentSettings.query.filter(
-            FamilyPaymentSettings.family_supabase_id.in_(
-                db.session.query(Child.FAMILY_ID).filter(Child.ID == int(self.child_supabase_id)).scalar_subquery()
-            )
-        ).first()
+        # Get child from Supabase to find family_id
+        child_results = Child.select_by_id(cols(Child.ID, Child.FAMILY_ID), int(self.child_supabase_id)).execute()
+        child = unwrap_or_error(child_results)
+        family_id = Child.FAMILY_ID(child)
+
+        if not family_id:
+            raise ValueError(f"Child {self.child_supabase_id} has no family_id")
+
+        # Query FamilyPaymentSettings with the family_id
+        family_payment_settings = FamilyPaymentSettings.query.filter_by(family_supabase_id=family_id).first()
 
         if not family_payment_settings or not family_payment_settings.chek_user_id:
             raise ValueError(f"No family payment settings found for child {self.child_supabase_id}")
