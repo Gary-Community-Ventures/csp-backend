@@ -32,8 +32,8 @@ def message(name: str, lang: Language):
     if lang == Language.SPANISH:
         return MessageCopy(
             subject="Acción Requerida - Pague a su Proveedor",
-            email=f"Hola {name},<br><br>Por favor recuerde iniciar sesión en el {html_link(link, 'portal')} y pagar a su proveedor por el cuidado infantil de la próxima semana. La fecha límite para enviar su pago es el lunes.",
-            sms=f"No olvide pagar a su proveedor para la próxima semana. {link}",
+            email=f"Hola {name},<br><br>Por favor recuerda iniciar sesión en el {html_link(link, 'portal')} y pagarle a tu proveedor de cuidado infantil para la próxima semana. La fecha límite para enviar tu pago es el lunes.",
+            sms=f"No olvides pagarle a tu proveedor para la próxima semana. {link}",
         )
 
     return MessageCopy(
