@@ -409,7 +409,7 @@ class InviteProviderMessage:
 
 
 def get_invite_provider_message(lang: str, family_name: str, child_name: str, link: str):
-    language = Language.SPANISH if lang == "es" else Language.ENGLISH
+    language = Language(lang) if lang in ["es", "ru", "ar"] else Language.ENGLISH
     email_html = InvitationTemplate.get_provider_invitation_content(family_name, child_name, link, language)
 
     if lang == "es":
@@ -417,6 +417,18 @@ def get_invite_provider_message(lang: str, family_name: str, child_name: str, li
             subject=f"¡{family_name} se complace en invitarte al programa CAP para cuidar a {child_name}!",
             email=email_html,
             sms=f"¡{family_name} te invitó a unirte al programa piloto de accesibilidad al cuidado infantil (CAP) para cuidar a {child_name}! CAP ayuda a las familias a pagar a proveedores como tú. ¡Toca para obtener más información y postularte! {link} ¿Preguntas? support@capcolorado.org.",
+        )
+    elif lang == "ru":
+        return InviteProviderMessage(
+            subject=f"{family_name} приглашает вас в программу CAP для ухода за {child_name}!",
+            email=email_html,
+            sms=f"{family_name} приглашает вас присоединиться к пилотной программе Childcare Affordability Pilot (CAP) для ухода за {child_name}! CAP помогает семьям оплачивать услуги воспитателей, таких как вы. Нажмите, чтобы узнать больше и подать заявку! {link} Вопросы? support@capcolorado.org.",
+        )
+    elif lang == "ar":
+        return InviteProviderMessage(
+            subject=f"{family_name} يدعوك للانضمام إلى برنامج CAP لرعاية {child_name}!",
+            email=email_html,
+            sms=f"دعاك {family_name} للانضمام إلى البرنامج التجريبي Childcare Affordability Pilot (CAP) لتقديم الرعاية لـ {child_name}! يساعد CAP العائلات على دفع أجور مقدمي الرعاية مثلك. انقر لمعرفة المزيد والتقديم! {link} أسئلة؟ support@capcolorado.org.",
         )
 
     return InviteProviderMessage(

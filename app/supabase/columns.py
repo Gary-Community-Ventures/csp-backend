@@ -69,6 +69,8 @@ class ProviderType(str, Enum):
 class Language(str, Enum):
     ENGLISH = "en"
     SPANISH = "es"
+    RUSSIAN = "ru"
+    ARABIC = "ar"
 
     @classmethod
     def _missing_(cls, value: object) -> "Language":
