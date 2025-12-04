@@ -134,7 +134,7 @@ def reclaim_funds_for_month(
     Job that reclaims unused funds from allocations for a specific month.
 
     Args:
-        target_month: Month to reclaim from in YYYY-MM format (e.g., "2024-03")
+        target_month: Month to reclaim from in YYYY-MM format (e.g., "2025-08")
         dry_run: If True, only report what would be reclaimed without actually reclaiming
         from_info: Source of the job execution (e.g., "manual", "api")
 
@@ -245,7 +245,7 @@ def reclaim_funds_for_month(
         raise
 
 
-def schedule_reclaim_old_allocation_funds_job():
+def schedule_reclaim_unused_allocation_funds_job():
     """
     Schedule the fund reclamation job to run monthly.
     Runs on the 5th of every month at 2:00 AM MST / 3:00 AM MDT.
@@ -282,7 +282,7 @@ def reclaim_specific_month_now(target_month: str, dry_run: bool = True):
     Useful for testing or manual execution.
 
     Args:
-        target_month: Month to reclaim from in YYYY-MM format (e.g., "2024-03")
+        target_month: Month to reclaim from in YYYY-MM format (e.g., "2025-08")
         dry_run: If True, only reports what would be reclaimed (default: True)
     """
     current_app.logger.info(f"Manually triggering fund reclamation for {target_month} (dry_run: {dry_run})")
