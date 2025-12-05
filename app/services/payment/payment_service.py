@@ -1002,13 +1002,13 @@ class PaymentService:
         )
 
     def reclaim_funds(
-        self, chek_user_id: int, amount: int, month_allocation_id: Optional[int] = None
+        self, chek_user_id: str, amount: int, month_allocation_id: Optional[int] = None
     ) -> TransferBalanceResponse:
         """
         Reclaims funds from a family's Chek account back into the program wallet.
 
         Args:
-            chek_user_id: Chek user ID to reclaim funds from
+            chek_user_id: Chek user ID to reclaim funds from (stored as string, will be converted to int for Chek API)
             amount: Amount to reclaim in cents
             month_allocation_id: Optional month allocation ID to link this reclamation to
 
@@ -1036,7 +1036,7 @@ class PaymentService:
             f"month_allocation_id={month_allocation_id}"
         )
 
-        response = self.chek_service.transfer_balance(user_id=chek_user_id, request=transfer_request)
+        response = self.chek_service.transfer_balance(user_id=int(chek_user_id), request=transfer_request)
 
         # Log after successful external call
         transfer_id = response.transfer.id if response and response.transfer else None
@@ -1050,7 +1050,7 @@ class PaymentService:
             fund_reclamation = FundReclamation(
                 amount_cents=amount,
                 chek_transfer_id=transfer_id,
-                chek_user_id=str(chek_user_id),
+                chek_user_id=chek_user_id,
                 month_allocation_id=month_allocation_id,
             )
             db.session.add(fund_reclamation)
@@ -1083,7 +1083,7 @@ class PaymentService:
         family_payment_settings = FamilyPaymentSettings.query.filter_by(family_supabase_id=family_id).first()
         if not family_payment_settings or not family_payment_settings.chek_user_id:
             raise FamilyNotFoundException(f"Family {family_id} not found or has no Chek account")
-        return self.reclaim_funds(int(family_payment_settings.chek_user_id), amount, month_allocation_id)
+        return self.reclaim_funds(family_payment_settings.chek_user_id, amount, month_allocation_id)
 
     def reclaim_funds_by_child(
         self, child_id: str, amount: int, month_allocation_id: Optional[int] = None
@@ -1094,7 +1094,7 @@ class PaymentService:
         family_payment_settings = self._get_family_settings_from_child_id(child_id)
         if not family_payment_settings or not family_payment_settings.chek_user_id:
             raise FamilyNotFoundException(f"Family for child {child_id} not found or has no Chek account")
-        return self.reclaim_funds(int(family_payment_settings.chek_user_id), amount, month_allocation_id)
+        return self.reclaim_funds(family_payment_settings.chek_user_id, amount, month_allocation_id)
 
     def reclaim_funds_by_provider(
         self, provider_id: str, amount: int, month_allocation_id: Optional[int] = None

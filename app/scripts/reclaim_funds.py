@@ -42,7 +42,7 @@ def reclaim_funds(amount, chek_user_id=None, family_id=None, child_id=None, prov
 
         if chek_user_id:
             logger.info(f"Using chek_user_id: {chek_user_id}")
-            response = current_app.payment_service.reclaim_funds(chek_user_id=int(chek_user_id), amount=amount)
+            response = current_app.payment_service.reclaim_funds(chek_user_id=chek_user_id, amount=amount)
         elif family_id:
             logger.info(f"Using family_id: {family_id}")
             response = current_app.payment_service.reclaim_funds_by_family(family_id=family_id, amount=amount)

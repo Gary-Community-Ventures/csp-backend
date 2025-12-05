@@ -175,7 +175,7 @@ class MonthAllocation(db.Model, TimestampMixin):
 
         # Reclaim via payment service
         current_app.payment_service.reclaim_funds(
-            chek_user_id=int(family_payment_settings.chek_user_id),
+            chek_user_id=family_payment_settings.chek_user_id,
             amount=amount_cents,
             month_allocation_id=self.id,
         )
