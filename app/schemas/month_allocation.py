@@ -9,6 +9,8 @@ class MonthAllocationResponse(BaseModel):
     id: int
     date: date
     allocation_cents: int
+    total_reclaimed_cents: int
+    net_allocation_cents: int
     child_supabase_id: str
     remaining_unselected_cents: float
     remaining_unpaid_cents: float

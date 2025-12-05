@@ -158,3 +158,13 @@ class JobManager:
 
 
 job_manager = JobManager()
+
+# Import job modules to ensure they're registered with RQ
+from . import (  # noqa: F401, E402
+    attendance,
+    example_job,
+    invite_reminder,
+    monthly_allocation_job,
+    payment_reminders,
+    reclaim_unused_allocation_funds,
+)

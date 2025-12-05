@@ -5,6 +5,7 @@ from .bulk_email_batch import BulkEmailBatch
 from .email_record import EmailRecord
 from .family_invitation import FamilyInvitation
 from .family_payment_settings import FamilyPaymentSettings
+from .fund_reclamation import FundReclamation
 from .month_allocation import MonthAllocation
 from .payment import Payment
 from .payment_attempt import PaymentAttempt
@@ -26,6 +27,7 @@ __all__ = [
     "BulkEmailBatch",
     "EmailRecord",
     "FamilyInvitation",
+    "FundReclamation",
     "Payment",
     "PaymentAttempt",
     "ProviderPaymentSettings",
