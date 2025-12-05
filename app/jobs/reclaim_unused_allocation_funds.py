@@ -248,17 +248,17 @@ def reclaim_funds_for_month(
 def schedule_reclaim_unused_allocation_funds_job():
     """
     Schedule the fund reclamation job to run monthly.
-    Runs on the 5th of every month at 2:00 AM MST / 3:00 AM MDT.
+    Runs on the 2nd of every month at 8:00 AM MST / 9:00 AM MDT.
 
-    Note: The cron schedule runs in UTC at 9:00 AM. Due to daylight saving time,
-    this translates to 2:00 AM during Mountain Standard Time (winter) and 3:00 AM during
+    Note: The cron schedule runs in UTC at 3:00 PM. Due to daylight saving time,
+    this translates to 8:00 AM during Mountain Standard Time (winter) and 9:00 AM during
     Mountain Daylight Time (summer).
     """
-    # Run at 9:00 AM UTC on the 5th of every month (2:00 AM MST / 3:00 AM MDT)
-    cron_schedule = current_app.config.get("RECLAIM_FUNDS_CRON", "0 9 5 * *")
+    # Run at 3:00 PM UTC on the 2nd of every month (8:00 AM MST / 9:00 AM MDT)
+    cron_schedule = current_app.config.get("RECLAIM_FUNDS_CRON", "0 15 2 * *")
     from_info = "monthly_scheduler"
 
-    current_app.logger.info(f"Scheduling fund reclamation job with cron '{cron_schedule}' in UTC (2 AM MST / 3 AM MDT)")
+    current_app.logger.info(f"Scheduling fund reclamation job with cron '{cron_schedule}' in UTC (8 AM MST / 9 AM MDT)")
 
     return reclaim_past_month_funds.schedule_cron(cron_schedule, from_info=from_info)
 
