@@ -280,21 +280,25 @@ def family_data(child_id: Optional[str] = None):
     user = get_family_user()
     family_id = user.user_data.family_id
 
-    family_children_result = Child.select_by_family_id(
+    family_result = Family.select_by_id(
         cols(
-            Child.ID,
-            Child.FIRST_NAME,
-            Child.LAST_NAME,
-            Child.MONTHLY_ALLOCATION,
-            Child.PRORATED_ALLOCATION,
-            Child.STATUS,
-            Child.PAYMENT_ENABLED,
-            Provider.join(Provider.ID, Provider.NAME, Provider.STATUS, Provider.TYPE, Provider.PAYMENT_ENABLED),
+            Family.LINK_ID,
+            Child.join(
+                Child.ID,
+                Child.FIRST_NAME,
+                Child.LAST_NAME,
+                Child.MONTHLY_ALLOCATION,
+                Child.PRORATED_ALLOCATION,
+                Child.STATUS,
+                Child.PAYMENT_ENABLED,
+                Provider.join(Provider.ID, Provider.NAME, Provider.STATUS, Provider.TYPE, Provider.PAYMENT_ENABLED),
+            ),
         ),
         int(family_id),
     ).execute()
+    family = unwrap_or_abort(family_result)
 
-    family_children = unwrap_or_abort(family_children_result)
+    family_children = Child.unwrap(family)
 
     if not family_children or len(family_children) == 0:
         abort(404, description="No children found for this family.")
@@ -335,7 +339,6 @@ def family_data(child_id: Optional[str] = None):
 
         # Look up the ProviderPaymentSettings to get is_payable status
         provider_payment_settings = ProviderPaymentSettings.query.filter_by(provider_supabase_id=provider_id).first()
-        current_app.logger.error(f"Provider {provider_id} payment settings: {provider_payment_settings}")
 
         provider_status = Provider.STATUS(p)
         provider_type = Provider.TYPE(p)
@@ -372,6 +375,16 @@ def family_data(child_id: Optional[str] = None):
     attendance_due = Attendance.filter_by_child_ids(child_ids).count() > 0
     if attendance_due:
         notifications.append({"type": "attendance"})
+    if not Family.LINK_ID(family):
+
+        has_provider = False
+        for child in family_children:
+            if len(Provider.unwrap(child)) != 0:
+                has_provider = True
+                break
+
+        if not has_provider and ProviderInvitation.invitations_by_child_ids(child_ids).count() == 0:
+            notifications.append({"type": "no_provider_invited"})
 
     family_payment_settings = FamilyPaymentSettings.query.filter_by(family_supabase_id=family_id).first()
 
@@ -396,7 +409,7 @@ class InviteProviderMessage:
 
 
 def get_invite_provider_message(lang: str, family_name: str, child_name: str, link: str):
-    language = Language.SPANISH if lang == "es" else Language.ENGLISH
+    language = Language(lang) if lang in ["es", "ru", "ar"] else Language.ENGLISH
     email_html = InvitationTemplate.get_provider_invitation_content(family_name, child_name, link, language)
 
     if lang == "es":
@@ -404,6 +417,18 @@ def get_invite_provider_message(lang: str, family_name: str, child_name: str, li
             subject=f"¡{family_name} se complace en invitarte al programa CAP para cuidar a {child_name}!",
             email=email_html,
             sms=f"¡{family_name} te invitó a unirte al programa piloto de accesibilidad al cuidado infantil (CAP) para cuidar a {child_name}! CAP ayuda a las familias a pagar a proveedores como tú. ¡Toca para obtener más información y postularte! {link} ¿Preguntas? support@capcolorado.org.",
+        )
+    elif lang == "ru":
+        return InviteProviderMessage(
+            subject=f"{family_name} приглашает вас в программу CAP для ухода за {child_name}!",
+            email=email_html,
+            sms=f"{family_name} приглашает вас присоединиться к пилотной программе Childcare Affordability Pilot (CAP) для ухода за {child_name}! CAP помогает семьям оплачивать услуги воспитателей, таких как вы. Нажмите, чтобы узнать больше и подать заявку! {link} Вопросы? support@capcolorado.org.",
+        )
+    elif lang == "ar":
+        return InviteProviderMessage(
+            subject=f"{family_name} يدعوك للانضمام إلى برنامج CAP لرعاية {child_name}!",
+            email=email_html,
+            sms=f"دعاك {family_name} للانضمام إلى البرنامج التجريبي Childcare Affordability Pilot (CAP) لتقديم الرعاية لـ {child_name}! يساعد CAP العائلات على دفع أجور مقدمي الرعاية مثلك. انقر لمعرفة المزيد والتقديم! {link} أسئلة؟ support@capcolorado.org.",
         )
 
     return InviteProviderMessage(

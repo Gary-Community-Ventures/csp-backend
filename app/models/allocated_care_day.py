@@ -8,6 +8,7 @@ from typing import Optional
 from ..constants import BUSINESS_TIMEZONE
 from ..enums.care_day_type import CareDayType
 from ..extensions import db
+from ..utils.date_utils import get_relative_week
 from .mixins import TimestampMixin
 from .month_allocation import MonthAllocation
 from .utils import get_care_day_cost
@@ -40,9 +41,7 @@ def calculate_week_lock_date(date_in_week: Optional[date]) -> Optional[datetime]
             f"Use .date() to extract the date from a datetime object."
         )
 
-    # Calculate Monday of the week containing this date
-    days_since_monday = date_in_week.weekday()
-    monday = date_in_week - timedelta(days=days_since_monday)
+    monday = get_relative_week(0, date_in_week)
 
     # Create timezone-aware locked_date in business timezone (Monday at 23:59:59)
     business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
@@ -65,8 +64,7 @@ def get_locked_until_date() -> date:
     # Get the lock date for the current week
     current_week_lock_date = calculate_week_lock_date(today_business)
 
-    # Calculate current Monday
-    current_monday = today_business - timedelta(days=today_business.weekday())
+    current_monday = get_relative_week(0, today_business)
 
     if now_business > current_week_lock_date:
         # Past Monday 23:59:59 - all days in current week are locked
@@ -101,6 +99,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
 
     # Calculated fields
     amount_cents = db.Column(db.Integer, nullable=False)
+    amount_missing_cents = db.Column(db.Integer, nullable=True)
 
     # Provider info
     provider_google_sheets_id = db.Column(db.String(64), nullable=True, index=True)
@@ -130,6 +129,11 @@ class AllocatedCareDay(db.Model, TimestampMixin):
     )
 
     @property
+    def is_partial_payment(self):
+        """Check if this care day has a partial payment recorded"""
+        return self.amount_missing_cents is not None and self.amount_missing_cents > 0
+
+    @property
     def is_submitted(self):
         """Check if this care day is submitted"""
         return self.last_submitted_at is not None
@@ -140,14 +144,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         return Decimal("1.0") if self.type == CareDayType.FULL_DAY else Decimal("0.5")
 
     @property
-    def needs_resubmission(self):
-        """Check if day was modified after last submission"""
-        if not self.last_submitted_at:
-            return True  # Never submitted
-        return self.updated_at > self.last_submitted_at
-
-    @property
-    def is_new(self):
+    def needs_submission(self):
         """Check if this is a brand new day since last submission"""
         return self.last_submitted_at is None
 
@@ -209,7 +206,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
             raise ValueError("Cannot create a care day in the past.")
 
         # Check if allocation can handle this care day
-        if not allocation.can_add_care_day(day_type, provider_id=provider_id):
+        if not allocation.can_add_care_day():
             raise ValueError("Adding this care day would exceed monthly allocation")
 
         # Check for existing care day on this date
@@ -222,16 +219,20 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         if existing and not existing.is_deleted:
             raise ValueError("Care day already exists for this date")
 
+        care_day_cost, amount_missing_cents = get_care_day_cost(
+            day_type,
+            provider_id=provider_id,
+            child_id=allocation.child_supabase_id,
+            allocation_remaining=allocation.remaining_unselected_cents,
+        )
+
         # If there's a soft-deleted one, restore and update it
         if existing and existing.is_deleted:
             existing.restore()
             existing.type = day_type
             existing.provider_supabase_id = provider_id
-            existing.amount_cents = get_care_day_cost(
-                day_type,
-                provider_id=provider_id,
-                child_id=allocation.child_supabase_id,
-            )
+            existing.amount_cents = care_day_cost
+            existing.amount_missing_cents = amount_missing_cents
             db.session.commit()
             return existing
 
@@ -241,11 +242,8 @@ class AllocatedCareDay(db.Model, TimestampMixin):
             provider_supabase_id=provider_id,
             date=care_date,
             type=day_type,
-            amount_cents=get_care_day_cost(
-                day_type,
-                provider_id=provider_id,
-                child_id=allocation.child_supabase_id,
-            ),
+            amount_cents=care_day_cost,
+            amount_missing_cents=amount_missing_cents,
         )
 
         # Prevent creating a care day that would be locked (using business timezone)
@@ -266,6 +264,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
             "date": self.date.isoformat(),
             "type": self.type,
             "amount_cents": self.amount_cents,
+            "amount_missing_cents": self.amount_missing_cents,
             "day_count": self.day_count,
             "provider_supabase_id": self.provider_supabase_id,
             "payment_distribution_requested": self.payment_distribution_requested,
@@ -276,32 +275,20 @@ class AllocatedCareDay(db.Model, TimestampMixin):
             "locked_date": self.locked_date.isoformat() if self.locked_date else None,
             "is_locked": self.is_locked,
             "is_deleted": self.is_deleted,
-            "needs_resubmission": self.needs_resubmission,
-            "is_new": self.is_new,
-            "delete_not_submitted": self.delete_not_submitted,
+            "is_partial_payment": self.is_partial_payment,
+            "needs_submission": self.needs_submission,
             "status": self.status,
         }
 
     @property
     def status(self):
-        if self.payment_id:
+        if self.payment_id or self.payment_distribution_requested:
             return "submitted"
-        if self.delete_not_submitted:
-            return "delete_not_submitted"
         if self.is_deleted:
             return "deleted"
-        if self.is_new:
-            return "new"
-        if self.needs_resubmission:
-            return "needs_resubmission"
-        if self.last_submitted_at:
-            return "submitted"
+        if self.needs_submission:
+            return "needs_submission"
         return "unknown"
-
-    @property
-    def delete_not_submitted(self):
-        """Check if this care day is previously submitted deleted but not submitted again"""
-        return self.is_deleted and self.last_submitted_at is not None and self.last_submitted_at < self.deleted_at
 
     def __repr__(self):
         return f"<AllocatedCareDay {self.date} {self.type} - Provider {self.provider_supabase_id}>"

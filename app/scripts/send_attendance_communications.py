@@ -7,6 +7,7 @@ from flask import current_app
 from app import create_app
 from app.enums.email_type import EmailType
 from app.models.attendance import Attendance
+from app.services.payment.utils import format_phone_to_e164
 from app.supabase.columns import Language, ProviderType
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child, Family, Guardian, Provider
@@ -115,7 +116,7 @@ class FamilyAttendanceMessages(AttendanceMessages):
             },
         )
         sms = BulkSmsData(
-            phone_number="+1" + Guardian.PHONE_NUMBER(guardian),
+            phone_number=format_phone_to_e164(Guardian.PHONE_NUMBER(guardian)),
             message=message_data.sms,
             lang=lang,
         )
@@ -124,7 +125,7 @@ class FamilyAttendanceMessages(AttendanceMessages):
 
     def _family_message(self, family_name: str, lang: str):
         link = f"{self.domain}/family/attendance"
-        language = Language.SPANISH if lang == "es" else Language.ENGLISH
+        language = Language(lang) if lang in ["es", "ru", "ar"] else Language.ENGLISH
         email_html = AttendanceReminderTemplate.get_family_content(family_name, link, language)
 
         if lang == "es":
@@ -132,6 +133,18 @@ class FamilyAttendanceMessages(AttendanceMessages):
                 subject="Acción necesaria - Asistencia CAP",
                 email=email_html,
                 sms=f"Confirme los días de cuidado de la semana pasada para que su proveedor pueda recibir su pago. {link}",
+            )
+        elif lang == "ru":
+            return MessageCopy(
+                subject="Требуется действие - Посещаемость CAP",
+                email=email_html,
+                sms=f"Подтвердите дни ухода за прошлую неделю, чтобы ваш воспитатель мог получить оплату. {link}",
+            )
+        elif lang == "ar":
+            return MessageCopy(
+                subject="إجراء مطلوب - حضور CAP",
+                email=email_html,
+                sms=f"قم بتأكيد أيام الرعاية للأسبوع الماضي حتى يتمكن مقدم الرعاية من الحصول على أجره. {link}",
             )
 
         return MessageCopy(
@@ -191,7 +204,7 @@ class ProviderAttendanceMessages(AttendanceMessages):
             },
         )
         sms = BulkSmsData(
-            phone_number="+1" + Provider.PHONE_NUMBER(provider),
+            phone_number=format_phone_to_e164(Provider.PHONE_NUMBER(provider)),
             message=message_data.sms,
             lang=lang,
         )
@@ -200,7 +213,7 @@ class ProviderAttendanceMessages(AttendanceMessages):
 
     def _provider_message(self, provider_name: str, lang: str):
         link = f"{self.domain}/provider/attendance"
-        language = Language.SPANISH if lang == "es" else Language.ENGLISH
+        language = Language(lang) if lang in ["es", "ru", "ar"] else Language.ENGLISH
         email_html = AttendanceReminderTemplate.get_provider_content(provider_name, link, language)
 
         if lang == "es":
@@ -208,6 +221,18 @@ class ProviderAttendanceMessages(AttendanceMessages):
                 subject="Acción necesaria - Asistencia CAP",
                 email=email_html,
                 sms=f"Confirme la asistencia de todos los niños bajo su cuidado que reciben el subsidio CAP, para que pueda recibir su pago a tiempo. {link}",
+            )
+        elif lang == "ru":
+            return MessageCopy(
+                subject="Требуется действие - Посещаемость CAP",
+                email=email_html,
+                sms=f"Пожалуйста, подтвердите посещаемость всех детей, получающих субсидию CAP, чтобы получить оплату вовремя. {link}",
+            )
+        elif lang == "ar":
+            return MessageCopy(
+                subject="إجراء مطلوب - حضور CAP",
+                email=email_html,
+                sms=f"يرجى تأكيد الحضور لجميع الأطفال الذين يتلقون دعم CAP حتى تتمكن من الحصول على أجرك في الوقت المحدد. {link}",
             )
 
         return MessageCopy(
@@ -218,20 +243,32 @@ class ProviderAttendanceMessages(AttendanceMessages):
 
     def _center_message(self, provider_name: str, lang: str):
         link = f"{self.domain}/provider/attendance"
-        language = Language.SPANISH if lang == "es" else Language.ENGLISH
+        language = Language(lang) if lang in ["es", "ru", "ar"] else Language.ENGLISH
         email_html = AttendanceReminderTemplate.get_center_content(provider_name, link, language)
 
         if lang == "es":
             return MessageCopy(
                 subject="Acción necesaria - Asistencia CAP",
                 email=email_html,
-                sms=f"Por favor, complete la lista de asistencia de todos los niños a su cargo que recibieron subsidio CAP durante el último mes antes del final de esta semana. {link}",
+                sms=f"Por favor, complete la asistencia de todos los niños bajo su cuidado que reciben subsidio de CAP del mes pasado antes del fin de semana. Si ya envió la verificación de asistencia del mes pasado, ignore este correo electrónico. {link}",
+            )
+        elif lang == "ru":
+            return MessageCopy(
+                subject="Требуется действие - Посещаемость CAP",
+                email=email_html,
+                sms=f"Пожалуйста, заполните данные о посещаемости всех детей, получающих субсидию CAP, за прошлый месяц до конца недели. Если вы уже отправили подтверждение посещаемости за прошлый месяц, проигнорируйте это сообщение. {link}",
+            )
+        elif lang == "ar":
+            return MessageCopy(
+                subject="إجراء مطلوب - حضور CAP",
+                email=email_html,
+                sms=f"يرجى ملء سجل الحضور لجميع الأطفال الذين يتلقون دعم CAP للشهر الماضي قبل نهاية الأسبوع. إذا كنت قد أرسلت بالفعل تأكيد الحضور للشهر الماضي، يرجى تجاهل هذه الرسالة. {link}",
             )
 
         return MessageCopy(
             subject="Action Needed - CAP Attendance",
             email=email_html,
-            sms=f"Please fill out attendance for all children in your care who receive CAP subsidy for the past month by the end of the week. {link}",
+            sms=f"Please fill out attendance for all children in your care who receive CAP subsidy for the past month by the end of the week. If you have already submitted last month's attendance verification, please disregard this email. {link}",
         )
 
 
@@ -266,11 +303,10 @@ def send_attendance_communications(send_to_families=False, send_to_providers=Fal
     bulk_send_emails(get_from_email_external(), bulk_emails, EmailType.ATTENDANCE_REMINDER, batch_name=batch_name)
     bulk_send_sms(bulk_text_messages)
 
-    current_app.logger.info("create_attendance: Finished sending attendance emails and SMS.")
+    current_app.logger.info("attendance_communications: Finished sending attendance emails and SMS.")
 
 
 if __name__ == "__main__":
-    # Create Flask app context
     app = create_app()
     app.app_context().push()
 

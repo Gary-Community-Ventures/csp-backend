@@ -18,6 +18,8 @@ class PaymentNotificationTemplate:
         subjects = {
             Language.ENGLISH: f"New Payment - ${amount_dollars:.2f}",
             Language.SPANISH: f"Nuevo Pago - ${amount_dollars:.2f}",
+            Language.RUSSIAN: f"Новый Платёж - ${amount_dollars:.2f}",
+            Language.ARABIC: f"دفعة جديدة - ${amount_dollars:.2f}",
         }
         return subjects.get(language, subjects[Language.ENGLISH])
 
@@ -27,6 +29,8 @@ class PaymentNotificationTemplate:
         greetings = {
             Language.ENGLISH: f"Hello {provider_name},",
             Language.SPANISH: f"Hola {provider_name},",
+            Language.RUSSIAN: f"Здравствуйте, {provider_name},",
+            Language.ARABIC: f"مرحباً {provider_name}،",
         }
         return greetings.get(language, greetings[Language.ENGLISH])
 
@@ -36,6 +40,8 @@ class PaymentNotificationTemplate:
         intros = {
             Language.ENGLISH: "We're pleased to inform you that a payment is heading your way.",
             Language.SPANISH: "Nos complace informarle que un pago se dirige hacia usted.",
+            Language.RUSSIAN: "Мы рады сообщить вам, что платёж направляется к вам.",
+            Language.ARABIC: "يسعدنا إبلاغك بأن دفعة في طريقها إليك.",
         }
         return intros.get(language, intros[Language.ENGLISH])
 
@@ -45,6 +51,8 @@ class PaymentNotificationTemplate:
         headers = {
             Language.ENGLISH: "New Payment Processed",
             Language.SPANISH: "Nuevo Pago Procesado",
+            Language.RUSSIAN: "Новый Платёж Обработан",
+            Language.ARABIC: "تمت معالجة دفعة جديدة",
         }
         return headers.get(language, headers[Language.ENGLISH])
 
@@ -54,6 +62,30 @@ class PaymentNotificationTemplate:
         headers = {
             Language.ENGLISH: "Payment Details:",
             Language.SPANISH: "Detalles del Pago:",
+            Language.RUSSIAN: "Детали Платежа:",
+            Language.ARABIC: "تفاصيل الدفع:",
+        }
+        return headers.get(language, headers[Language.ENGLISH])
+
+    @staticmethod
+    def get_care_days_header(language: Language = Language.ENGLISH) -> str:
+        """Get the care days header in the specified language."""
+        headers = {
+            Language.ENGLISH: "Care Days Included:",
+            Language.SPANISH: "Días de Cuidado Incluidos:",
+            Language.RUSSIAN: "Включённые Дни Ухода:",
+            Language.ARABIC: "أيام الرعاية المشمولة:",
+        }
+        return headers.get(language, headers[Language.ENGLISH])
+
+    @staticmethod
+    def get_lump_sum_header(language: Language = Language.ENGLISH) -> str:
+        """Get the lump sum header in the specified language."""
+        headers = {
+            Language.ENGLISH: "Care Days Included:",
+            Language.SPANISH: "Días de Cuidado Incluidos:",
+            Language.RUSSIAN: "Включённые Дни Ухода:",
+            Language.ARABIC: "أيام الرعاية المشمولة:",
         }
         return headers.get(language, headers[Language.ENGLISH])
 
@@ -65,14 +97,63 @@ class PaymentNotificationTemplate:
                 "child": "Child:",
                 "amount": "Amount:",
                 "payment_method": "Payment Method:",
+                "date": "Date",
+                "type": "Type",
+                "day_amount": "Amount",
+                "full_days": "Full Days:",
+                "half_days": "Half Days:",
             },
             Language.SPANISH: {
                 "child": "Niño/a:",
                 "amount": "Cantidad:",
                 "payment_method": "Método de Pago:",
+                "date": "Fecha",
+                "type": "Tipo",
+                "day_amount": "Cantidad",
+                "full_days": "Días Completos:",
+                "half_days": "Medios Días:",
+            },
+            Language.RUSSIAN: {
+                "child": "Ребёнок:",
+                "amount": "Сумма:",
+                "payment_method": "Способ Оплаты:",
+                "date": "Дата",
+                "type": "Тип",
+                "day_amount": "Сумма",
+                "full_days": "Полные Дни:",
+                "half_days": "Половина Дня:",
+            },
+            Language.ARABIC: {
+                "child": "الطفل:",
+                "amount": "المبلغ:",
+                "payment_method": "طريقة الدفع:",
+                "date": "التاريخ",
+                "type": "النوع",
+                "day_amount": "المبلغ",
+                "full_days": "أيام كاملة:",
+                "half_days": "أنصاف أيام:",
             },
         }
         return labels.get(language, labels[Language.ENGLISH])
+
+    @staticmethod
+    def get_day_type_display(day_type: str, language: Language = Language.ENGLISH) -> str:
+        """Get care day type display text in the specified language."""
+        if day_type == "FULL_DAY" or day_type == "Full Day":
+            displays = {
+                Language.ENGLISH: "Full Day",
+                Language.SPANISH: "Día Completo",
+                Language.RUSSIAN: "Полный День",
+                Language.ARABIC: "يوم كامل",
+            }
+        else:  # HALF_DAY or Half Day
+            displays = {
+                Language.ENGLISH: "Half Day",
+                Language.SPANISH: "Medio Día",
+                Language.RUSSIAN: "Половина Дня",
+                Language.ARABIC: "نصف يوم",
+            }
+        return displays.get(language, displays[Language.ENGLISH])
 
     @staticmethod
     def get_payment_method_display(payment_method: str, language: Language = Language.ENGLISH) -> str:
@@ -81,11 +162,15 @@ class PaymentNotificationTemplate:
             displays = {
                 Language.ENGLISH: "Virtual Card",
                 Language.SPANISH: "Tarjeta Virtual",
+                Language.RUSSIAN: "Виртуальная Карта",
+                Language.ARABIC: "بطاقة افتراضية",
             }
         else:  # ACH
             displays = {
                 Language.ENGLISH: "Direct Deposit (ACH)",
                 Language.SPANISH: "Depósito Directo (ACH)",
+                Language.RUSSIAN: "Прямой Депозит (ACH)",
+                Language.ARABIC: "إيداع مباشر (ACH)",
             }
         return displays.get(language, displays[Language.ENGLISH])
 
@@ -95,6 +180,8 @@ class PaymentNotificationTemplate:
         headers = {
             Language.ENGLISH: "What's Next?",
             Language.SPANISH: "¿Qué Sigue?",
+            Language.RUSSIAN: "Что Дальше?",
+            Language.ARABIC: "ما التالي؟",
         }
         return headers.get(language, headers[Language.ENGLISH])
 
@@ -112,6 +199,16 @@ class PaymentNotificationTemplate:
                 "Puede usar su tarjeta inmediatamente para compras",
                 "Verifique el saldo de su tarjeta en su cuenta Chek",
             ],
+            Language.RUSSIAN: [
+                "Средства были зачислены на вашу виртуальную карту",
+                "Вы можете использовать карту немедленно для покупок",
+                "Проверьте баланс карты в вашем аккаунте Chek",
+            ],
+            Language.ARABIC: [
+                "تم تحميل الأموال على بطاقتك الافتراضية",
+                "يمكنك استخدام بطاقتك فوراً للمشتريات",
+                "تحقق من رصيد بطاقتك في حساب Chek الخاص بك",
+            ],
         }
         return instructions.get(language, instructions[Language.ENGLISH])
 
@@ -127,6 +224,14 @@ class PaymentNotificationTemplate:
                 "Los fondos están siendo transferidos a su cuenta bancaria",
                 "Los depósitos directos generalmente llegan dentro de 1-2 días hábiles",
             ],
+            Language.RUSSIAN: [
+                "Средства переводятся на ваш банковский счёт",
+                "Прямые депозиты обычно поступают в течение 1-2 рабочих дней",
+            ],
+            Language.ARABIC: [
+                "يتم تحويل الأموال إلى حسابك المصرفي",
+                "عادةً ما تصل الإيداعات المباشرة خلال 1-2 يوم عمل",
+            ],
         }
         return instructions.get(language, instructions[Language.ENGLISH])
 
@@ -136,6 +241,8 @@ class PaymentNotificationTemplate:
         texts = {
             Language.ENGLISH: "If you have any questions about this payment, please reach out to our support team.",
             Language.SPANISH: "Si tiene alguna pregunta sobre este pago, por favor comuníquese con nuestro equipo de soporte.",
+            Language.RUSSIAN: "Если у вас есть вопросы об этом платеже, пожалуйста, свяжитесь с нашей службой поддержки.",
+            Language.ARABIC: "إذا كان لديك أي أسئلة حول هذه الدفعة، يرجى التواصل مع فريق الدعم لدينا.",
         }
         return texts.get(language, texts[Language.ENGLISH])
 
@@ -145,6 +252,8 @@ class PaymentNotificationTemplate:
         signatures = {
             Language.ENGLISH: "Best regards,<br>The CAP Team",
             Language.SPANISH: "Saludos cordiales,<br>El Equipo CAP",
+            Language.RUSSIAN: "С уважением,<br>Команда CAP",
+            Language.ARABIC: "مع أطيب التحيات،<br>فريق CAP",
         }
         return signatures.get(language, signatures[Language.ENGLISH])
 
@@ -154,6 +263,8 @@ class PaymentNotificationTemplate:
         footers = {
             Language.ENGLISH: "This is an automated notification from the CAP portal system.",
             Language.SPANISH: "Esta es una notificación automática del sistema del portal CAP.",
+            Language.RUSSIAN: "Это автоматическое уведомление от системы портала CAP.",
+            Language.ARABIC: "هذا إشعار تلقائي من نظام بوابة CAP.",
         }
         return footers.get(language, footers[Language.ENGLISH])
 
@@ -165,6 +276,8 @@ class PaymentNotificationTemplate:
         amount_cents: int,
         payment_method: str,
         language: Language = Language.ENGLISH,
+        care_days: list = None,
+        lump_sum: dict = None,
     ) -> str:
         """Build the complete HTML email content in the specified language."""
         amount_dollars = amount_cents / 100
@@ -192,6 +305,67 @@ class PaymentNotificationTemplate:
         </div>
         """
 
+        # Build care days section if provided
+        care_days_section = ""
+        if care_days and len(care_days) > 0:
+            care_days_rows = ""
+            for idx, day in enumerate(care_days):
+                day_type_display = cls.get_day_type_display(day.type.value, language)
+                day_amount = day.amount_cents / 100
+                # Format date nicely
+                date_str = day.date.strftime("%B %d, %Y") if hasattr(day.date, "strftime") else str(day.date)
+
+                # Add border-bottom except for last row
+                border_style = "border-bottom: 1px solid #e0e0e0;" if idx < len(care_days) - 1 else ""
+
+                care_days_rows += f"""
+                <tr style="{border_style}">
+                    <td style="padding: 8px 0;">{date_str}</td>
+                    <td style="padding: 8px 0;">{day_type_display}</td>
+                    <td style="padding: 8px 0; text-align: right;">${day_amount:.2f}</td>
+                </tr>
+                """
+
+            care_days_section = f"""
+            <div style="background-color: #f8f9fa; border-left: 4px solid #b53363; padding: 15px; margin: 20px 0; border-radius: 5px;">
+                <h3 style="margin-top: 0; color: #2c3e50;">{cls.get_care_days_header(language)}</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid #364f3f;">
+                            <th style="padding: 8px 0; text-align: left;"><strong>{labels['date']}</strong></th>
+                            <th style="padding: 8px 0; text-align: left;"><strong>{labels['type']}</strong></th>
+                            <th style="padding: 8px 0; text-align: right;"><strong>{labels['day_amount']}</strong></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {care_days_rows}
+                    </tbody>
+                </table>
+            </div>
+            """
+
+        # Build lump sum section if provided
+        lump_sum_section = ""
+        if lump_sum:
+            days = lump_sum.get("days", 0)
+            half_days = lump_sum.get("half_days", 0)
+
+            lump_sum_section = f"""
+            <div style="background-color: #f8f9fa; border-left: 4px solid #b53363; padding: 15px; margin: 20px 0; border-radius: 5px;">
+                <h3 style="margin-top: 0; color: #2c3e50;">{cls.get_lump_sum_header(language)}</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 8px 0;"><strong>{labels['full_days']}</strong></td>
+                        <td style="padding: 8px 0;">{days}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0;"><strong>{labels['half_days']}</strong></td>
+                        <td style="padding: 8px 0;">{half_days}</td>
+                    </tr>
+                </table>
+            </div>
+            """
+
         # Build instructions list
         instructions_html = ""
         if payment_method == PaymentMethod.CARD:
@@ -218,6 +392,8 @@ class PaymentNotificationTemplate:
         <p>{cls.get_greeting(provider_name, language)}</p>
         <p>{cls.get_intro_text(language)}</p>
         {payment_details}
+        {care_days_section}
+        {lump_sum_section}
         {whats_next}
         <p>{cls.get_support_text(language)}</p>
         """

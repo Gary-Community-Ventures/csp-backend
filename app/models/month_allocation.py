@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Optional
 
 import sentry_sdk
 from flask import current_app
@@ -8,10 +9,8 @@ from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child
 from app.utils.date_utils import get_current_month_start, get_next_month_start
 
-from ..enums.care_day_type import CareDayType
 from ..extensions import db
 from .mixins import TimestampMixin
-from .utils import get_care_day_cost
 
 
 def get_allocation_amount(child_id: str) -> int:
@@ -111,10 +110,9 @@ class MonthAllocation(db.Model, TimestampMixin):
         This is the real remaining allocation after successful payments."""
         return self.allocation_cents - self.paid_cents
 
-    def can_add_care_day(self, day_type: CareDayType, provider_id: str) -> bool:
+    def can_add_care_day(self) -> bool:
         """Check if we can add a care day of given type without over-allocating"""
-        cents_amount = get_care_day_cost(day_type, provider_id=provider_id, child_id=self.child_supabase_id)
-        return self.paid_cents + cents_amount <= self.allocation_cents
+        return self.remaining_unselected_cents > 0
 
     def can_add_lump_sum(self, amount_cents: int) -> bool:
         """Check if we can add a lump sum without over-allocating"""
@@ -239,7 +237,7 @@ class MonthAllocation(db.Model, TimestampMixin):
             return False
 
     @staticmethod
-    def get_for_month(child_id: str, month_date: date):
+    def get_for_month(child_id: str, month_date: date) -> Optional["MonthAllocation"]:
         """Get existing allocation for a child and month, or None if not found"""
         # Normalize to first of month
         month_start = month_date.replace(day=1)

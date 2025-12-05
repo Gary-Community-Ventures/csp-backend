@@ -10,7 +10,7 @@ from app.models.allocated_care_day import AllocatedCareDay
 from app.supabase.columns import ProviderType, Status
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child, Family, Provider
-from app.utils.date_utils import get_week_range
+from app.utils.date_utils import get_relative_week, get_week_range
 
 
 def create_child_provider_attendance(
@@ -68,7 +68,7 @@ def create_attendance(dry_run=False):
     )
     children = unwrap_or_error(children_result)
 
-    last_week_date = Attendance.prev_week_date()
+    last_week_date = get_relative_week(-1)
     last_week_range = get_week_range(last_week_date)
 
     attendances: list[Attendance] = []
