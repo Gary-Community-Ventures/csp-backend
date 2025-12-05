@@ -317,6 +317,7 @@ class PaymentService:
                 type=ACHPaymentType.SAME_DAY_ACH,
                 funding_source=ACHFundingSource.WALLET,
                 program_id=self.chek_service.program_id,
+                internal_memo=f"ACH payment for child {intent.child_supabase_id} from intent {intent.id}",
             )
 
             ach_response = self.chek_service.send_ach_payment(
@@ -647,6 +648,7 @@ class PaymentService:
                         type=ACHPaymentType.SAME_DAY_ACH,
                         funding_source=ACHFundingSource.WALLET,
                         program_id=self.chek_service.program_id,
+                        internal_memo=f"ACH payment retry for child {intent.child_supabase_id} from intent {intent.id}",
                     )
 
                     if not provider_payment_settings.chek_direct_pay_id:
