@@ -48,7 +48,7 @@ class MonthAllocation(db.Model, TimestampMixin):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # Month/Year as first day of month (e.g., 2025-08-01 for March 2024)
+    # Month/Year as first day of month (e.g., 2025-08-01 for August 2025)
     date = db.Column(db.Date, nullable=False, index=True)
 
     # Allocation amounts
