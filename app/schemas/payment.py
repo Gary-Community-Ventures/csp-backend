@@ -28,8 +28,8 @@ class PaymentCareDayDetail(BaseModel):
 class PaymentLumpSumDetail(BaseModel):
     """Lump sum details for payment history"""
 
-    days: int = Field(..., description="Number of full days")
-    half_days: int = Field(..., description="Number of half days")
+    days: Optional[int] = Field(..., description="Number of full days")
+    half_days: Optional[int] = Field(..., description="Number of half days")
     amount_cents: int = Field(..., description="Total amount paid for the lump sum in cents")
 
     class Config:
