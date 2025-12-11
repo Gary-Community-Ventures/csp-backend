@@ -259,6 +259,7 @@ class ACHPaymentRequest(BaseModel):
     type: ACHPaymentType
     funding_source: ACHFundingSource
     program_id: int
+    internal_memo: Optional[str] = None
 
 
 class ACHPaymentUser(BaseModel):
