@@ -153,6 +153,7 @@ class Provider(Table):
     FAMILY_INVITED_AT = Column("family_invited_at", datetime_column)
     RATES_CONFIGURED_AT = Column("rates_configured_at", datetime_column)
     PAYMENT_METHOD_CONFIGURED_AT = Column("payment_method_configured_at", datetime_column)
+    FIRST_PAYMENT_RECEIVED_AT = Column("first_payment_received_at", datetime_column)
 
 
 class ProviderChildMapping(Table):

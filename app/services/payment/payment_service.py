@@ -549,12 +549,6 @@ class PaymentService:
                     provider_payment_settings=provider_payment_settings,
                     family_payment_settings=family_payment_settings,
                 )
-
-                if success:
-                    return True
-                else:
-                    return False
-
             except Exception as payment_execution_error:
                 # Record the error in the attempt
                 self._update_payment_attempt_facts(attempt, error_message=str(payment_execution_error))
@@ -563,6 +557,16 @@ class PaymentService:
                     f"Payment execution failed for Provider {provider_payment_settings.id}: {payment_execution_error}"
                 )
                 sentry_sdk.capture_exception(payment_execution_error)
+                return False
+
+            # Check if first payment
+            Provider.query().update({Provider.FIRST_PAYMENT_RECEIVED_AT: datetime.now(timezone.utc).isoformat()}).eq(
+                Provider.ID, provider_id
+            ).is_(Provider.FIRST_PAYMENT_RECEIVED_AT, "null").execute()
+
+            if success:
+                return True
+            else:
                 return False
 
         except (
