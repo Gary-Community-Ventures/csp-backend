@@ -559,7 +559,7 @@ class PaymentService:
                 sentry_sdk.capture_exception(payment_execution_error)
                 return False
 
-            # Check if first payment
+            # 13. Check if first payment
             Provider.query().update({Provider.FIRST_PAYMENT_RECEIVED_AT: datetime.now(timezone.utc).isoformat()}).eq(
                 Provider.ID, provider_id
             ).is_(Provider.FIRST_PAYMENT_RECEIVED_AT, "null").execute()
