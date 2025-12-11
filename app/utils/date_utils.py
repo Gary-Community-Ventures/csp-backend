@@ -20,15 +20,36 @@ def get_next_month_start() -> date:
     return get_month_start(current_month + timedelta(days=DAYS_TO_NEXT_MONTH))
 
 
-def get_previous_month_start() -> date:
-    """Get the first day of the previous month.
+def get_relative_month(months_till: int = 0, from_date: Optional[date] = None) -> date:
+    """Get the first day of a month relative to a reference date.
 
-    Works correctly across year boundaries and handles leap years.
-    For example, if today is in December 2024, returns November 1, 2024.
+    Args:
+        months_till: Number of months to offset (negative for past, positive for future)
+        from_date: Reference date to calculate from (defaults to current business date)
+
+    Returns:
+        First day of the target month
+
+    Examples:
+        get_relative_month(0)   # Current month start
+        get_relative_month(-1)  # Previous month start
+        get_relative_month(1)   # Next month start
     """
-    current_month = get_current_month_start()
-    # Go back to last day of previous month, then get first of that month
-    return (current_month - timedelta(days=1)).replace(day=1)
+    if from_date is None:
+        business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
+        from_date = datetime.now(business_tz).date()
+
+    # Get first day of the reference month
+    month_start = from_date.replace(day=1)
+
+    # Navigate to the target month
+    # Convert to 0-indexed for easier arithmetic
+    total_months = (month_start.year * 12 + month_start.month - 1) + months_till
+
+    year = total_months // 12
+    month = (total_months % 12) + 1
+
+    return date(year, month, 1)
 
 
 def get_week_range(target_date: date) -> tuple[date, date]:

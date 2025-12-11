@@ -3,7 +3,7 @@ from typing import Any
 
 from flask import current_app
 
-from app.utils.date_utils import get_current_month_start, get_previous_month_start
+from app.utils.date_utils import get_relative_month
 
 from ..models import MonthAllocation
 from . import job_manager
@@ -26,8 +26,8 @@ def reclaim_past_month_funds(dry_run: bool = False, from_info: str = "scheduler"
         dict with status and reclamation details
     """
     try:
-        current_month_start = get_current_month_start()
-        previous_month_start = get_previous_month_start()
+        current_month_start = get_relative_month(0)
+        previous_month_start = get_relative_month(-1)
 
         current_app.logger.info(
             f"{datetime.now()} Starting fund reclamation job from {from_info} "
