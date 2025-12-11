@@ -14,6 +14,7 @@ Options:
 """
 
 import argparse
+
 from sqlalchemy import func
 
 from app import create_app

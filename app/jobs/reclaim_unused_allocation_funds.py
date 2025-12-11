@@ -58,8 +58,15 @@ def reclaim_past_month_funds(dry_run: bool = False, from_info: str = "scheduler"
             return {
                 "status": "success",
                 "message": "No allocations found for reclamation",
+                "dry_run": dry_run,
+                "current_month": current_month_start.isoformat(),
+                "previous_month": previous_month_start.isoformat(),
+                "reclaimed_from_months_before": previous_month_start.isoformat(),
+                "checked_count": len(past_allocations),
+                "eligible_count": 0,
                 "reclaimed_count": 0,
                 "total_amount_cents": 0,
+                "total_amount_dollars": 0.0,
                 "error_count": 0,
                 "errors": [],
             }
@@ -173,9 +180,13 @@ def reclaim_funds_for_month(
             return {
                 "status": "success",
                 "message": f"No allocations found for reclamation in {target_month}",
+                "dry_run": dry_run,
                 "target_month": target_month,
+                "checked_count": len(month_allocations),
+                "eligible_count": 0,
                 "reclaimed_count": 0,
                 "total_amount_cents": 0,
+                "total_amount_dollars": 0.0,
                 "error_count": 0,
                 "errors": [],
             }
