@@ -42,7 +42,7 @@ from app.services.payment.provider_onboarding import ProviderOnboarding
 from app.services.payment.schema import PaymentResult
 from app.supabase.columns import ProviderType
 from app.supabase.helpers import cols, format_name, unwrap_or_abort, unwrap_or_error
-from app.supabase.tables import Child, Provider
+from app.supabase.tables import Child, Family, Provider
 
 
 class PaymentService:
@@ -563,6 +563,9 @@ class PaymentService:
             Provider.query().update({Provider.FIRST_PAYMENT_RECEIVED_AT: datetime.now(timezone.utc).isoformat()}).eq(
                 Provider.ID, provider_id
             ).is_(Provider.FIRST_PAYMENT_RECEIVED_AT, "null").execute()
+            Family.query().update({Family.FIRST_PAYMENT_SENT_AT: datetime.now(timezone.utc).isoformat()}).eq(
+                Family.ID, family_payment_settings.family_supabase_id
+            ).is_(Family.FIRST_PAYMENT_SENT_AT, "null").execute()
 
             if success:
                 return True
