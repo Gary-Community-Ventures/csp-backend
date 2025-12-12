@@ -65,10 +65,7 @@ def backfill_first_payment_received_at(dry_run: bool = False):
         .execute()
     )
     families = unwrap_or_error(
-        Family.query()
-        .select(cols(Family.ID))
-        .is_(Family.FIRST_PAYMENT_SENT_AT, "null")
-        .execute()
+        Family.query().select(cols(Family.ID)).is_(Family.FIRST_PAYMENT_SENT_AT, "null").execute()
     )
     app.logger.info(f"Found {len(providers)} providers and {len(families)} families to potentially update")
 
@@ -91,7 +88,9 @@ def backfill_first_payment_received_at(dry_run: bool = False):
         if row.provider_supabase_id not in provider_ids_to_update:
             continue
         first_payment_iso = row.first_payment_at.isoformat()
-        app.logger.info(f"[{mode}] Provider {row.provider_supabase_id}: first_payment_received_at = {first_payment_iso}")
+        app.logger.info(
+            f"[{mode}] Provider {row.provider_supabase_id}: first_payment_received_at = {first_payment_iso}"
+        )
         if not dry_run:
             Provider.query().update({Provider.FIRST_PAYMENT_RECEIVED_AT: first_payment_iso}).eq(
                 Provider.ID, row.provider_supabase_id
