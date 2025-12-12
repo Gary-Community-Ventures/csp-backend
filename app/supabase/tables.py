@@ -56,6 +56,7 @@ class Family(Table):
     PORTAL_INVITE_SENT_AT = Column("portal_invite_sent_at", datetime_column)
     PROVIDER_INVITED_AT = Column("provider_invited_at", datetime_column)
     PROVIDER_APPROVED_AT = Column("provider_approved_at", datetime_column)
+    FIRST_PAYMENT_SENT_AT = Column("first_payment_sent_at", datetime_column)
 
 
 class Guardian(Table):
@@ -153,6 +154,7 @@ class Provider(Table):
     FAMILY_INVITED_AT = Column("family_invited_at", datetime_column)
     RATES_CONFIGURED_AT = Column("rates_configured_at", datetime_column)
     PAYMENT_METHOD_CONFIGURED_AT = Column("payment_method_configured_at", datetime_column)
+    FIRST_PAYMENT_RECEIVED_AT = Column("first_payment_received_at", datetime_column)
 
 
 class ProviderChildMapping(Table):

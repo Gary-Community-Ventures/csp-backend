@@ -4,7 +4,7 @@ Manual monthly allocation creation script.
 
 Usage:
     python app/scripts/create_monthly_allocations.py                    # Create for current month
-    python app/scripts/create_monthly_allocations.py --month 2024-03   # Create for specific month
+    python app/scripts/create_monthly_allocations.py --month 2025-08   # Create for specific month
     python app/scripts/create_monthly_allocations.py --next-month      # Create for next month
     python app/scripts/create_monthly_allocations.py --dry-run         # Show what would be created
 """
@@ -131,7 +131,7 @@ def main():
         epilog="""
 Examples:
   python app/scripts/create_monthly_allocations.py
-  python app/scripts/create_monthly_allocations.py --month 2024-03
+  python app/scripts/create_monthly_allocations.py --month 2025-08
   python app/scripts/create_monthly_allocations.py --next-month
   python app/scripts/create_monthly_allocations.py --dry-run --month 2024-04
         """,
@@ -148,7 +148,7 @@ Examples:
             try:
                 target_month = datetime.strptime(args.month, "%Y-%m").date()
             except ValueError:
-                print(f"❌ Invalid month format: {args.month}. Use YYYY-MM (e.g., 2024-03)")
+                print(f"❌ Invalid month format: {args.month}. Use YYYY-MM (e.g., 2025-08)")
                 sys.exit(1)
 
             result = create_allocations_for_month(target_month, args.dry_run)

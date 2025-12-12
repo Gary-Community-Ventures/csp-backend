@@ -3,6 +3,7 @@ from typing import Optional
 
 import sentry_sdk
 from flask import current_app
+from sqlalchemy.exc import IntegrityError
 
 from app.constants import MAX_ALLOCATION_AMOUNT_CENTS
 from app.supabase.helpers import cols, unwrap_or_error
@@ -47,7 +48,7 @@ class MonthAllocation(db.Model, TimestampMixin):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # Month/Year as first day of month (e.g., 2024-03-01 for March 2024)
+    # Month/Year as first day of month (e.g., 2025-08-01 for August 2025)
     date = db.Column(db.Date, nullable=False, index=True)
 
     # Allocation amounts
@@ -79,9 +80,20 @@ class MonthAllocation(db.Model, TimestampMixin):
     __table_args__ = (db.UniqueConstraint("child_supabase_id", "date", name="unique_child_month"),)
 
     @property
+    def total_reclaimed_cents(self):
+        """Total amount reclaimed from this allocation."""
+        return sum(reclamation.amount_cents for reclamation in self.reclaimed_funds)
+
+    @property
+    def net_allocation_cents(self):
+        """Effective allocation after reclamations.
+        This represents the actual funds available after any reclamations."""
+        return self.allocation_cents - self.total_reclaimed_cents
+
+    @property
     def selected_over_allocation(self):
-        """Check if allocated care days exceed the monthly allocation"""
-        return self.selected_cents > self.allocation_cents
+        """Check if allocated care days exceed the net monthly allocation"""
+        return self.selected_cents > self.net_allocation_cents
 
     @property
     def selected_cents(self):
@@ -101,28 +113,114 @@ class MonthAllocation(db.Model, TimestampMixin):
     @property
     def remaining_unselected_cents(self):
         """How much budget is left to select (create new care days/lump sums).
-        This prevents over-promising but doesn't reflect actual payment status."""
-        return self.allocation_cents - self.selected_cents
+        This prevents over-promising but doesn't reflect actual payment status.
+        Uses net allocation (after reclamations)."""
+        return self.net_allocation_cents - self.selected_cents
 
     @property
     def remaining_unpaid_cents(self):
         """How much allocation is actually left to use.
-        This is the real remaining allocation after successful payments."""
-        return self.allocation_cents - self.paid_cents
+        This is the real remaining allocation after successful payments and reclamations."""
+        return self.net_allocation_cents - self.paid_cents
 
     def can_add_care_day(self) -> bool:
         """Check if we can add a care day of given type without over-allocating"""
         return self.remaining_unselected_cents > 0
 
     def can_add_lump_sum(self, amount_cents: int) -> bool:
-        """Check if we can add a lump sum without over-allocating"""
-        return self.paid_cents + amount_cents <= self.allocation_cents
+        """Check if we can add a lump sum without over-allocating.
+        Uses net allocation (after reclamations)."""
+        return self.paid_cents + amount_cents <= self.net_allocation_cents
+
+    def reclaim_funds(self, amount_cents: int) -> "FundReclamation":
+        """
+        Reclaim a specific amount of funds from this allocation.
+
+        Args:
+            amount_cents: Amount to reclaim in cents
+
+        Returns:
+            FundReclamation record
+
+        Raises:
+            ValueError: If amount exceeds remaining unpaid funds or if reclamation fails
+        """
+        from app.models import FundReclamation
+
+        if amount_cents <= 0:
+            raise ValueError(f"Amount must be positive (got {amount_cents})")
+
+        if amount_cents > self.remaining_unpaid_cents:
+            raise ValueError(
+                f"Cannot reclaim ${amount_cents / 100:.2f} from allocation {self.id}. "
+                f"Only ${self.remaining_unpaid_cents / 100:.2f} remaining unpaid."
+            )
+
+        # Get family payment settings
+        from app.models import FamilyPaymentSettings
+
+        # Get child from Supabase to find family_id
+        child_results = Child.select_by_id(cols(Child.ID, Child.FAMILY_ID), int(self.child_supabase_id)).execute()
+        child = unwrap_or_error(child_results)
+        family_id = Child.FAMILY_ID(child)
+
+        if not family_id:
+            raise ValueError(f"Child {self.child_supabase_id} has no family_id")
+
+        # Query FamilyPaymentSettings with the family_id
+        family_payment_settings = FamilyPaymentSettings.query.filter_by(family_supabase_id=family_id).first()
+
+        if not family_payment_settings or not family_payment_settings.chek_user_id:
+            raise ValueError(f"No family payment settings found for child {self.child_supabase_id}")
+
+        # Reclaim via payment service
+        current_app.payment_service.reclaim_funds(
+            chek_user_id=family_payment_settings.chek_user_id,
+            amount=amount_cents,
+            month_allocation_id=self.id,
+        )
+
+        # Find and return the created FundReclamation record
+        fund_reclamation = (
+            FundReclamation.query.filter_by(month_allocation_id=self.id)
+            .order_by(FundReclamation.created_at.desc())
+            .first()
+        )
+
+        if not fund_reclamation:
+            raise ValueError("Failed to create FundReclamation record")
+
+        current_app.logger.info(
+            f"Reclaimed ${amount_cents / 100:.2f} from allocation {self.id} "
+            f"(child: {self.child_supabase_id}, date: {self.date.strftime('%Y-%m')})"
+        )
+
+        return fund_reclamation
+
+    def reclaim_remaining_funds(self) -> "FundReclamation":
+        """
+        Reclaim all remaining unpaid funds from this allocation.
+
+        Returns:
+            FundReclamation record, or None if no funds to reclaim
+
+        Raises:
+            ValueError: If reclamation fails
+        """
+        remaining = self.remaining_unpaid_cents
+
+        if remaining <= 0:
+            current_app.logger.info(
+                f"No funds to reclaim from allocation {self.id} "
+                f"(child: {self.child_supabase_id}, date: {self.date.strftime('%Y-%m')})"
+            )
+            return None
+
+        return self.reclaim_funds(remaining)
 
     @staticmethod
     def get_or_create_for_month(child_id: str, month_date: date):
         """Get existing allocation or create with default values"""
-        from sqlalchemy.exc import IntegrityError
-
         # Normalize to first of month
         month_start = month_date.replace(day=1)
 
