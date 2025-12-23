@@ -22,7 +22,7 @@ class BaseOnboarding(ABC):
     def __init__(self, chek_service):
         self.chek_service = chek_service
 
-    def chek_name_length(first: str, last: str) -> int:
+    def chek_name_length(self, first: str, last: str) -> int:
         return len(first) + 1 + len(last)  # +1 for space
 
     @abstractmethod
