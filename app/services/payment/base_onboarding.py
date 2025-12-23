@@ -99,6 +99,20 @@ class BaseOnboarding(ABC):
                     f"{entity_type.capitalize()} {external_id} has invalid phone number: {fields.get('phone_raw')}"
                 )
 
+            first_name = fields.get("first_name", "")
+            last_name = fields.get("last_name", "")
+            # Truncate names if they exceed Chek (actually Stripe internal to Chek) limits (24 characters total)
+            # Add 1 for space between names
+            if len(first_name) + 1 + len(last_name) > 24:
+                current_app.logger.warning(
+                    f"{entity_type.capitalize()} {external_id} has name length outside of chek (Stripe) limits {first_name} {last_name} ({len(first_name) + len(last_name)})"
+                )
+                # Truncate first name first
+                first_name = first_name.split(" ")[0][:12]
+                if len(first_name) + 1 + len(last_name) > 24:
+                    # Still too long, truncate last name
+                    last_name = last_name.split(" ")[0][: (24 - len(first_name) - 1)]
+
             # Check if Chek user already exists
             existing_chek_user = self.chek_service.get_user_by_email(fields["email"])
             balance = existing_chek_user.balance if existing_chek_user else 0
