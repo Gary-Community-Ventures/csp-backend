@@ -1,10 +1,11 @@
 """
-Backfill script to set first_payment_received_at for providers.
+Backfill script to set first_payment_received_at for providers and first_payment_sent_at for families.
 
 This script:
 1. Finds all providers in Supabase where first_payment_received_at is null
-2. Queries the local PostgreSQL database to find the first successful payment for each provider
-3. Updates Supabase with the created_at timestamp from that first payment
+2. Finds all families in Supabase where first_payment_sent_at is null
+3. Queries the local PostgreSQL database to find the first successful payment for each
+4. Updates Supabase with the created_at timestamp from that first payment
 
 Usage:
     python -m app.scripts.backfill_first_payment_received_at [--dry-run]
@@ -19,16 +20,14 @@ from sqlalchemy import func
 
 from app import create_app
 from app.models import Payment
+from app.models.family_payment_settings import FamilyPaymentSettings
 from app.supabase.helpers import cols, unwrap_or_error
-from app.supabase.tables import Provider
+from app.supabase.tables import Family, Provider
 
 
 def get_first_payment_per_provider():
-    """
-    Query the local database to get the first payment (by created_at) for each provider.
-    Returns a dict mapping provider_supabase_id -> first payment created_at datetime.
-    """
-    results = (
+    """Query the local database to get the first payment (by created_at) for each provider."""
+    return (
         Payment.query.with_entities(
             Payment.provider_supabase_id,
             func.min(Payment.created_at).label("first_payment_at"),
@@ -38,70 +37,88 @@ def get_first_payment_per_provider():
         .all()
     )
 
-    return results
 
-
-def update_provider_first_payment(provider_id: str, first_payment_at: str):
-    """Update a provider's first_payment_received_at in Supabase."""
-    Provider.query().update({Provider.FIRST_PAYMENT_RECEIVED_AT: first_payment_at}).eq(Provider.ID, provider_id).is_(
-        Provider.FIRST_PAYMENT_RECEIVED_AT, "null"
-    ).execute()
+def get_first_payment_per_family():
+    """Query the local database to get the first payment (by created_at) for each family."""
+    return (
+        Payment.query.with_entities(
+            FamilyPaymentSettings.family_supabase_id,
+            func.min(Payment.created_at).label("first_payment_at"),
+        )
+        .join(FamilyPaymentSettings, Payment.family_payment_settings_id == FamilyPaymentSettings.id)
+        .filter(FamilyPaymentSettings.family_supabase_id.isnot(None))
+        .group_by(FamilyPaymentSettings.family_supabase_id)
+        .all()
+    )
 
 
 def backfill_first_payment_received_at(dry_run: bool = False):
-    """Main function to backfill first_payment_received_at for all providers."""
+    """Main function to backfill first payment timestamps for providers and families."""
     mode = "DRY RUN" if dry_run else "LIVE"
-    app.logger.info(f"[{mode}] Starting backfill of first_payment_received_at...")
+    app.logger.info(f"[{mode}] Starting backfill of first payment timestamps...")
 
-    # Get providers that need updating
-    result = (
+    # Get providers and families that need updating
+    providers = unwrap_or_error(
         Provider.query()
         .select(cols(Provider.ID, Provider.NAME, Provider.FIRST_NAME, Provider.LAST_NAME))
         .is_(Provider.FIRST_PAYMENT_RECEIVED_AT, "null")
         .execute()
     )
-    providers = unwrap_or_error(result)
-    app.logger.info(f"Found {len(providers)} providers without first_payment_received_at set")
+    families = unwrap_or_error(
+        Family.query().select(cols(Family.ID)).is_(Family.FIRST_PAYMENT_SENT_AT, "null").execute()
+    )
+    app.logger.info(f"Found {len(providers)} providers and {len(families)} families to potentially update")
 
-    if len(providers) == 0:
-        app.logger.info("No providers to update")
+    if len(providers) == 0 and len(families) == 0:
+        app.logger.info("Nothing to update")
         return
 
     # Get first payment timestamps from local database
-    first_payments = get_first_payment_per_provider()
-    app.logger.info(f"Found {len(first_payments)} providers with payments in local database")
+    provider_first_payments = get_first_payment_per_provider()
+    family_first_payments = get_first_payment_per_family()
+    app.logger.info(
+        f"Found {len(provider_first_payments)} providers and {len(family_first_payments)} families with payments"
+    )
 
-    # Build set of provider IDs that need updating for quick lookup
     provider_ids_to_update = {Provider.ID(p) for p in providers}
+    family_ids_to_update = {Family.ID(f) for f in families}
 
-    updated_count = 0
-    for row in first_payments:
+    provider_updated = 0
+    for row in provider_first_payments:
         if row.provider_supabase_id not in provider_ids_to_update:
             continue
-
         first_payment_iso = row.first_payment_at.isoformat()
-
         app.logger.info(
-            f"[{mode}] Updating provider {row.provider_supabase_id}: "
-            f"first_payment_received_at = {first_payment_iso}"
+            f"[{mode}] Provider {row.provider_supabase_id}: first_payment_received_at = {first_payment_iso}"
         )
-
         if not dry_run:
-            update_provider_first_payment(row.provider_supabase_id, first_payment_iso)
-        updated_count += 1
+            Provider.query().update({Provider.FIRST_PAYMENT_RECEIVED_AT: first_payment_iso}).eq(
+                Provider.ID, row.provider_supabase_id
+            ).is_(Provider.FIRST_PAYMENT_RECEIVED_AT, "null").execute()
+        provider_updated += 1
 
-    skipped_count = len(providers) - updated_count
+    family_updated = 0
+    for row in family_first_payments:
+        if row.family_supabase_id not in family_ids_to_update:
+            continue
+        first_payment_iso = row.first_payment_at.isoformat()
+        app.logger.info(f"[{mode}] Family {row.family_supabase_id}: first_payment_sent_at = {first_payment_iso}")
+        if not dry_run:
+            Family.query().update({Family.FIRST_PAYMENT_SENT_AT: first_payment_iso}).eq(
+                Family.ID, row.family_supabase_id
+            ).is_(Family.FIRST_PAYMENT_SENT_AT, "null").execute()
+        family_updated += 1
+
     app.logger.info(
-        f"[{mode}] Backfill complete: {updated_count} providers updated, {skipped_count} skipped (no payments found)"
+        f"[{mode}] Backfill complete: {provider_updated} providers updated, {family_updated} families updated"
     )
 
 
 if __name__ == "__main__":
-    # Create Flask app context
     app = create_app()
     app.app_context().push()
 
-    parser = argparse.ArgumentParser(description="Backfill first_payment_received_at for providers")
+    parser = argparse.ArgumentParser(description="Backfill first payment timestamps for providers and families")
     parser.add_argument(
         "-d",
         "--dry-run",

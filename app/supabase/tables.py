@@ -56,6 +56,7 @@ class Family(Table):
     PORTAL_INVITE_SENT_AT = Column("portal_invite_sent_at", datetime_column)
     PROVIDER_INVITED_AT = Column("provider_invited_at", datetime_column)
     PROVIDER_APPROVED_AT = Column("provider_approved_at", datetime_column)
+    FIRST_PAYMENT_SENT_AT = Column("first_payment_sent_at", datetime_column)
 
 
 class Guardian(Table):
