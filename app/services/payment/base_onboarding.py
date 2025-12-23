@@ -113,6 +113,9 @@ class BaseOnboarding(ABC):
                     # Still too long, truncate last name
                     last_name = last_name.split(" ")[0][: (24 - len(first_name) - 1)]
 
+            # Ensure truncated names are used for subsequent operations (e.g., UserCreateRequest)
+            fields["first_name"] = first_name
+            fields["last_name"] = last_name
             # Check if Chek user already exists
             existing_chek_user = self.chek_service.get_user_by_email(fields["email"])
             balance = existing_chek_user.balance if existing_chek_user else 0
