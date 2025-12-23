@@ -14,6 +14,7 @@ MAX_ALLOCATION_AMOUNT_CENTS = 140000  # $1400 maximum per month allocation
 
 # --- Timing Constants ---
 CHEK_STATUS_STALE_MINUTES = 1  # Minutes before Chek status is considered stale
+CHEK_MAX_NAME_LENGTH = 24  # Max length for first and last names in Chek
 
 # --- Date Calculation Constants ---
 DAYS_TO_NEXT_MONTH = (
