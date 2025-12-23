@@ -105,7 +105,7 @@ class BaseOnboarding(ABC):
             # Add 1 for space between names
             if len(first_name) + 1 + len(last_name) > 24:
                 current_app.logger.warning(
-                    f"{entity_type.capitalize()} {external_id} has name length outside of chek (Stripe) limits {first_name} {last_name} ({len(first_name) + len(last_name)})"
+                    f"{entity_type.capitalize()} {external_id} has name length outside of Chek (Stripe) limits {first_name} {last_name} ({len(first_name) + len(last_name)})"
                 )
                 # Truncate first name first
                 first_name = first_name.split(" ")[0][:12]
