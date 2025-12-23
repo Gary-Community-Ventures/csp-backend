@@ -13,6 +13,7 @@ from app.extensions import db
 from app.integrations.chek.schemas import Address, UserCreateRequest
 from app.models import FamilyPaymentSettings, ProviderPaymentSettings
 from app.services.payment.utils import convert_state_to_code, format_phone_to_e164
+from app.constants import CHEK_MAX_NAME_LENGTH
 
 
 class BaseOnboarding(ABC):
@@ -20,6 +21,9 @@ class BaseOnboarding(ABC):
 
     def __init__(self, chek_service):
         self.chek_service = chek_service
+
+    def chek_name_length(first: str, last: str) -> int:
+        return len(first) + 1 + len(last)  # +1 for space
 
     @abstractmethod
     def get_entity_type_name(self) -> str:
@@ -102,21 +106,16 @@ class BaseOnboarding(ABC):
             first_name = fields.get("first_name", "")
             last_name = fields.get("last_name", "")
 
-            CHEK_MAX_NAME_LENGTH = 24
-
-            def name_length(first: str, last: str) -> int:
-                return len(first) + 1 + len(last)  # +1 for space
-
             # Truncate names if they exceed Chek (actually Stripe internal to Chek) limits (24 characters total)
-            if name_length(first_name, last_name) > CHEK_MAX_NAME_LENGTH:
+            if self.chek_name_length(first_name, last_name) > CHEK_MAX_NAME_LENGTH:
                 current_app.logger.warning(
-                    f"{entity_type.capitalize()} {external_id} has name length outside of Chek (Stripe) limits {first_name} {last_name} ({name_length(first_name, last_name)})"
+                    f"{entity_type.capitalize()} {external_id} has name length outside of Chek (Stripe) limits {first_name} {last_name} ({self.chek_name_length(first_name, last_name)})"
                 )
                 # Truncate first name first
                 first_name = first_name.split(" ")[0][: CHEK_MAX_NAME_LENGTH // 2]
-                if name_length(first_name, last_name) > CHEK_MAX_NAME_LENGTH:
+                if self.chek_name_length(first_name, last_name) > CHEK_MAX_NAME_LENGTH:
                     # Still too long, truncate last name
-                    last_name = last_name.split(" ")[0][: (CHEK_MAX_NAME_LENGTH - name_length(first_name, ""))]
+                    last_name = last_name.split(" ")[0][: (CHEK_MAX_NAME_LENGTH - len(first_name) - 1)]
 
             # Check if Chek user already exists
             existing_chek_user = self.chek_service.get_user_by_email(fields["email"])
