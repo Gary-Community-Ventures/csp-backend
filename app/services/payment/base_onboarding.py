@@ -101,21 +101,23 @@ class BaseOnboarding(ABC):
 
             first_name = fields.get("first_name", "")
             last_name = fields.get("last_name", "")
+
+            CHEK_MAX_NAME_LENGTH = 24
+
+            def name_length(first: str, last: str) -> int:
+                return len(first) + 1 + len(last)  # +1 for space
+
             # Truncate names if they exceed Chek (actually Stripe internal to Chek) limits (24 characters total)
-            # Add 1 for space between names
-            if len(first_name) + 1 + len(last_name) > 24:
+            if name_length(first_name, last_name) > CHEK_MAX_NAME_LENGTH:
                 current_app.logger.warning(
-                    f"{entity_type.capitalize()} {external_id} has name length outside of Chek (Stripe) limits {first_name} {last_name} ({len(first_name) + len(last_name)})"
+                    f"{entity_type.capitalize()} {external_id} has name length outside of Chek (Stripe) limits {first_name} {last_name} ({name_length(first_name, last_name)})"
                 )
                 # Truncate first name first
-                first_name = first_name.split(" ")[0][:12]
-                if len(first_name) + 1 + len(last_name) > 24:
+                first_name = first_name.split(" ")[0][: CHEK_MAX_NAME_LENGTH // 2]
+                if name_length(first_name, last_name) > CHEK_MAX_NAME_LENGTH:
                     # Still too long, truncate last name
-                    last_name = last_name.split(" ")[0][: (24 - len(first_name) - 1)]
+                    last_name = last_name.split(" ")[0][: (CHEK_MAX_NAME_LENGTH - name_length(first_name, ""))]
 
-            # Ensure truncated names are used for subsequent operations (e.g., UserCreateRequest)
-            fields["first_name"] = first_name
-            fields["last_name"] = last_name
             # Check if Chek user already exists
             existing_chek_user = self.chek_service.get_user_by_email(fields["email"])
             balance = existing_chek_user.balance if existing_chek_user else 0
@@ -130,8 +132,8 @@ class BaseOnboarding(ABC):
                 user_request = UserCreateRequest(
                     email=fields["email"],
                     phone=phone,
-                    first_name=fields.get("first_name", ""),
-                    last_name=fields.get("last_name", ""),
+                    first_name=first_name,
+                    last_name=last_name,
                     address=Address(
                         line1=fields.get("address_line1") or "",
                         line2=fields.get("address_line2") or "",
