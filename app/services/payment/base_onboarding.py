@@ -25,6 +25,21 @@ class BaseOnboarding(ABC):
     def chek_name_length(self, first: str, last: str) -> int:
         return len(first) + 1 + len(last)  # +1 for space
 
+    def get_names_for_chek(self, first_name: str, last_name: str) -> str:
+        """Format name for Chek, ensuring it meets length requirements."""
+        # Truncate names if they exceed Chek (actually Stripe internal to Chek) limits (24 characters total)
+        if self.chek_name_length(first_name, last_name) > CHEK_MAX_NAME_LENGTH:
+            current_app.logger.warning(
+                f"Name length outside of Chek (Stripe) limits {first_name} {last_name} ({self.chek_name_length(first_name, last_name)})"
+            )
+            # Truncate last name first
+            last_name = last_name.split(" ")[0][: CHEK_MAX_NAME_LENGTH // 2]
+            if self.chek_name_length(first_name, last_name) > CHEK_MAX_NAME_LENGTH:
+                # Still too long, truncate first name
+                first_name = first_name.split(" ")[0][: (CHEK_MAX_NAME_LENGTH - len(last_name) - 1)]
+
+        return first_name, last_name
+
     @abstractmethod
     def get_entity_type_name(self) -> str:
         """Return the entity type name (e.g., 'provider' or 'family')."""
@@ -103,19 +118,8 @@ class BaseOnboarding(ABC):
                     f"{entity_type.capitalize()} {external_id} has invalid phone number: {fields.get('phone_raw')}"
                 )
 
-            first_name = fields.get("first_name", "")
-            last_name = fields.get("last_name", "")
-
-            # Truncate names if they exceed Chek (actually Stripe internal to Chek) limits (24 characters total)
-            if self.chek_name_length(first_name, last_name) > CHEK_MAX_NAME_LENGTH:
-                current_app.logger.warning(
-                    f"{entity_type.capitalize()} {external_id} has name length outside of Chek (Stripe) limits {first_name} {last_name} ({self.chek_name_length(first_name, last_name)})"
-                )
-                # Truncate first name first
-                first_name = first_name.split(" ")[0][: CHEK_MAX_NAME_LENGTH // 2]
-                if self.chek_name_length(first_name, last_name) > CHEK_MAX_NAME_LENGTH:
-                    # Still too long, truncate last name
-                    last_name = last_name.split(" ")[0][: (CHEK_MAX_NAME_LENGTH - len(first_name) - 1)]
+            # Format name for Chek
+            first_name, last_name = self.get_names_for_chek(fields.get("first_name", ""), fields.get("last_name", ""))
 
             # Check if Chek user already exists
             existing_chek_user = self.chek_service.get_user_by_email(fields["email"])
