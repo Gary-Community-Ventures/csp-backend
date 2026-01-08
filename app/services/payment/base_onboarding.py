@@ -121,7 +121,9 @@ class BaseOnboarding(ABC):
                 )
 
             # Format name for Chek
-            first_name, last_name = self.get_names_for_chek(fields.get("first_name", ""), fields.get("last_name", ""))
+            first_name, last_name = BaseOnboarding.get_names_for_chek(
+                fields.get("first_name", ""), fields.get("last_name", "")
+            )
 
             # Check if Chek user already exists
             existing_chek_user = self.chek_service.get_user_by_email(fields["email"])
