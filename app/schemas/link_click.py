@@ -8,10 +8,11 @@ class LinkClickBase(BaseModel):
 class LinkClickCreate(LinkClickBase):
     pass
 
+
 class LinkClickGetArgs(LinkClickBase):
     pass
 
 
 class LinkClickResponse(LinkClickBase):
-    
+
     model_config = {"from_attributes": True}
