@@ -15,6 +15,7 @@ from .payment_request import PaymentRequest
 from .provider_invitation import ProviderInvitation
 from .provider_payment_settings import ProviderPaymentSettings
 from .user_activity import UserActivity
+from .link_click_track import LinkClickTrack
 
 __all__ = [
     "PaymentRequest",
@@ -34,4 +35,5 @@ __all__ = [
     "PaymentIntent",
     "FamilyPaymentSettings",
     "UserActivity",
+    "LinkClickTrack",
 ]
