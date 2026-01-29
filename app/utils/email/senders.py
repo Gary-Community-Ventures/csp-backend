@@ -35,13 +35,11 @@ def system_message(subject: str, description: str, rows: list[SystemMessageRow])
     """Create a system message email template with a table of information."""
     html_rows: list[str] = []
     for row in rows:
-        html_rows.append(
-            f"""
+        html_rows.append(f"""
             <tr{' style="background-color: #f2f2f2;"' if len(html_rows) % 2 == 0 else ""}>
                 <td style="padding: 10px; border: 1px solid #ddd;"><strong>{row.title}:</strong></td>
                 <td style="padding: 10px; border: 1px solid #ddd;">{row.value}</td>
-            </tr>"""
-        )
+            </tr>""")
 
     return f"""
     <html>

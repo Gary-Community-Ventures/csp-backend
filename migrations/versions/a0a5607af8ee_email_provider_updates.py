@@ -35,14 +35,12 @@ def upgrade():
 
     # Backfill existing records with 'sendgrid' as the provider
     # Only update records that have a provider_message_id (meaning they were sent via SendGrid)
-    op.execute(
-        """
+    op.execute("""
         UPDATE email_record
         SET email_provider = 'sendgrid'
         WHERE provider_message_id IS NOT NULL
         AND email_provider IS NULL
-        """
-    )
+        """)
 
     # ### end Alembic commands ###
 
