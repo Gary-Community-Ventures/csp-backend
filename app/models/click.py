@@ -1,14 +1,12 @@
 import uuid
 from typing import Optional
 
-from sqlalchemy.dialects.postgresql import UUID
-
 from ..extensions import db
 from .mixins import TimestampMixin
 
 
 class Click(db.Model, TimestampMixin):
-    id = db.Column(UUID(as_uuid=True), index=True, primary_key=True, default=uuid.uuid4)
+    id = db.Column(db.UUID(as_uuid=True), index=True, primary_key=True, default=uuid.uuid4)
 
     tracking_id = db.Column(db.String(128), nullable=False, index=True)
     click_count = db.Column(db.Integer, nullable=False, default=1)
@@ -23,6 +21,9 @@ class Click(db.Model, TimestampMixin):
     __table_args__ = (
         db.UniqueConstraint("provider_supabase_id", "tracking_id", name="tracking_id_provider"),
         db.UniqueConstraint("family_supabase_id", "tracking_id", name="tracking_id_family"),
+        db.CheckConstraint(
+            "provider_supabase_id IS NOT NULL OR family_supabase_id IS NOT NULL", name="click_requires_user_id"
+        ),
     )
 
     @staticmethod

@@ -80,16 +80,9 @@ def send_care_days_payment_email(
     )
 
     subject = "Care Days Payment Processed"
-    description = (
-        f"Payment has been successfully processed for the following care days:"
-    )
+    description = f"Payment has been successfully processed for the following care days:"
 
-    care_day_info = "<br>".join(
-        [
-            f"{day.date} - {day.type.value} (${day.amount_cents / 100:.2f})"
-            for day in care_days
-        ]
-    )
+    care_day_info = "<br>".join([f"{day.date} - {day.type.value} (${day.amount_cents / 100:.2f})" for day in care_days])
 
     if not care_day_info:
         current_app.logger.error("No care days provided for payment request email.")
@@ -202,15 +195,11 @@ def send_lump_sum_payment_email(
     )
 
 
-def send_provider_invited_email(
-    family_name: str, family_id: str, provider_email: str, ids: list[str]
-):
+def send_provider_invited_email(family_name: str, family_id: str, provider_email: str, ids: list[str]):
     """Send notification when a family invites a provider."""
     from_email, to_emails = get_internal_email_config()
 
-    current_app.logger.info(
-        f"Sending invite sent request email to {to_emails} for family ID: {family_id}"
-    )
+    current_app.logger.info(f"Sending invite sent request email to {to_emails} for family ID: {family_id}")
 
     rows = [
         SystemMessageRow(
@@ -303,9 +292,7 @@ def send_provider_invite_accept_email(
     )
 
 
-def send_new_payment_rate_email(
-    provider_id: str, child_id: str, half_day_rate_cents: int, full_day_rate_cents: int
-):
+def send_new_payment_rate_email(provider_id: str, child_id: str, half_day_rate_cents: int, full_day_rate_cents: int):
     """Send notification when a new payment rate is created."""
     from_email, to_emails = get_internal_email_config()
 
@@ -387,9 +374,7 @@ def send_payment_notification(
     )
 
     if not provider_email:
-        current_app.logger.warning(
-            f"Provider {provider_id} has no email address. Skipping notification."
-        )
+        current_app.logger.warning(f"Provider {provider_id} has no email address. Skipping notification.")
         return False
 
     # Use the template to build the email content in the provider's preferred language
@@ -431,15 +416,11 @@ def send_payment_notification(
     )
 
 
-def send_family_invited_email(
-    provider_name: str, provider_id: str, family_email: str, id: str
-):
+def send_family_invited_email(provider_name: str, provider_id: str, family_email: str, id: str):
     """Send notification when a provider invites a family."""
     from_email, to_emails = get_internal_email_config()
 
-    current_app.logger.info(
-        f"Sending invite sent request email to {to_emails} for provider ID: {provider_id}"
-    )
+    current_app.logger.info(f"Sending invite sent request email to {to_emails} for provider ID: {provider_id}")
 
     rows = [
         SystemMessageRow(
@@ -533,9 +514,7 @@ def send_provider_attendance_completed_email(
 ):
     from_email, to_emails = get_internal_email_config()
 
-    current_app.logger.info(
-        f"Sending accept invite request email to {to_emails} for provider ID: {provider_id}"
-    )
+    current_app.logger.info(f"Sending accept invite request email to {to_emails} for provider ID: {provider_id}")
 
     rows = [
         SystemMessageRow(
@@ -554,9 +533,7 @@ def send_provider_attendance_completed_email(
         )
 
     subject = "New Provider Attendance Notification"
-    description = (
-        f"A new provider has submitted attendance for the following care days:"
-    )
+    description = f"A new provider has submitted attendance for the following care days:"
     html_content = system_message(subject, description, rows)
 
     return send_email(
@@ -581,9 +558,7 @@ def send_family_attendance_completed_email(
 ):
     from_email, to_emails = get_internal_email_config()
 
-    current_app.logger.info(
-        f"Sending attendance completed email to {to_emails} for family ID: {family_id}"
-    )
+    current_app.logger.info(f"Sending attendance completed email to {to_emails} for family ID: {family_id}")
 
     rows = [
         SystemMessageRow(
