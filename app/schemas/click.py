@@ -8,7 +8,7 @@ class ClickBase(BaseModel):
 
 
 class ClickCreate(ClickBase):
-    url: Optional[str] = Field(..., max_length=2048)
+    url: Optional[str] = Field(None, max_length=2048)
 
 
 class ClickGetQuery(ClickBase):
