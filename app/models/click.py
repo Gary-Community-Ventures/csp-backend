@@ -10,7 +10,7 @@ from .mixins import TimestampMixin
 class Click(db.Model, TimestampMixin):
     id = db.Column(UUID(as_uuid=True), index=True, primary_key=True, default=uuid.uuid4)
 
-    tracking_id = db.Column(db.String(128), nullable=True, index=True)
+    tracking_id = db.Column(db.String(128), nullable=False, index=True)
     click_count = db.Column(db.Integer, nullable=False, default=1)
 
     # Optional URL associated with the click

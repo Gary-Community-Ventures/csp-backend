@@ -1,8 +1,8 @@
 """track clicks
 
-Revision ID: 26bca81e0d50
+Revision ID: 899711cd49c7
 Revises: 65d10f523ee5
-Create Date: 2026-01-29 01:09:42.086474
+Create Date: 2026-01-29 22:19:56.614002
 
 """
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "26bca81e0d50"
+revision = "899711cd49c7"
 down_revision = "65d10f523ee5"
 branch_labels = None
 depends_on = None
@@ -21,7 +21,7 @@ def upgrade():
     op.create_table(
         "click",
         sa.Column("id", sa.UUID(), nullable=False),
-        sa.Column("tracking_id", sa.String(length=128), nullable=True),
+        sa.Column("tracking_id", sa.String(length=128), nullable=False),
         sa.Column("click_count", sa.Integer(), nullable=False),
         sa.Column("url", sa.String(length=2048), nullable=True),
         sa.Column("provider_supabase_id", sa.String(length=64), nullable=True),
