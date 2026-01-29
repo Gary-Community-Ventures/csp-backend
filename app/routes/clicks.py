@@ -14,12 +14,12 @@ from app.schemas.click import (
 bp = Blueprint("click_bp", __name__)
 
 
-def _get_existing_click(provider_id: str | None, family_id: str | None, url: str) -> Click | None:
+def _get_existing_click(provider_id: str | None, family_id: str | None, tracking_id: str) -> Click | None:
     existing_click = None
     if provider_id:
-        existing_click = Click.get_by_provider(provider_id=provider_id, url=url)
+        existing_click = Click.get_by_provider(provider_id=provider_id, tracking_id=tracking_id)
     if family_id and not existing_click:
-        existing_click = Click.get_by_family(family_id=family_id, url=url)
+        existing_click = Click.get_by_family(family_id=family_id, tracking_id=tracking_id)
     return existing_click
 
 
