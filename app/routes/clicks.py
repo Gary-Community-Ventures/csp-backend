@@ -48,6 +48,7 @@ def create_click():
         provider_id=provider_id,
         family_id=family_id,
         tracking_id=click_data.tracking_id,
+        url=click_data.url,
     )
     db.session.add(click)
     db.session.commit()
