@@ -80,4 +80,4 @@ def get_click_record():
     if existing_click := _get_existing_click(provider_id, family_id, click_data.tracking_id):
         return jsonify(ClickResponse.model_validate(existing_click).model_dump()), 200
 
-    return jsonify({"error": "click record not found"}), 404
+    return jsonify({"error": "Click record not found"}), 404
