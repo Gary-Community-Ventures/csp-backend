@@ -40,8 +40,12 @@ def create_click():
         return jsonify({"error": "User must be associated with either a provider or a family"}), 400
 
     if existing_click := _get_existing_click(provider_id, family_id, click_data.tracking_id):
-        existing_click.click_count += 1
+        db.session.query(Click).filter(Click.id == existing_click.id).update(
+            {Click.click_count: Click.click_count + 1},
+            synchronize_session=False,
+        )
         db.session.commit()
+        db.session.refresh(existing_click)
         return jsonify(ClickResponse.model_validate(existing_click).model_dump()), 200
 
     click = Click.create(
