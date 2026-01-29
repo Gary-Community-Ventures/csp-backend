@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
 
 from app.auth.decorators import ClerkUserType, auth_required
 from app.auth.helpers import get_current_user
@@ -55,7 +56,24 @@ def create_click():
         url=click_data.url,
     )
     db.session.add(click)
-    db.session.commit()
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # Race condition: another request created the same click record between our
+        # existence check and insert. Rollback and increment the existing record instead.
+        db.session.rollback()
+        existing_click = _get_existing_click(provider_id, family_id, click_data.tracking_id)
+        if existing_click:
+            db.session.query(Click).filter(Click.id == existing_click.id).update(
+                {Click.click_count: Click.click_count + 1},
+                synchronize_session=False,
+            )
+            db.session.commit()
+            db.session.refresh(existing_click)
+            return jsonify(ClickResponse.model_validate(existing_click).model_dump()), 200
+        # If we still can't find it, something unexpected happened - re-raise
+        raise
 
     return jsonify(ClickResponse.model_validate(click).model_dump()), 201
 
