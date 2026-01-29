@@ -64,7 +64,7 @@ def create_click():
 @auth_required(ClerkUserType.NONE)
 def get_click_record():
     """Get the click record."""
-    # Get url parameter
+    # Parse query parameters from the URL
     try:
         click_data = ClickGetQuery(**request.args)
     except ValidationError as e:
