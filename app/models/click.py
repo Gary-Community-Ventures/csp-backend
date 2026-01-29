@@ -27,12 +27,12 @@ class Click(db.Model, TimestampMixin):
 
     @staticmethod
     def get_by_provider(provider_id: str, tracking_id: str) -> Optional["Click"]:
-        """Get existing click or create a new one"""
+        """Get existing click by provider ID and tracking ID"""
         return Click.query.filter_by(provider_supabase_id=provider_id, tracking_id=tracking_id).first()
 
     @staticmethod
     def get_by_family(family_id: str, tracking_id: str) -> Optional["Click"]:
-        """Get existing click by family ID or create a new one"""
+        """Get existing click by family ID and tracking ID"""
         return Click.query.filter_by(family_supabase_id=family_id, tracking_id=tracking_id).first()
 
     @staticmethod
