@@ -22,19 +22,25 @@ def upgrade():
         batch_op.add_column(sa.Column("email_provider", sa.String(length=50), nullable=True))
         batch_op.alter_column("sendgrid_message_id", new_column_name="provider_message_id")
         batch_op.alter_column("sendgrid_status_code", new_column_name="provider_status_code")
-        batch_op.create_index(batch_op.f("ix_email_record_email_provider"), ["email_provider"], unique=False)
-        batch_op.create_index(batch_op.f("ix_email_record_provider_message_id"), ["provider_message_id"], unique=False)
+        batch_op.create_index(
+            batch_op.f("ix_email_record_email_provider"),
+            ["email_provider"],
+            unique=False,
+        )
+        batch_op.create_index(
+            batch_op.f("ix_email_record_provider_message_id"),
+            ["provider_message_id"],
+            unique=False,
+        )
 
     # Backfill existing records with 'sendgrid' as the provider
     # Only update records that have a provider_message_id (meaning they were sent via SendGrid)
-    op.execute(
-        """
+    op.execute("""
         UPDATE email_record
         SET email_provider = 'sendgrid'
         WHERE provider_message_id IS NOT NULL
         AND email_provider IS NULL
-        """
-    )
+        """)
 
     # ### end Alembic commands ###
 
