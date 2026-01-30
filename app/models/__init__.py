@@ -2,6 +2,7 @@ from .allocated_care_day import AllocatedCareDay
 from .allocated_lump_sum import AllocatedLumpSum
 from .attendance import Attendance
 from .bulk_email_batch import BulkEmailBatch
+from .click import Click
 from .email_record import EmailRecord
 from .family_invitation import FamilyInvitation
 from .family_payment_settings import FamilyPaymentSettings
@@ -34,4 +35,5 @@ __all__ = [
     "PaymentIntent",
     "FamilyPaymentSettings",
     "UserActivity",
+    "Click",
 ]

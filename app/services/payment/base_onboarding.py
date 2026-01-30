@@ -8,12 +8,12 @@ from typing import Optional, Union
 import sentry_sdk
 from flask import current_app
 
+from app.constants import CHEK_MAX_NAME_LENGTH
 from app.exceptions import DataNotFoundException
 from app.extensions import db
 from app.integrations.chek.schemas import Address, UserCreateRequest
 from app.models import FamilyPaymentSettings, ProviderPaymentSettings
 from app.services.payment.utils import convert_state_to_code, format_phone_to_e164
-from app.constants import CHEK_MAX_NAME_LENGTH
 
 
 class BaseOnboarding(ABC):

@@ -158,6 +158,7 @@ def create_app(config_class=None):
     from .routes.auth import bp as auth_bp
     from .routes.care_day import bp as care_day_bp
     from .routes.child import bp as child_bp
+    from .routes.clicks import bp as click_tracking_bp
     from .routes.family import bp as family_bp
     from .routes.lump_sum import bp as lump_sum_bp
     from .routes.main import bp as main_bp
@@ -191,6 +192,8 @@ def create_app(config_class=None):
     csrf.exempt(supabase_bp)
     app.register_blueprint(webhooks_bp)
     csrf.exempt(webhooks_bp)
+    app.register_blueprint(click_tracking_bp)
+    csrf.exempt(click_tracking_bp)
 
     # --- Register Middleware ---
     from .middleware.activity_tracking import track_user_activity
