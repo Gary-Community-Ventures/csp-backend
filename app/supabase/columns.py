@@ -56,6 +56,7 @@ class Status(str, Enum):
     UNDER_REVIEW = "Under Review"
     APPLICATION_WITHDRAWN = "Application Withdrawn"
     DISCOUNTINUED = "Discontinued"
+    DISENROLLED = "Disenrolled"
 
     def _missing_(self, value) -> "Status":
         return Status.PENDING
