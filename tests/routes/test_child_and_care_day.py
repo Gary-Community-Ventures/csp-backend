@@ -107,8 +107,8 @@ def test_create_care_day_duplicate_date_same_provider(client, seed_db):
             "type": CareDayType.FULL_DAY.value,
         },
     )
-    assert response.status_code == 400
-    assert "Care day already exists for this date" in response.json["error"]
+    assert response.status_code == 201
+    assert response.json["id"] == care_day_new.id
 
 
 def test_get_month_allocation_no_provider_id(client, seed_db, app):
