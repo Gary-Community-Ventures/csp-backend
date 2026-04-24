@@ -158,11 +158,13 @@ class ChekService:
                 status["direct_pay_id"] = str(user_details.directpay.id)
                 status["direct_pay_status"] = user_details.directpay.status
 
-            # Extract card status (assuming first card is primary)
+            # Extract card status - assuming one card per user for simplicity, but this can be extended to handle multiple cards if needed
             if user_details.cards:
-                first_card = user_details.cards[0]
-                status["card_id"] = str(first_card.id)
-                status["card_status"] = first_card.status
+                for card in user_details.cards:
+                    current_app.logger.debug(f"Provider {chek_user_id} card details: {card.id}")
+                    if card.status == "Active":
+                        status["card_id"] = str(card.id)
+                        status["card_status"] = card.status
 
             return status
 
