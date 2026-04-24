@@ -161,7 +161,7 @@ class ChekService:
             # Extract card status - assuming one card per user for simplicity, but this can be extended to handle multiple cards if needed
             if user_details.cards:
                 for card in user_details.cards:
-                    current_app.logger.debug(f"Provider {chek_user_id} card details: {card}")
+                    current_app.logger.debug(f"Provider {chek_user_id} card details: {card.id}")
                     if card.status == "Active":
                         status["card_id"] = str(card.id)
                         status["card_status"] = card.status
