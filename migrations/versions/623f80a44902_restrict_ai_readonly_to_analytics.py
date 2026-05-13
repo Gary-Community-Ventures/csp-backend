@@ -29,8 +29,7 @@ def downgrade():
     # Best-effort restoration of the pre-migration grants: broad SELECT on
     # public, no analytics access, and ai_readonly's role-level GUCs reset to
     # the cluster defaults.
-    op.execute(
-        """
+    op.execute("""
         REVOKE SELECT ON ALL TABLES IN SCHEMA analytics FROM ai_readonly;
         REVOKE USAGE ON SCHEMA analytics FROM ai_readonly;
         ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA analytics
@@ -45,8 +44,9 @@ def downgrade():
         ALTER ROLE ai_readonly RESET idle_in_transaction_session_timeout;
         ALTER ROLE ai_readonly RESET lock_timeout;
         ALTER ROLE ai_readonly RESET search_path;
-        """
-    )
+        """)
+
+
 """Restrict ai_readonly to analytics schema
 
 Revision ID: 623f80a44902
@@ -78,8 +78,7 @@ def downgrade():
     # Best-effort restoration of the pre-migration grants: broad SELECT on
     # public, no analytics access, and ai_readonly's role-level GUCs reset to
     # the cluster defaults.
-    op.execute(
-        """
+    op.execute("""
         REVOKE SELECT ON ALL TABLES IN SCHEMA analytics FROM ai_readonly;
         REVOKE USAGE ON SCHEMA analytics FROM ai_readonly;
         ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA analytics
@@ -94,5 +93,4 @@ def downgrade():
         ALTER ROLE ai_readonly RESET idle_in_transaction_session_timeout;
         ALTER ROLE ai_readonly RESET lock_timeout;
         ALTER ROLE ai_readonly RESET search_path;
-        """
-    )
+        """)

@@ -53,6 +53,8 @@ def downgrade():
     for view in _VIEW_NAMES:
         op.execute(f"DROP VIEW IF EXISTS analytics.{view}")
     op.execute("DROP SCHEMA IF EXISTS analytics")
+
+
 """Create analytics schema with curated PII-light views
 
 Revision ID: 802e3181c595
