@@ -1,10 +1,11 @@
 import argparse
 from dataclasses import dataclass
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone
 
 from flask import current_app
 
 from app import create_app
+from app.constants import PROGRAM_END_MONTH_START
 from app.enums.email_type import EmailType
 from app.models.provider_invitation import ProviderInvitation
 from app.services.payment.utils import format_phone_to_e164
@@ -60,9 +61,9 @@ def message(family_name: str, default_child_id: str, language: Language):
 
 
 def send_invite_reminders(dry_run=False):
-    # Past July 1st 2026, we will no longer send invite reminders
-    if get_business_today() >= date(2026, 7, 1):
-        current_app.logger.info("No invite reminders will be sent after July 1st, 2026.")
+    # Past the program-end cutoff, we will no longer send invite reminders.
+    if get_business_today() >= PROGRAM_END_MONTH_START:
+        current_app.logger.info(f"No invite reminders will be sent on/after {PROGRAM_END_MONTH_START.isoformat()}.")
         return
 
     family_result = (

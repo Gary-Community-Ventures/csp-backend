@@ -1,10 +1,11 @@
 import argparse
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 
 from flask import current_app
 
 from app import create_app
+from app.constants import ATTENDANCE_CUTOFF_DATE
 from app.enums.email_type import EmailType
 from app.models.attendance import Attendance
 from app.services.payment.utils import format_phone_to_e164
@@ -274,9 +275,11 @@ class ProviderAttendanceMessages(AttendanceMessages):
 
 
 def send_attendance_communications(send_to_families=False, send_to_providers=False, dry_run=False):
-    # Past July 7th 2026, we will no longer send attendance communications
-    if get_business_today() >= date(2026, 7, 7):
-        current_app.logger.info("No attendance communications will be sent after July 7th, 2026.")
+    # Past the attendance cutoff, we will no longer send attendance communications.
+    if get_business_today() >= ATTENDANCE_CUTOFF_DATE:
+        current_app.logger.info(
+            f"No attendance communications will be sent on/after {ATTENDANCE_CUTOFF_DATE.isoformat()}."
+        )
         return
 
     current_app.logger.info("create_attendance: Starting attendance creation...")

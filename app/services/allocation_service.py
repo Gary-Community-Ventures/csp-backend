@@ -9,6 +9,7 @@ from typing import Any, Optional
 import sentry_sdk
 from flask import current_app
 
+from app.constants import PROGRAM_END_MONTH_START
 from app.supabase.helpers import cols, format_name, unwrap_or_error
 from app.supabase.tables import Child
 
@@ -173,8 +174,8 @@ class AllocationService:
 
         self.app.logger.info(f"Processing allocation for {child_name} ({child_id}) for {target_month}")
 
-        # If July 2026 or later, skip allocation creation
-        if target_month >= date(2026, 7, 1):
+        # If past the program-end cutoff, skip allocation creation
+        if target_month >= PROGRAM_END_MONTH_START:
             self.app.logger.info(f"Skipping allocation for {child_name} ({child_id}) for {target_month} (after cutoff)")
             return ("skipped", None, None)
 

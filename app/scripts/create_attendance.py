@@ -4,6 +4,7 @@ from datetime import date
 from flask import current_app
 
 from app import create_app
+from app.constants import ATTENDANCE_CUTOFF_DATE
 from app.extensions import db
 from app.models import Attendance
 from app.models.allocated_care_day import AllocatedCareDay
@@ -26,11 +27,6 @@ def create_child_provider_attendance(
     if not Provider.PAYMENT_ENABLED(provider):
         return
 
-    # Do not RUN create attendance past July 7th, 2026
-    if get_business_today() >= date(2026, 7, 7):
-        current_app.logger.info("No attendance records will be created after July 7th, 2026.")
-        return
-
     if Provider.TYPE(provider) != ProviderType.CENTER:
         # NOTE: don't create attendance for providers that are not scheduled
         week_start, week_end = last_week_range
@@ -49,6 +45,12 @@ def create_child_provider_attendance(
 
 
 def create_attendance(dry_run=False):
+    # Short-circuit once the program-end attendance cutoff has passed so a
+    # manual rerun in the July 7-12 window doesn't iterate every child/provider.
+    if get_business_today() >= ATTENDANCE_CUTOFF_DATE:
+        current_app.logger.info(f"No attendance records will be created on/after {ATTENDANCE_CUTOFF_DATE.isoformat()}.")
+        return
+
     current_app.logger.info("create_attendance: Starting attendance creation...")
 
     children_result = (
@@ -75,11 +77,6 @@ def create_attendance(dry_run=False):
 
     last_week_date = get_relative_week(-1, get_business_today())
     last_week_range = get_week_range(last_week_date)
-
-    # Do not create attendance past July 1st, 2026
-    if last_week_date >= date(2026, 7, 1):
-        current_app.logger.info("No attendance records will be created after July 1st, 2026.")
-        return
 
     attendances: list[Attendance] = []
     for child in children:
