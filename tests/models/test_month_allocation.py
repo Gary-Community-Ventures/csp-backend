@@ -73,3 +73,37 @@ def test_get_or_create_for_month_next_month_allowed(mock_get_allocation_amount, 
         assert allocation.child_supabase_id == "1"
         assert allocation.date == next_month_date
         assert allocation.allocation_cents == 50000
+
+
+@patch("app.models.month_allocation.get_allocation_amount")
+def test_get_or_create_for_month_july_2026_rejected(mock_get_allocation_amount, db_session):
+    """Test that creating an allocation for July 2026 is rejected by the program-end cutoff."""
+    mock_get_allocation_amount.return_value = 50000
+
+    # Simulate being in June 2026 so July 2026 passes the "next month" check
+    # and the rejection comes specifically from the July 2026 cutoff.
+    with patch("app.utils.date_utils.datetime") as mock_dt:
+        mock_dt.now.return_value = datetime(2026, 6, 1)
+        mock_dt.date.today.return_value = date(2026, 6, 1)
+        mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
+
+        with pytest.raises(ValueError, match="Cannot create allocation for July 2026 or beyond."):
+            MonthAllocation.get_or_create_for_month(child_id="1", month_date=date(2026, 7, 1))
+
+
+@patch("app.models.month_allocation.get_allocation_amount")
+def test_get_or_create_for_month_june_2026_allowed(mock_get_allocation_amount, db_session):
+    """Test that creating an allocation for June 2026 is allowed (last month before the cutoff)."""
+    mock_get_allocation_amount.return_value = 50000
+
+    # Simulate being in May 2026 so June 2026 is "next month" and sits just
+    # below the July 2026 cutoff.
+    with patch("app.utils.date_utils.datetime") as mock_dt:
+        mock_dt.now.return_value = datetime(2026, 5, 1)
+        mock_dt.date.today.return_value = date(2026, 5, 1)
+        mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
+
+        allocation = MonthAllocation.get_or_create_for_month(child_id="1", month_date=date(2026, 6, 1))
+        assert allocation.child_supabase_id == "1"
+        assert allocation.date == date(2026, 6, 1)
+        assert allocation.allocation_cents == 50000

@@ -105,9 +105,17 @@ def should_send_reminder(child: dict, week_range: tuple[date, date]):
 
 
 def send_payment_reminders(dry_run=False):
-    # Past July 1st 2026, we will no longer send payment reminders
-    if date.today() >= date(2026, 7, 1):
-        current_app.logger.info("No payment reminders will be sent after July 1st, 2026.")
+    next_week_range = get_week_range(get_relative_week(1))
+    _, next_week_end = next_week_range
+
+    # July 2026 allocations are not created, so a reminder for a week whose
+    # allocation month is July or later has nothing to pay against. This also
+    # catches the late-June Friday run whose next-week range crosses into July.
+    if next_week_end.replace(day=1) >= date(2026, 7, 1):
+        current_app.logger.info(
+            f"No payment reminders will be sent for week ending {next_week_end.isoformat()} "
+            "(no allocations on/after July 2026)."
+        )
         return
 
     family_result = (
@@ -138,8 +146,6 @@ def send_payment_reminders(dry_run=False):
         .execute()
     )
     families = unwrap_or_error(family_result)
-
-    next_week_range = get_week_range(get_relative_week(1))
 
     emails: list[BulkEmailData] = []
     sms: list[BulkSmsData] = []
