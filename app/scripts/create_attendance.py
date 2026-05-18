@@ -26,7 +26,7 @@ def create_child_provider_attendance(
     if not Provider.PAYMENT_ENABLED(provider):
         return
 
-    # Do not create attendance past July 7th, 2026
+    # Do not RUN create attendance past July 7th, 2026
     if date.today() >= date(2026, 7, 7):
         current_app.logger.info("No attendance records will be created after July 7th, 2026.")
         return
