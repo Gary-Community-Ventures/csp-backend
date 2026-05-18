@@ -1,11 +1,11 @@
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import Optional
 
 import sentry_sdk
 from flask import current_app
 from sqlalchemy.exc import IntegrityError
 
-from app.constants import MAX_ALLOCATION_AMOUNT_CENTS
+from app.constants import MAX_ALLOCATION_AMOUNT_CENTS, PROGRAM_END_MONTH_START
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child
 from app.utils.date_utils import get_current_month_start, get_next_month_start
@@ -233,6 +233,10 @@ class MonthAllocation(db.Model, TimestampMixin):
         next_month_start = get_next_month_start()
         if month_start > next_month_start:
             raise ValueError(f"Cannot create allocation for a month more than one month in the future.")
+
+        # Prevent creating allocations on/after the program-end cutoff.
+        if month_start >= PROGRAM_END_MONTH_START:
+            raise ValueError(f"Cannot create allocation for {PROGRAM_END_MONTH_START.strftime('%B %Y')} or beyond.")
 
         # Check if child has payment enabled
         child_results = Child.select_by_id(cols(Child.PAYMENT_ENABLED), int(child_id)).execute()

@@ -4,13 +4,14 @@ from datetime import date
 from flask import current_app
 
 from app import create_app
+from app.constants import ATTENDANCE_CUTOFF_DATE
 from app.extensions import db
 from app.models import Attendance
 from app.models.allocated_care_day import AllocatedCareDay
 from app.supabase.columns import ProviderType, Status
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child, Family, Provider
-from app.utils.date_utils import get_relative_week, get_week_range
+from app.utils.date_utils import get_business_today, get_relative_week, get_week_range
 
 
 def create_child_provider_attendance(
@@ -44,6 +45,12 @@ def create_child_provider_attendance(
 
 
 def create_attendance(dry_run=False):
+    # Short-circuit once the program-end attendance cutoff has passed so a
+    # manual rerun in the July 7-12 window doesn't iterate every child/provider.
+    if get_business_today() >= ATTENDANCE_CUTOFF_DATE:
+        current_app.logger.info(f"No attendance records will be created on/after {ATTENDANCE_CUTOFF_DATE.isoformat()}.")
+        return
+
     current_app.logger.info("create_attendance: Starting attendance creation...")
 
     children_result = (
@@ -68,7 +75,7 @@ def create_attendance(dry_run=False):
     )
     children = unwrap_or_error(children_result)
 
-    last_week_date = get_relative_week(-1)
+    last_week_date = get_relative_week(-1, get_business_today())
     last_week_range = get_week_range(last_week_date)
 
     attendances: list[Attendance] = []

@@ -9,10 +9,13 @@ def get_month_start(date: date) -> date:
     return date.replace(day=1)
 
 
-def get_current_month_start() -> date:
+def get_business_today() -> date:
     business_tz = zoneinfo.ZoneInfo(BUSINESS_TIMEZONE)
-    now_business = datetime.now(business_tz)
-    return get_month_start(now_business.date())
+    return datetime.now(business_tz).date()
+
+
+def get_current_month_start() -> date:
+    return get_month_start(get_business_today())
 
 
 def get_next_month_start() -> date:

@@ -1,3 +1,5 @@
+from datetime import date
+
 # --- Environment Constants ---
 ENV_DEVELOPMENT = "development"
 ENV_STAGING = "staging"
@@ -7,6 +9,13 @@ ENV_TESTING = "testing"
 
 # --- Business Logic Constants ---
 BUSINESS_TIMEZONE = "America/Denver"  # Mountain Time for care day locking and business rules
+
+# --- Program End Cutoffs ---
+# First month with no new MonthAllocations and no payment/invite reminders.
+PROGRAM_END_MONTH_START = date(2026, 7, 1)
+# After this date, attendance creation and attendance communications stop. The
+# first week of July (June 29 - July 5) is still attendance-eligible.
+ATTENDANCE_CUTOFF_DATE = date(2026, 7, 7)
 
 # --- Payment Processing Constants ---
 MAX_PAYMENT_AMOUNT_CENTS = 140000  # $1400 maximum per transaction
