@@ -273,7 +273,7 @@ class ProviderAttendanceMessages(AttendanceMessages):
 
 
 def send_attendance_communications(send_to_families=False, send_to_providers=False, dry_run=False):
-    # Past July 1st 2026, we will no longer send attendance communications
+    # Past July 7th 2026, we will no longer send attendance communications
     if date.today() >= date(2026, 7, 7):
         current_app.logger.info("No attendance communications will be sent after July 7th, 2026.")
         return
