@@ -11,6 +11,7 @@ from app.services.payment.utils import format_phone_to_e164
 from app.supabase.columns import Language, ProviderType
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child, Family, Guardian, Provider
+from app.utils.date_utils import get_business_today
 from app.utils.email.config import get_from_email_external
 from app.utils.email.core import (
     BulkEmailData,
@@ -274,7 +275,7 @@ class ProviderAttendanceMessages(AttendanceMessages):
 
 def send_attendance_communications(send_to_families=False, send_to_providers=False, dry_run=False):
     # Past July 7th 2026, we will no longer send attendance communications
-    if date.today() >= date(2026, 7, 7):
+    if get_business_today() >= date(2026, 7, 7):
         current_app.logger.info("No attendance communications will be sent after July 7th, 2026.")
         return
 

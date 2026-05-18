@@ -11,6 +11,7 @@ from app.services.payment.utils import format_phone_to_e164
 from app.supabase.columns import Language, Status
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child, Family, Guardian, Provider
+from app.utils.date_utils import get_business_today
 from app.utils.email.config import get_from_email_external
 from app.utils.email.core import BulkEmailData, bulk_send_emails
 from app.utils.email.senders import html_link
@@ -60,7 +61,7 @@ def message(family_name: str, default_child_id: str, language: Language):
 
 def send_invite_reminders(dry_run=False):
     # Past July 1st 2026, we will no longer send invite reminders
-    if date.today() >= date(2026, 7, 1):
+    if get_business_today() >= date(2026, 7, 1):
         current_app.logger.info("No invite reminders will be sent after July 1st, 2026.")
         return
 

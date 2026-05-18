@@ -10,7 +10,7 @@ from app.models.allocated_care_day import AllocatedCareDay
 from app.supabase.columns import ProviderType, Status
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child, Family, Provider
-from app.utils.date_utils import get_relative_week, get_week_range
+from app.utils.date_utils import get_business_today, get_relative_week, get_week_range
 
 
 def create_child_provider_attendance(
@@ -27,7 +27,7 @@ def create_child_provider_attendance(
         return
 
     # Do not RUN create attendance past July 7th, 2026
-    if date.today() >= date(2026, 7, 7):
+    if get_business_today() >= date(2026, 7, 7):
         current_app.logger.info("No attendance records will be created after July 7th, 2026.")
         return
 
@@ -73,7 +73,7 @@ def create_attendance(dry_run=False):
     )
     children = unwrap_or_error(children_result)
 
-    last_week_date = get_relative_week(-1)
+    last_week_date = get_relative_week(-1, get_business_today())
     last_week_range = get_week_range(last_week_date)
 
     # Do not create attendance past July 1st, 2026

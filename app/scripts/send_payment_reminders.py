@@ -11,7 +11,7 @@ from app.models.month_allocation import MonthAllocation
 from app.supabase.columns import Language, ProviderType, Status
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child, Family, Guardian, Provider
-from app.utils.date_utils import get_relative_week, get_week_range
+from app.utils.date_utils import get_business_today, get_relative_week, get_week_range
 from app.utils.email.config import get_from_email_external
 from app.utils.email.core import BulkEmailData, bulk_send_emails
 from app.utils.email.senders import html_link
@@ -105,7 +105,9 @@ def should_send_reminder(child: dict, week_range: tuple[date, date]):
 
 
 def send_payment_reminders(dry_run=False):
-    next_week_range = get_week_range(get_relative_week(1))
+    # Anchor on business-timezone "today" so the cutoff flips at midnight Mountain
+    # Time regardless of the host's local timezone.
+    next_week_range = get_week_range(get_relative_week(1, get_business_today()))
     _, next_week_end = next_week_range
 
     # July 2026 allocations are not created, so a reminder for a week whose
