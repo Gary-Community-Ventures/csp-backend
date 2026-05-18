@@ -173,6 +173,11 @@ class AllocationService:
 
         self.app.logger.info(f"Processing allocation for {child_name} ({child_id}) for {target_month}")
 
+        # If July 2026 or later, skip allocation creation
+        if target_month >= date(2026, 7, 1):
+            self.app.logger.info(f"Skipping allocation for {child_name} ({child_id}) for {target_month} (after cutoff)")
+            return ("skipped", None, None)
+
         # Validate child ID
         if not child_id:
             error_msg = f"Missing ID for child: {child_name}"

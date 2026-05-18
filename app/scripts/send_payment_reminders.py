@@ -105,6 +105,11 @@ def should_send_reminder(child: dict, week_range: tuple[date, date]):
 
 
 def send_payment_reminders(dry_run=False):
+    # Past July 1st 2026, we will no longer send payment reminders
+    if date.today() >= date(2026, 7, 1):
+        current_app.logger.info("No payment reminders will be sent after July 1st, 2026.")
+        return
+
     family_result = (
         Family.query()
         .select(

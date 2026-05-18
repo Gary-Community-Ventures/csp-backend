@@ -1,6 +1,6 @@
 import argparse
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 
 from flask import current_app
 
@@ -59,6 +59,11 @@ def message(family_name: str, default_child_id: str, language: Language):
 
 
 def send_invite_reminders(dry_run=False):
+    # Past July 1st 2026, we will no longer send invite reminders
+    if date.today() >= date(2026, 7, 1):
+        current_app.logger.info("No invite reminders will be sent after July 1st, 2026.")
+        return
+
     family_result = (
         Family.query()
         .select(

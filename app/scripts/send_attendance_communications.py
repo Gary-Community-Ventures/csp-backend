@@ -1,6 +1,6 @@
 import argparse
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from flask import current_app
 
@@ -273,6 +273,11 @@ class ProviderAttendanceMessages(AttendanceMessages):
 
 
 def send_attendance_communications(send_to_families=False, send_to_providers=False, dry_run=False):
+    # Past July 1st 2026, we will no longer send attendance communications
+    if date.today() >= date(2026, 7, 7):
+        current_app.logger.info("No attendance communications will be sent after July 7th, 2026.")
+        return
+
     current_app.logger.info("create_attendance: Starting attendance creation...")
     bulk_emails: list[BulkEmailData] = []
     bulk_text_messages: list[BulkSmsData] = []

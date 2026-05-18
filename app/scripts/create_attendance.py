@@ -26,6 +26,11 @@ def create_child_provider_attendance(
     if not Provider.PAYMENT_ENABLED(provider):
         return
 
+    # Do not create attendance past July 7th, 2026
+    if date.today() >= date(2026, 7, 7):
+        current_app.logger.info("No attendance records will be created after July 7th, 2026.")
+        return
+
     if Provider.TYPE(provider) != ProviderType.CENTER:
         # NOTE: don't create attendance for providers that are not scheduled
         week_start, week_end = last_week_range
@@ -70,6 +75,11 @@ def create_attendance(dry_run=False):
 
     last_week_date = get_relative_week(-1)
     last_week_range = get_week_range(last_week_date)
+
+    # Do not create attendance past July 7th, 2026
+    if last_week_date >= date(2026, 7, 7):
+        current_app.logger.info("No attendance records will be created after July 7th, 2026.")
+        return
 
     attendances: list[Attendance] = []
     for child in children:

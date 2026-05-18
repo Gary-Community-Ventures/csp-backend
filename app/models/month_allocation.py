@@ -1,4 +1,5 @@
 from datetime import timedelta
+from datetime import date
 from typing import Optional
 
 import sentry_sdk
@@ -233,6 +234,10 @@ class MonthAllocation(db.Model, TimestampMixin):
         next_month_start = get_next_month_start()
         if month_start > next_month_start:
             raise ValueError(f"Cannot create allocation for a month more than one month in the future.")
+
+        # Prevent creating allocations for July 2026 and beyond
+        if month_start >= date(2026, 7, 1):
+            raise ValueError(f"Cannot create allocation for July 2026 or beyond.")
 
         # Check if child has payment enabled
         child_results = Child.select_by_id(cols(Child.PAYMENT_ENABLED), int(child_id)).execute()
