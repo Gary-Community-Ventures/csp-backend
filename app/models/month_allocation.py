@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import timedelta
 from typing import Optional
 
 import sentry_sdk
