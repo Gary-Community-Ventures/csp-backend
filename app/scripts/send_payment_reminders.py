@@ -78,7 +78,12 @@ def should_send_reminder(child: dict, week_range: tuple[date, date]):
         return False
 
     week_start, week_end = week_range
-    month_allocation = MonthAllocation.get_for_month(Child.ID(child), week_end)
+    # Look up by week_start so a cross-month week (e.g., Jun 29 - Jul 5) anchors
+    # on the start month's allocation, which is the one that covers the still-
+    # payable days when the end month is past the program cutoff.
+    month_allocation = MonthAllocation.get_for_month(Child.ID(child), week_start)
+    if month_allocation is None:
+        return False
 
     has_payable_provider = False
     providers = Provider.unwrap(child)
@@ -109,14 +114,14 @@ def send_payment_reminders(dry_run=False):
     # Anchor on business-timezone "today" so the cutoff flips at midnight Mountain
     # Time regardless of the host's local timezone.
     next_week_range = get_week_range(get_relative_week(1, get_business_today()))
-    _, next_week_end = next_week_range
+    next_week_start, _ = next_week_range
 
-    # If the next week's allocation month is past the program-end cutoff, there
-    # is nothing to pay against. This also catches the late-June Friday run whose
-    # next-week range crosses into the cutoff month.
-    if next_week_end.replace(day=1) >= PROGRAM_END_MONTH_START:
+    # Skip only when next week's start month is past the program-end cutoff. A
+    # cross-month week (e.g., Jun 29 - Jul 5) still runs so families get reminded
+    # about the start-month days that remain payable.
+    if next_week_start.replace(day=1) >= PROGRAM_END_MONTH_START:
         current_app.logger.info(
-            f"No payment reminders will be sent for week ending {next_week_end.isoformat()} "
+            f"No payment reminders will be sent for week starting {next_week_start.isoformat()} "
             f"(no allocations on/after {PROGRAM_END_MONTH_START.isoformat()})."
         )
         return
