@@ -5,12 +5,14 @@ from datetime import datetime, timezone
 from flask import current_app
 
 from app import create_app
+from app.constants import ATTENDANCE_CUTOFF_DATE
 from app.enums.email_type import EmailType
 from app.models.attendance import Attendance
 from app.services.payment.utils import format_phone_to_e164
 from app.supabase.columns import Language, ProviderType
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child, Family, Guardian, Provider
+from app.utils.date_utils import get_business_today
 from app.utils.email.config import get_from_email_external
 from app.utils.email.core import (
     BulkEmailData,
@@ -273,6 +275,13 @@ class ProviderAttendanceMessages(AttendanceMessages):
 
 
 def send_attendance_communications(send_to_families=False, send_to_providers=False, dry_run=False):
+    # Past the attendance cutoff, we will no longer send attendance communications.
+    if get_business_today() >= ATTENDANCE_CUTOFF_DATE:
+        current_app.logger.info(
+            f"No attendance communications will be sent on/after {ATTENDANCE_CUTOFF_DATE.isoformat()}."
+        )
+        return
+
     current_app.logger.info("create_attendance: Starting attendance creation...")
     bulk_emails: list[BulkEmailData] = []
     bulk_text_messages: list[BulkSmsData] = []

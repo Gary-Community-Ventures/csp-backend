@@ -5,13 +5,14 @@ from datetime import date, datetime, timezone
 from flask import current_app
 
 from app import create_app
+from app.constants import PROGRAM_END_MONTH_START
 from app.enums.email_type import EmailType
 from app.models.allocated_care_day import AllocatedCareDay
 from app.models.month_allocation import MonthAllocation
 from app.supabase.columns import Language, ProviderType, Status
 from app.supabase.helpers import cols, unwrap_or_error
 from app.supabase.tables import Child, Family, Guardian, Provider
-from app.utils.date_utils import get_relative_week, get_week_range
+from app.utils.date_utils import get_business_today, get_relative_week, get_week_range
 from app.utils.email.config import get_from_email_external
 from app.utils.email.core import BulkEmailData, bulk_send_emails
 from app.utils.email.senders import html_link
@@ -77,7 +78,12 @@ def should_send_reminder(child: dict, week_range: tuple[date, date]):
         return False
 
     week_start, week_end = week_range
-    month_allocation = MonthAllocation.get_for_month(Child.ID(child), week_end)
+    # Look up by week_start so a cross-month week (e.g., Jun 29 - Jul 5) anchors
+    # on the start month's allocation, which is the one that covers the still-
+    # payable days when the end month is past the program cutoff.
+    month_allocation = MonthAllocation.get_for_month(Child.ID(child), week_start)
+    if month_allocation is None:
+        return False
 
     has_payable_provider = False
     providers = Provider.unwrap(child)
@@ -105,6 +111,21 @@ def should_send_reminder(child: dict, week_range: tuple[date, date]):
 
 
 def send_payment_reminders(dry_run=False):
+    # Anchor on business-timezone "today" so the cutoff flips at midnight Mountain
+    # Time regardless of the host's local timezone.
+    next_week_range = get_week_range(get_relative_week(1, get_business_today()))
+    next_week_start, _ = next_week_range
+
+    # Skip only when next week's start month is past the program-end cutoff. A
+    # cross-month week (e.g., Jun 29 - Jul 5) still runs so families get reminded
+    # about the start-month days that remain payable.
+    if next_week_start.replace(day=1) >= PROGRAM_END_MONTH_START:
+        current_app.logger.info(
+            f"No payment reminders will be sent for week starting {next_week_start.isoformat()} "
+            f"(no allocations on/after {PROGRAM_END_MONTH_START.isoformat()})."
+        )
+        return
+
     family_result = (
         Family.query()
         .select(
@@ -133,8 +154,6 @@ def send_payment_reminders(dry_run=False):
         .execute()
     )
     families = unwrap_or_error(family_result)
-
-    next_week_range = get_week_range(get_relative_week(1))
 
     emails: list[BulkEmailData] = []
     sms: list[BulkSmsData] = []
