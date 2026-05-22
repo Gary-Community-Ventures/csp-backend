@@ -68,7 +68,7 @@ def create_allocations_for_month(target_month: date, dry_run: bool = False) -> d
                 else:
                     print(f"✅ {child_name} ({child_id}) - Created{amount_str}")
             elif status == "skipped":
-                print(f"⏭️  {child_name} ({child_id}) - Already exists")
+                print(f"⏭️  {child_name} ({child_id}) - Skipped")
             elif status == "error":
                 print(f"❌ {child_name} ({child_id}) - Failed")
 

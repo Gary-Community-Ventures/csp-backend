@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime, timezone
 
 from app.supabase.columns import ProviderType
-from app.utils.date_utils import get_relative_week
+from app.utils.date_utils import get_business_today, get_relative_week
 
 from ..extensions import db
 from .mixins import TimestampMixin
@@ -104,7 +104,7 @@ class Attendance(db.Model, TimestampMixin):
             & cls.family_entered_hours.is_(None)  # NOTE: so old attendance doesn't show up
         )
 
-        before_date = get_relative_week(-1)
+        before_date = get_relative_week(-1, get_business_today())
 
         provider_attendance_is_due = (
             cls.provider_entered_full_days.is_(None)
