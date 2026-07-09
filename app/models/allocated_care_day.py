@@ -7,6 +7,8 @@ from typing import Optional
 
 from ..constants import BUSINESS_TIMEZONE
 from ..enums.care_day_type import CareDayType
+from sqlalchemy.exc import IntegrityError
+
 from ..extensions import db
 from ..utils.date_utils import get_relative_week
 from .mixins import TimestampMixin
@@ -217,7 +219,7 @@ class AllocatedCareDay(db.Model, TimestampMixin):
         ).first()
 
         if existing and not existing.is_deleted:
-            raise ValueError("Care day already exists for this date")
+            return existing
 
         care_day_cost, amount_missing_cents = get_care_day_cost(
             day_type,
@@ -253,7 +255,19 @@ class AllocatedCareDay(db.Model, TimestampMixin):
             raise ValueError("Cannot create a care day that would be locked.")
 
         db.session.add(care_day)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            # Race condition: another request created this care day first
+            existing = AllocatedCareDay.query.filter_by(
+                care_month_allocation_id=allocation.id,
+                date=care_date,
+                provider_supabase_id=provider_id,
+            ).first()
+            if existing and not existing.is_deleted:
+                return existing
+            raise ValueError("Care day already exists for this date")
         return care_day
 
     def to_dict(self):
